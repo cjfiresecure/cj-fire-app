@@ -589,7 +589,11 @@ async function handleLogin() {
   try {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
       body: JSON.stringify({ email, password: pass })
     });
     const data = await r.json();
@@ -599,9 +603,12 @@ async function handleLogin() {
       currentUser = data.user;
       showApp();
     } else {
-      showError('loginError', 'E-mail ou senha incorretos');
+      showError('loginError', data.error_description || 'E-mail ou senha incorretos');
     }
-  } catch(e) { showError('loginError', 'Erro de conexão'); }
+  } catch(e) {
+    showError('loginError', 'Erro de conexão. Verifique sua internet.');
+    console.error('Login error:', e);
+  }
   document.getElementById('loginBtn').textContent = '🔥 Entrar';
 }
 
@@ -615,17 +622,27 @@ async function handleRegister() {
   try {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
       body: JSON.stringify({ email, password: pass, data: { name, role } })
     });
     const data = await r.json();
-    if (data.user || data.id) {
-      showToast('✅ Conta criada! Faça login.', 'success');
+    if (data.id || (data.user && data.user.id)) {
+      showToast('✅ Conta criada! Fazendo login...', 'success');
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPassword').value = pass;
       showLogin();
+      setTimeout(() => handleLogin(), 1000);
     } else {
-      showError('regError', data.msg || 'Erro ao criar conta');
+      showError('regError', data.msg || data.error_description || 'Erro ao criar conta');
     }
-  } catch(e) { showError('regError', 'Erro de conexão'); }
+  } catch(e) {
+    showError('regError', 'Erro de conexão. Verifique sua internet.');
+    console.error('Register error:', e);
+  }
 }
 
 function handleLogout() {
