@@ -1336,12 +1336,12 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // INIT
 // ============================================================
 window.addEventListener('load', () => {
-  const token = localStorage.getItem('cj_token');
-  const user = localStorage.getItem('cj_user');
-  if (token && user) {
-    currentUser = JSON.parse(user);
-    showApp();
-  }
+  // Vai direto para o app sem precisar de login
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('registerScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('homeUserName').textContent = 'Caio Vinícius';
+  loadHomeData();
   setDate();
 });
 </script>
