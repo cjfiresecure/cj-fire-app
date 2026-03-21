@@ -1,1 +1,1350 @@
-# cj-fire-app
+[cj-firesecure-app-1.html](https://github.com/user-attachments/files/26155336/cj-firesecure-app-1.html)
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>CJ Fire App</title>
+  <meta name="theme-color" content="#e8210a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #0f1117; --card: #1a1d27; --border: #2a2d3e;
+      --primary: #e8210a; --primary-glow: #e8210a33;
+      --secondary: #f0a500; --success: #22c55e;
+      --warning: #f59e0b; --danger: #ef4444;
+      --text: #f1f5f9; --sub: #94a3b8; --muted: #6b7280;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; overflow-x: hidden; }
+    .screen { display: none; padding: 16px 16px 80px; min-height: calc(100vh - 60px); animation: fadeIn 0.2s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Bottom Nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #12151f; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0 12px; z-index: 100; }
+    .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; padding: 6px 12px; border-radius: 10px; transition: all 0.2s; }
+    .nav-btn.active { background: var(--primary-glow); }
+    .nav-btn span.icon { font-size: 20px; }
+    .nav-btn span.label { color: var(--muted); font-size: 10px; font-weight: 500; }
+    .nav-btn.active span.label { color: var(--primary); font-weight: 700; }
+
+    /* Header */
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .page-title { font-size: 20px; font-weight: 800; }
+    .page-sub { color: var(--sub); font-size: 12px; margin-top: 2px; }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+    .card.danger-border { border-color: #ef444455; }
+    .card.warning-border { border-color: #f59e0b55; }
+    .card.success-border { border-color: #22c55e55; }
+
+    /* Buttons */
+    .btn { border: none; border-radius: 12px; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: var(--card); color: var(--sub); border: 1px solid var(--border); }
+    .btn-success { background: #22c55e22; color: var(--success); border: 1px solid #22c55e44; }
+    .btn-sm { padding: 7px 12px; font-size: 12px; border-radius: 8px; width: auto; }
+    .btn-gradient { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; }
+
+    /* Inputs */
+    .input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .input:focus { border-color: var(--primary); }
+    .input.success { border-color: var(--success); }
+    .input.error { border-color: var(--danger); }
+    .label { color: var(--sub); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; display: block; }
+    .field { margin-bottom: 12px; }
+    textarea.input { resize: none; height: 80px; }
+
+    /* Badge */
+    .badge { border-radius: 20px; padding: 3px 10px; font-size: 10px; font-weight: 700; display: inline-block; }
+    .badge-success { background: #22c55e22; color: var(--success); }
+    .badge-warning { background: #f59e0b22; color: var(--warning); }
+    .badge-danger { background: #ef444422; color: var(--danger); }
+    .badge-primary { background: var(--primary-glow); color: var(--primary); }
+    .badge-secondary { background: #f0a50022; color: var(--secondary); }
+    .badge-muted { background: #ffffff15; color: var(--muted); }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: #000000cc; z-index: 200; display: none; align-items: flex-end; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--bg); border-radius: 24px 24px 0 0; width: 100%; max-width: 500px; max-height: 92vh; overflow-y: auto; padding: 24px 20px 36px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 17px; font-weight: 800; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; }
+
+    /* Stats grid */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+    .stat-value { font-size: 26px; font-weight: 800; margin-top: 4px; }
+    .stat-label { color: var(--sub); font-size: 11px; margin-top: 2px; }
+
+    /* Quick access */
+    .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .quick-btn { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; transition: all 0.2s; }
+    .quick-btn:hover { border-color: var(--primary); background: var(--primary-glow); }
+    .quick-btn span.icon { font-size: 22px; }
+    .quick-btn span.label { color: var(--sub); font-size: 10px; font-weight: 600; }
+
+    /* Alert banner */
+    .alert-banner { border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .alert-warning { background: #f59e0b18; border: 1px solid #f59e0b44; }
+    .alert-danger { background: #ef444418; border: 1px solid #ef444444; }
+    .alert-success { background: #22c55e18; border: 1px solid #22c55e44; }
+    .alert-info { background: var(--primary-glow); border: 1px solid var(--primary)44; }
+
+    /* Row */
+    .row { display: flex; gap: 8px; }
+    .row .btn { flex: 1; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: var(--sub); }
+    .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Hero */
+    .hero { background: linear-gradient(135deg, #1a0a04 0%, #2d1008 50%, #1a0a04 100%); border-bottom: 1px solid var(--primary-glow); padding: 20px 16px 18px; margin: -16px -16px 16px; position: relative; overflow: hidden; }
+    .hero::after { content: ''; position: absolute; top: -20px; right: -20px; width: 120px; height: 120px; background: var(--primary-glow); border-radius: 50%; filter: blur(40px); }
+
+    /* Chip tags */
+    .chip { background: #ffffff10; color: var(--sub); border-radius: 6px; padding: 3px 8px; font-size: 10px; display: inline-block; margin: 2px; }
+    .chip-primary { background: var(--primary-glow); color: var(--primary); }
+
+    /* Before/After */
+    .photo-box { flex: 1; border-radius: 12px; padding: 14px 10px; text-align: center; cursor: pointer; border: 2px dashed var(--border); background: var(--card); transition: all 0.3s; }
+    .photo-box.captured-before { border-color: var(--danger); background: #ef444418; border-style: solid; }
+    .photo-box.captured-after { border-color: var(--success); background: #22c55e18; border-style: solid; }
+    .photo-box .photo-icon { font-size: 32px; }
+    .photo-box .photo-label { font-size: 11px; font-weight: 700; margin-top: 6px; }
+    .photo-box .photo-hint { font-size: 9px; color: var(--sub); margin-top: 3px; }
+
+    /* Step bar */
+    .step-bar { display: flex; gap: 6px; margin-bottom: 20px; }
+    .step-item { flex: 1; }
+    .step-line { height: 4px; border-radius: 4px; margin-bottom: 4px; transition: background 0.3s; }
+    .step-line.done { background: var(--primary); }
+    .step-line.pending { background: var(--border); }
+    .step-name { font-size: 9px; text-align: center; color: var(--sub); }
+    .step-name.active { color: var(--primary); font-weight: 700; }
+
+    /* CNPJ status */
+    .cnpj-wrap { position: relative; }
+    .cnpj-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; }
+    .cnpj-hint { font-size: 11px; margin-top: 4px; }
+
+    /* Login */
+    .login-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; background: var(--bg); }
+    .login-logo { font-size: 70px; margin-bottom: 8px; }
+    .login-title { font-size: 22px; font-weight: 900; color: var(--primary); letter-spacing: 1px; }
+    .login-sub { color: var(--sub); font-size: 13px; margin-bottom: 32px; margin-top: 4px; }
+    .login-form { width: 100%; max-width: 360px; }
+
+    /* Toast */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 13px; font-weight: 600; z-index: 999; display: none; white-space: nowrap; box-shadow: 0 8px 30px #00000066; }
+    .toast.success { border-color: var(--success); color: var(--success); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+    .toast.show { display: block; animation: toastIn 0.3s ease; }
+    @keyframes toastIn { from { opacity: 0; top: 0; } to { opacity: 1; top: 20px; } }
+
+    /* Divider */
+    .divider { display: flex; align-items: center; gap: 8px; margin: 14px 0 10px; }
+    .divider-line { flex: 1; height: 1px; background: var(--primary-glow); }
+    .divider-text { color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    /* Menu grid */
+    .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .menu-item { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px 14px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: all 0.2s; text-align: left; }
+    .menu-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .menu-label { font-size: 13px; font-weight: 700; color: var(--text); }
+    .menu-desc { font-size: 10px; color: var(--sub); }
+
+    /* Notification bell */
+    .bell-wrap { position: relative; display: inline-block; }
+    .bell-badge { position: absolute; top: -4px; right: -4px; background: var(--danger); color: #fff; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+
+    /* Toggle */
+    .toggle { width: 44px; height: 24px; border-radius: 12px; background: var(--success); display: flex; align-items: center; padding: 0 3px; cursor: pointer; justify-content: flex-end; }
+    .toggle-knob { width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+
+    /* Progress bar */
+    .progress-bar { background: #ffffff15; border-radius: 4px; height: 4px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
+
+    /* Category tabs */
+    .filter-tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+    .filter-tab { background: var(--card); color: var(--sub); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .filter-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Separator */
+    .sep { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+    /* Summary bar */
+    .summary-bar { background: linear-gradient(135deg, #1a0a04, #2d1008); border-bottom: 1px solid var(--primary-glow); padding: 14px 16px; margin: -16px -16px 16px; }
+  </style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-logo">🦅</div>
+  <div class="login-title">CJ FIRE APP</div>
+  <div class="login-sub">CJ FireSecure Ltda</div>
+  <div class="login-form">
+    <div class="field">
+      <label class="label">E-mail</label>
+      <input class="input" id="loginEmail" type="email" placeholder="seu@email.com" />
+    </div>
+    <div class="field">
+      <label class="label">Senha</label>
+      <input class="input" id="loginPassword" type="password" placeholder="••••••••" />
+    </div>
+    <div id="loginError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none;"></div>
+    <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()">🔥 Entrar</button>
+    <div style="text-align:center;margin-top:14px;">
+      <span style="color:var(--sub);font-size:12px;">Não tem conta? </span>
+      <span style="color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;" onclick="showRegister()">Criar conta</span>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER SCREEN -->
+<div id="registerScreen" style="display:none;" class="login-screen">
+  <div class="login-logo">🦅</div>
+  <div class="login-title">CRIAR CONTA</div>
+  <div class="login-sub">CJ FireSecure Ltda</div>
+  <div class="login-form">
+    <div class="field">
+      <label class="label">Nome completo</label>
+      <input class="input" id="regName" type="text" placeholder="Ex: Caio Vinícius" />
+    </div>
+    <div class="field">
+      <label class="label">E-mail</label>
+      <input class="input" id="regEmail" type="email" placeholder="seu@email.com" />
+    </div>
+    <div class="field">
+      <label class="label">Senha</label>
+      <input class="input" id="regPassword" type="password" placeholder="mínimo 6 caracteres" />
+    </div>
+    <div class="field">
+      <label class="label">Perfil</label>
+      <select class="input" id="regRole">
+        <option value="gestor">Gestor (dono)</option>
+        <option value="tecnico">Técnico</option>
+      </select>
+    </div>
+    <div id="regError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none;"></div>
+    <button class="btn btn-primary" onclick="handleRegister()">✓ Criar conta</button>
+    <div style="text-align:center;margin-top:14px;">
+      <span style="color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;" onclick="showLogin()">← Voltar ao login</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;">
+
+  <!-- SCREEN: HOME -->
+  <div id="screen-home" class="screen active">
+    <div class="hero">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:28px;">🦅</span>
+        <div>
+          <div style="color:var(--primary);font-weight:900;font-size:14px;letter-spacing:1px;">CJ FIRE APP</div>
+          <div style="color:var(--sub);font-size:10px;">CJ FireSecure Ltda</div>
+        </div>
+        <div style="margin-left:auto;" onclick="navigate('notifications')">
+          <div class="bell-wrap">
+            <span style="font-size:20px;">🔔</span>
+            <div class="bell-badge">2</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:18px;font-weight:700;">Olá, <span id="homeUserName">Gestor</span> 👋</div>
+      <div style="color:var(--sub);font-size:12px;margin-top:3px;" id="homeDate"></div>
+      <div class="alert-banner alert-warning" style="margin-top:14px;margin-bottom:0;">
+        <span style="font-size:18px;">⚠️</span>
+        <div>
+          <div style="color:var(--warning);font-weight:600;font-size:13px;">Clientes com vencimento próximo</div>
+          <div style="color:var(--sub);font-size:11px;margin-top:2px;" id="homeAlertText">Verificando...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="homeStats">
+      <div class="stat-card"><div style="font-size:22px;">👥</div><div class="stat-value" style="color:var(--primary);" id="statClients">—</div><div class="stat-label">Clientes Ativos</div></div>
+      <div class="stat-card"><div style="font-size:22px;">📋</div><div class="stat-value" style="color:var(--secondary);" id="statOrders">—</div><div class="stat-label">Pedidos</div></div>
+      <div class="stat-card"><div style="font-size:22px;">💰</div><div class="stat-value" style="color:var(--success);" id="statBilling">—</div><div class="stat-label">A Receber</div></div>
+      <div class="stat-card"><div style="font-size:22px;">📦</div><div class="stat-value" style="color:var(--danger);" id="statStock">—</div><div class="stat-label">Itens em Falta</div></div>
+    </div>
+
+    <div class="divider"><div class="divider-line"></div><div class="divider-text">Acesso Rápido</div><div class="divider-line"></div></div>
+    <div class="quick-grid" style="margin-bottom:16px;">
+      <div class="quick-btn" onclick="navigate('clients')"><span class="icon">👥</span><span class="label">Clientes</span></div>
+      <div class="quick-btn" onclick="navigate('orders')"><span class="icon">📋</span><span class="label">Pedidos</span></div>
+      <div class="quick-btn" onclick="navigate('reports')"><span class="icon">📄</span><span class="label">Laudos</span></div>
+      <div class="quick-btn" onclick="navigate('billing')"><span class="icon">💰</span><span class="label">Cobranças</span></div>
+    </div>
+
+    <div class="divider"><div class="divider-line"></div><div class="divider-text">Últimos Clientes</div><div class="divider-line"></div></div>
+    <div id="homeRecentClients"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+  </div>
+
+  <!-- SCREEN: CLIENTS -->
+  <div id="screen-clients" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Clientes</div><div class="page-sub" id="clientCount">Carregando...</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openClientForm()">+ Novo</button>
+    </div>
+    <input class="input" id="clientSearch" placeholder="🔍  Buscar cliente ou CNPJ..." oninput="filterClients()" style="margin-bottom:12px;" />
+    <div id="clientsList"><div class="loading"><div class="spinner"></div><div>Carregando clientes...</div></div></div>
+  </div>
+
+  <!-- SCREEN: ORDERS -->
+  <div id="screen-orders" class="screen">
+    <div class="summary-bar">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Resumo</div>
+          <div style="font-size:13px;margin-top:4px;"><span style="color:var(--success);font-weight:700;" id="ordersCountPedido">0 pedidos</span> · <span style="color:var(--sub);">R$ </span><span style="color:var(--success);font-weight:700;" id="ordersTotalPedido">0,00</span></div>
+          <div style="font-size:13px;margin-top:2px;"><span style="color:var(--secondary);font-weight:700;" id="ordersCountOrc">0 orçamentos</span> · <span style="color:var(--sub);">R$ </span><span style="color:var(--secondary);font-weight:700;" id="ordersTotalOrc">0,00</span></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openOrderForm()">+ Novo</button>
+      </div>
+    </div>
+    <input class="input" id="orderSearch" placeholder="🔍  Buscar por cliente ou número..." oninput="filterOrders()" style="margin-bottom:10px;" />
+    <div class="filter-tabs">
+      <div class="filter-tab active" onclick="setOrderFilter('Todos',this)">Todos</div>
+      <div class="filter-tab" onclick="setOrderFilter('Pedido',this)">Pedido</div>
+      <div class="filter-tab" onclick="setOrderFilter('Orçamento',this)">Orçamento</div>
+    </div>
+    <div id="ordersList"><div class="loading"><div class="spinner"></div><div>Carregando pedidos...</div></div></div>
+  </div>
+
+  <!-- SCREEN: REPORTS -->
+  <div id="screen-reports" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Laudos</div><div class="page-sub">Com fotos antes e depois</div></div>
+      <button class="btn btn-gradient btn-sm" onclick="openReportForm()">🔥 Novo</button>
+    </div>
+    <div id="reportsList"><div class="loading"><div class="spinner"></div><div>Carregando laudos...</div></div></div>
+  </div>
+
+  <!-- SCREEN: MENU -->
+  <div id="screen-menu" class="screen">
+    <div class="page-header"><div class="page-title">Menu</div></div>
+    <div class="menu-grid">
+      <button class="menu-item" onclick="navigate('stock')"><div class="menu-icon" style="background:#f9731618;">📦</div><div class="menu-label">Estoque</div><div class="menu-desc">Peças e materiais</div></button>
+      <button class="menu-item" onclick="navigate('billing')"><div class="menu-icon" style="background:#22c55e18;">💰</div><div class="menu-label">Cobranças</div><div class="menu-desc">Pagamentos</div></button>
+      <button class="menu-item" onclick="navigate('notifications')"><div class="menu-icon" style="background:#f59e0b18;">🔔</div><div class="menu-label">Alertas</div><div class="menu-desc">Vencimentos</div></button>
+      <button class="menu-item" onclick="navigate('products')"><div class="menu-icon" style="background:var(--primary-glow);">🧯</div><div class="menu-label">Produtos</div><div class="menu-desc">Tabela de preços</div></button>
+      <button class="menu-item" onclick="navigate('suppliers')"><div class="menu-icon" style="background:#8b5cf618;">🏭</div><div class="menu-label">Fornecedores</div><div class="menu-desc">Cadastros</div></button>
+      <button class="menu-item" onclick="navigate('inspections')"><div class="menu-icon" style="background:#3b82f618;">🔍</div><div class="menu-label">Inspeções</div><div class="menu-desc">Visitas técnicas</div></button>
+      <button class="menu-item" onclick="handleLogout()"><div class="menu-icon" style="background:#ef444418;">🚪</div><div class="menu-label">Sair</div><div class="menu-desc">Fazer logout</div></button>
+    </div>
+  </div>
+
+  <!-- SCREEN: STOCK -->
+  <div id="screen-stock" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Estoque</div><div class="page-sub">Peças e materiais</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openStockForm()">+ Entrada</button>
+    </div>
+    <div id="stockList"><div class="loading"><div class="spinner"></div><div>Carregando estoque...</div></div></div>
+  </div>
+
+  <!-- SCREEN: BILLING -->
+  <div id="screen-billing" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Cobranças</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openBillingForm()">+ Nova</button>
+    </div>
+    <div class="stats-grid" style="margin-bottom:14px;">
+      <div class="stat-card"><div style="font-size:18px;">💰</div><div class="stat-value" style="color:var(--secondary);font-size:18px;" id="billingTotal">R$ 0,00</div><div class="stat-label">A Receber</div></div>
+      <div class="stat-card" style="border-color:#ef444444;"><div style="font-size:18px;">🚨</div><div class="stat-value" style="color:var(--danger);font-size:18px;" id="billingOverdue">R$ 0,00</div><div class="stat-label">Vencido</div></div>
+    </div>
+    <div id="billingList"><div class="loading"><div class="spinner"></div><div>Carregando cobranças...</div></div></div>
+  </div>
+
+  <!-- SCREEN: NOTIFICATIONS -->
+  <div id="screen-notifications" class="screen">
+    <div class="page-header"><div><div class="page-title">Alertas</div><div class="page-sub">Vencimentos 30 e 7 dias</div></div></div>
+    <div class="alert-banner alert-success" style="margin-bottom:14px;">
+      <span style="font-size:20px;">📲</span>
+      <div><div style="color:var(--success);font-weight:700;font-size:13px;">WhatsApp Automático Ativo</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Clientes recebem aviso 30 e 7 dias antes do vencimento.</div></div>
+    </div>
+    <div id="notificationsList"><div class="loading"><div class="spinner"></div><div>Carregando alertas...</div></div></div>
+    <div class="card" style="margin-top:14px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:10px;">⚙️ Configuração</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="color:var(--sub);font-size:12px;">30 dias antes</span><div class="toggle"><div class="toggle-knob"></div></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--sub);font-size:12px;">7 dias antes</span><div class="toggle"><div class="toggle-knob"></div></div></div>
+    </div>
+    <div class="card" style="margin-top:10px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">💬 Mensagem automática</div>
+      <div style="background:#25D36618;border:1px solid #25D36633;border-radius:10px;padding:10px 12px;color:#25D366;font-size:12px;font-style:italic;">"Olá! Aqui é a CJ FireSecure 🔥 Seu extintor vence em breve. Entre em contato para agendar a manutenção!"</div>
+    </div>
+  </div>
+
+  <!-- SCREEN: PRODUCTS -->
+  <div id="screen-products" class="screen">
+    <div class="page-header"><div><div class="page-title">Produtos & Serviços</div><div class="page-sub">Toque no valor para editar</div></div><button class="btn btn-primary btn-sm" onclick="openProductForm()">+ Novo</button></div>
+    <input class="input" id="productSearch" placeholder="🔍  Buscar produto..." oninput="filterProducts()" style="margin-bottom:12px;" />
+    <div id="productsList"><div class="loading"><div class="spinner"></div><div>Carregando produtos...</div></div></div>
+  </div>
+
+  <!-- SCREEN: SUPPLIERS -->
+  <div id="screen-suppliers" class="screen">
+    <div class="page-header"><div><div class="page-title">Fornecedores</div><div class="page-sub" id="supplierCount">Carregando...</div></div><button class="btn btn-primary btn-sm" onclick="openSupplierForm()">+ Novo</button></div>
+    <input class="input" id="supplierSearch" placeholder="🔍  Buscar fornecedor..." oninput="filterSuppliers()" style="margin-bottom:12px;" />
+    <div id="suppliersList"><div class="loading"><div class="spinner"></div><div>Carregando fornecedores...</div></div></div>
+  </div>
+
+  <!-- SCREEN: INSPECTIONS -->
+  <div id="screen-inspections" class="screen">
+    <div class="page-header"><div><div class="page-title">Inspeções</div></div><button class="btn btn-primary btn-sm" onclick="openInspectionForm()">+ Nova</button></div>
+    <div id="inspectionsList"><div class="loading"><div class="spinner"></div><div>Carregando inspeções...</div></div></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="navigate('home')" id="nav-home"><span class="icon">🏠</span><span class="label">Início</span></button>
+    <button class="nav-btn" onclick="navigate('clients')" id="nav-clients"><span class="icon">👥</span><span class="label">Clientes</span></button>
+    <button class="nav-btn" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span><span class="label">Pedidos</span></button>
+    <button class="nav-btn" onclick="navigate('reports')" id="nav-reports"><span class="icon">📄</span><span class="label">Laudos</span></button>
+    <button class="nav-btn" onclick="navigate('menu')" id="nav-menu"><span class="icon">☰</span><span class="label">Menu</span></button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+
+<!-- Client Form Modal -->
+<div class="modal-overlay" id="clientFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Novo Cliente</div><button class="modal-close" onclick="closeModal('clientFormModal')">✕</button></div>
+    <div class="field">
+      <label class="label">CNPJ <span style="color:var(--secondary);font-weight:400;text-transform:none;font-size:10px;">— Preenche automático</span></label>
+      <div class="cnpj-wrap">
+        <input class="input" id="clientCnpj" placeholder="00.000.000/0001-00" oninput="handleCnpjInput(this,'client')" maxlength="18" />
+        <span class="cnpj-icon" id="clientCnpjIcon">🔍</span>
+      </div>
+      <div class="cnpj-hint" id="clientCnpjHint"></div>
+    </div>
+    <div class="field"><label class="label">Razão Social</label><input class="input" id="clientName" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Nome Fantasia</label><input class="input" id="clientFantasia" placeholder="Nome comercial" /></div>
+    <div class="field"><label class="label">Responsável</label><input class="input" id="clientContact" placeholder="Nome do contato" /></div>
+    <div class="field"><label class="label">Telefone / WhatsApp</label><input class="input" id="clientPhone" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">E-mail</label><input class="input" id="clientEmail" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Cidade / Estado</label><input class="input" id="clientCity" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Endereço</label><input class="input" id="clientAddress" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Qtd. Equipamentos</label><input class="input" id="clientEquipments" type="number" placeholder="Ex: 8" /></div>
+    <div class="field"><label class="label">Data da Próxima Visita</label><input class="input" id="clientNext" type="date" /></div>
+    <div class="field">
+      <label class="label">Tipo</label>
+      <select class="input" id="clientType">
+        <option>Comércio</option><option>Residencial</option><option>Saúde</option>
+        <option>Educação</option><option>Indústria</option><option>Serviços</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="saveClient()">✓ Cadastrar Cliente</button>
+  </div>
+</div>
+
+<!-- Order Form Modal -->
+<div class="modal-overlay" id="orderFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Novo Pedido</div><button class="modal-close" onclick="closeModal('orderFormModal')">✕</button></div>
+    <div class="field"><label class="label">Cliente</label><input class="input" id="orderClient" placeholder="Nome do cliente" /></div>
+    <div class="field"><label class="label">CNPJ</label><input class="input" id="orderCnpj" placeholder="00.000.000/0001-00" /></div>
+    <div class="field"><label class="label">Tipo</label><select class="input" id="orderType"><option>Pedido</option><option>Orçamento</option></select></div>
+    <div class="field"><label class="label">Valor (R$)</label><input class="input" id="orderValue" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Pagamento</label><select class="input" id="orderPayment"><option>À vista</option><option>30 dias</option><option>60 dias</option><option>Parcelado</option></select></div>
+    <div class="field"><label class="label">Observações</label><textarea class="input" id="orderObs" placeholder="Detalhes do pedido..."></textarea></div>
+    <button class="btn btn-primary" onclick="saveOrder()">✓ Confirmar Pedido</button>
+  </div>
+</div>
+
+<!-- Report Form Modal -->
+<div class="modal-overlay" id="reportFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="reportFormTitle">Novo Laudo</div><button class="modal-close" onclick="closeModal('reportFormModal')">✕</button></div>
+    <div class="step-bar" id="reportStepBar"></div>
+    <div id="reportFormContent"></div>
+  </div>
+</div>
+
+<!-- Supplier Form Modal -->
+<div class="modal-overlay" id="supplierFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Novo Fornecedor</div><button class="modal-close" onclick="closeModal('supplierFormModal')">✕</button></div>
+    <div class="field">
+      <label class="label">CNPJ <span style="color:var(--secondary);font-weight:400;text-transform:none;font-size:10px;">— Preenche automático</span></label>
+      <div class="cnpj-wrap"><input class="input" id="supplierCnpj" placeholder="00.000.000/0001-00" oninput="handleCnpjInput(this,'supplier')" maxlength="18" /><span class="cnpj-icon" id="supplierCnpjIcon">🔍</span></div>
+      <div class="cnpj-hint" id="supplierCnpjHint"></div>
+    </div>
+    <div class="field"><label class="label">Razão Social</label><input class="input" id="supplierName" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Nome do Contato</label><input class="input" id="supplierContact" placeholder="Ex: João Silva" /></div>
+    <div class="field"><label class="label">Telefone</label><input class="input" id="supplierPhone" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">E-mail</label><input class="input" id="supplierEmail" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Cidade / Estado</label><input class="input" id="supplierCity" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Categoria</label><select class="input" id="supplierCategory"><option>Extintores</option><option>Peças e Válvulas</option><option>Sinalização</option><option>Alarme</option><option>Hidrante</option></select></div>
+    <button class="btn btn-primary" onclick="saveSupplier()">✓ Cadastrar Fornecedor</button>
+  </div>
+</div>
+
+<!-- Product Form Modal -->
+<div class="modal-overlay" id="productFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Novo Produto / Serviço</div><button class="modal-close" onclick="closeModal('productFormModal')">✕</button></div>
+    <div class="field"><label class="label">Nome</label><input class="input" id="productName" placeholder="Ex: Recarga Extintor PQS 4kg" /></div>
+    <div class="field"><label class="label">Categoria</label><select class="input" id="productCategory"><option>Extintores</option><option>Sinalização</option><option>Hidrante</option><option>Alarme</option><option>Sprinkler</option></select></div>
+    <div class="field"><label class="label">Preço (R$)</label><input class="input" id="productPrice" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Unidade</label><select class="input" id="productUnit"><option>un</option><option>serv.</option><option>ponto</option><option>m</option></select></div>
+    <button class="btn btn-primary" onclick="saveProduct()">✓ Cadastrar Produto</button>
+  </div>
+</div>
+
+<!-- Stock Form Modal -->
+<div class="modal-overlay" id="stockFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Entrada de Estoque</div><button class="modal-close" onclick="closeModal('stockFormModal')">✕</button></div>
+    <div class="field"><label class="label">Produto / Peça</label><input class="input" id="stockName" placeholder="Ex: Pó Químico ABC 4kg" /></div>
+    <div class="field"><label class="label">Quantidade</label><input class="input" id="stockQty" type="number" placeholder="Ex: 10" /></div>
+    <div class="field"><label class="label">Estoque Mínimo</label><input class="input" id="stockMin" type="number" placeholder="Ex: 5" /></div>
+    <div class="field"><label class="label">Unidade</label><select class="input" id="stockUnit"><option>un</option><option>kg</option><option>m</option><option>L</option></select></div>
+    <button class="btn btn-primary" onclick="saveStock()">✓ Registrar Entrada</button>
+  </div>
+</div>
+
+<!-- Billing Form Modal -->
+<div class="modal-overlay" id="billingFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Nova Cobrança</div><button class="modal-close" onclick="closeModal('billingFormModal')">✕</button></div>
+    <div class="field"><label class="label">Cliente</label><input class="input" id="billingClient" placeholder="Nome do cliente" /></div>
+    <div class="field"><label class="label">Serviço</label><input class="input" id="billingService" placeholder="Ex: Manutenção Extintores" /></div>
+    <div class="field"><label class="label">Valor (R$)</label><input class="input" id="billingValue" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Vencimento</label><input class="input" id="billingDue" type="date" /></div>
+    <button class="btn btn-primary" onclick="saveBilling()">✓ Registrar Cobrança</button>
+  </div>
+</div>
+
+<!-- Inspection Form Modal -->
+<div class="modal-overlay" id="inspectionFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Nova Inspeção</div><button class="modal-close" onclick="closeModal('inspectionFormModal')">✕</button></div>
+    <div class="field"><label class="label">Cliente</label><input class="input" id="inspClient" placeholder="Nome do cliente" /></div>
+    <div class="field"><label class="label">Técnico</label><input class="input" id="inspTech" placeholder="Nome do técnico" /></div>
+    <div class="field"><label class="label">Data</label><input class="input" id="inspDate" type="date" /></div>
+    <div class="field"><label class="label">Equipamentos inspecionados</label><textarea class="input" id="inspItems" placeholder="Ex: Extintor PQS, Alarme, Luz de Emergência"></textarea></div>
+    <button class="btn btn-primary" onclick="saveInspection()">✓ Registrar Inspeção</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://bnoeovvafinpvrlibqit.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJub2VvdnZhZmlucHZybGlicWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNzQ4MDAsImV4cCI6MjA1Nzk1MDgwMH0.zTckN7YqDDommAD51KaCbRRHWR_vP3G02WQfYxXvB_Q';
+
+const api = (table) => `${SUPABASE_URL}/rest/v1/${table}`;
+const headers = () => ({
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Prefer': 'return=representation'
+});
+
+async function dbGet(table, query = '') {
+  const r = await fetch(`${api(table)}?${query}`, { headers: headers() });
+  return r.json();
+}
+async function dbInsert(table, data) {
+  const r = await fetch(api(table), { method: 'POST', headers: headers(), body: JSON.stringify(data) });
+  return r.json();
+}
+async function dbUpdate(table, id, data) {
+  const r = await fetch(`${api(table)}?id=eq.${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify(data) });
+  return r.json();
+}
+async function dbDelete(table, id) {
+  await fetch(`${api(table)}?id=eq.${id}`, { method: 'DELETE', headers: headers() });
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+let currentUser = null;
+
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  if (!email || !pass) { showError('loginError', 'Preencha e-mail e senha'); return; }
+  document.getElementById('loginBtn').textContent = '⏳ Entrando...';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await r.json();
+    if (data.access_token) {
+      localStorage.setItem('cj_token', data.access_token);
+      localStorage.setItem('cj_user', JSON.stringify(data.user));
+      currentUser = data.user;
+      showApp();
+    } else {
+      showError('loginError', data.error_description || 'E-mail ou senha incorretos');
+    }
+  } catch(e) {
+    showError('loginError', 'Erro de conexão. Verifique sua internet.');
+    console.error('Login error:', e);
+  }
+  document.getElementById('loginBtn').textContent = '🔥 Entrar';
+}
+
+async function handleRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPassword').value;
+  const role = document.getElementById('regRole').value;
+  if (!name || !email || !pass) { showError('regError', 'Preencha todos os campos'); return; }
+  if (pass.length < 6) { showError('regError', 'Senha deve ter pelo menos 6 caracteres'); return; }
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ email, password: pass, data: { name, role } })
+    });
+    const data = await r.json();
+    if (data.id || (data.user && data.user.id)) {
+      showToast('✅ Conta criada! Fazendo login...', 'success');
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPassword').value = pass;
+      showLogin();
+      setTimeout(() => handleLogin(), 1000);
+    } else {
+      showError('regError', data.msg || data.error_description || 'Erro ao criar conta');
+    }
+  } catch(e) {
+    showError('regError', 'Erro de conexão. Verifique sua internet.');
+    console.error('Register error:', e);
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('cj_token');
+  localStorage.removeItem('cj_user');
+  currentUser = null;
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('registerScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  const user = JSON.parse(localStorage.getItem('cj_user') || '{}');
+  const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Gestor';
+  document.getElementById('homeUserName').textContent = name;
+  loadHomeData();
+  setDate();
+}
+
+function showLogin() {
+  document.getElementById('registerScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+function showRegister() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('registerScreen').style.display = 'flex';
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+let currentScreen = 'home';
+const navScreens = ['home','clients','orders','reports','menu'];
+
+function navigate(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(`screen-${screen}`);
+  if (el) el.classList.add('active');
+  const nav = document.getElementById(`nav-${screen}`);
+  if (nav) nav.classList.add('active');
+  currentScreen = screen;
+  loadScreen(screen);
+}
+
+function loadScreen(screen) {
+  switch(screen) {
+    case 'clients': loadClients(); break;
+    case 'orders': loadOrders(); break;
+    case 'reports': loadReports(); break;
+    case 'stock': loadStock(); break;
+    case 'billing': loadBilling(); break;
+    case 'notifications': loadNotifications(); break;
+    case 'products': loadProducts(); break;
+    case 'suppliers': loadSuppliers(); break;
+    case 'inspections': loadInspections(); break;
+    case 'home': loadHomeData(); break;
+  }
+}
+
+// ============================================================
+// HOME
+// ============================================================
+function setDate() {
+  const days = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const months = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const d = new Date();
+  document.getElementById('homeDate').textContent = `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+async function loadHomeData() {
+  try {
+    const clients = await dbGet('clients', 'select=id,name,status,next_visit&order=created_at.desc&limit=3');
+    const orders = await dbGet('orders', 'select=id,type,value');
+    const billing = await dbGet('billing', 'select=id,value,status');
+    const stock = await dbGet('stock', 'select=id,qty,min_qty');
+
+    if (Array.isArray(clients)) {
+      document.getElementById('statClients').textContent = clients.length;
+      const expiring = clients.filter(c => c.status === 'Vencendo' || c.status === 'Vencido');
+      document.getElementById('homeAlertText').textContent = expiring.length > 0 ? `${expiring.length} cliente(s): ${expiring.map(c=>c.name).join(', ')}` : 'Todos os clientes em dia ✅';
+      document.getElementById('homeRecentClients').innerHTML = clients.length === 0 ? '<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum cliente cadastrado ainda.</div>' :
+        clients.map(c => `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:700;font-size:13px;">${c.name}</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">📅 ${c.next_visit || '—'}</div></div><span class="badge badge-${c.status==='Em dia'?'success':c.status==='Vencendo'?'warning':'danger'}">${c.status||'Em dia'}</span></div></div>`).join('');
+    }
+    if (Array.isArray(orders)) document.getElementById('statOrders').textContent = orders.length;
+    if (Array.isArray(billing)) {
+      const total = billing.filter(b=>b.status!=='Pago').reduce((a,b)=>a+parseFloat(b.value||0),0);
+      document.getElementById('statBilling').textContent = `R$${total.toFixed(0)}`;
+    }
+    if (Array.isArray(stock)) {
+      const low = stock.filter(s=>parseInt(s.qty)<=parseInt(s.min_qty)).length;
+      document.getElementById('statStock').textContent = low;
+    }
+  } catch(e) { console.log('Home load error', e); }
+}
+
+// ============================================================
+// CLIENTS
+// ============================================================
+let allClients = [];
+
+async function loadClients() {
+  document.getElementById('clientsList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+  allClients = await dbGet('clients', 'order=created_at.desc');
+  if (!Array.isArray(allClients)) allClients = [];
+  document.getElementById('clientCount').textContent = `${allClients.length} cadastrados`;
+  renderClients(allClients);
+}
+
+function renderClients(list) {
+  if (list.length === 0) { document.getElementById('clientsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum cliente encontrado.</div>'; return; }
+  document.getElementById('clientsList').innerHTML = list.map(c => `
+    <div class="card ${c.status==='Vencido'?'danger-border':c.status==='Vencendo'?'warning-border':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-weight:700;font-size:14px;">${c.name}</div><div style="color:var(--sub);font-size:11px;margin-top:3px;">${c.type||'—'} · ${c.equipments||0} equipamentos</div></div>
+        <span class="badge badge-${c.status==='Em dia'?'success':c.status==='Vencendo'?'warning':'danger'}">${c.status||'Em dia'}</span>
+      </div>
+      <hr class="sep">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="color:var(--sub);font-size:11px;">📅 <span style="color:var(--text);font-weight:600;">${c.next_visit||'—'}</span></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-primary btn-sm" onclick="openOrderFormForClient('${c.name}','${c.cnpj||''}')">+ Pedido</button>
+          <button class="btn btn-secondary btn-sm" onclick="deleteClient(${c.id})">🗑️</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterClients() {
+  const q = document.getElementById('clientSearch').value.toLowerCase();
+  renderClients(allClients.filter(c => c.name?.toLowerCase().includes(q) || c.cnpj?.includes(q)));
+}
+
+function openClientForm() { openModal('clientFormModal'); }
+
+async function saveClient() {
+  const name = document.getElementById('clientName').value.trim();
+  if (!name) { showToast('⚠️ Informe o nome do cliente', 'error'); return; }
+  const data = {
+    cnpj: document.getElementById('clientCnpj').value,
+    name, fantasia: document.getElementById('clientFantasia').value,
+    contact: document.getElementById('clientContact').value,
+    phone: document.getElementById('clientPhone').value,
+    email: document.getElementById('clientEmail').value,
+    city: document.getElementById('clientCity').value,
+    address: document.getElementById('clientAddress').value,
+    equipments: document.getElementById('clientEquipments').value || 0,
+    next_visit: document.getElementById('clientNext').value,
+    type: document.getElementById('clientType').value,
+    status: 'Em dia'
+  };
+  await dbInsert('clients', data);
+  closeModal('clientFormModal');
+  showToast('✅ Cliente cadastrado!', 'success');
+  loadClients();
+}
+
+async function deleteClient(id) {
+  if (!confirm('Excluir este cliente?')) return;
+  await dbDelete('clients', id);
+  showToast('🗑️ Cliente removido', 'success');
+  loadClients();
+}
+
+// ============================================================
+// ORDERS
+// ============================================================
+let allOrders = [];
+let orderFilter = 'Todos';
+
+async function loadOrders() {
+  document.getElementById('ordersList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+  allOrders = await dbGet('orders', 'order=created_at.desc');
+  if (!Array.isArray(allOrders)) allOrders = [];
+  updateOrderSummary();
+  renderOrders();
+}
+
+function updateOrderSummary() {
+  const pedidos = allOrders.filter(o=>o.type==='Pedido');
+  const orcs = allOrders.filter(o=>o.type==='Orçamento');
+  document.getElementById('ordersCountPedido').textContent = `${pedidos.length} pedidos`;
+  document.getElementById('ordersTotalPedido').textContent = pedidos.reduce((a,o)=>a+parseFloat(o.value||0),0).toFixed(2).replace('.',',');
+  document.getElementById('ordersCountOrc').textContent = `${orcs.length} orçamentos`;
+  document.getElementById('ordersTotalOrc').textContent = orcs.reduce((a,o)=>a+parseFloat(o.value||0),0).toFixed(2).replace('.',',');
+}
+
+function renderOrders() {
+  const q = (document.getElementById('orderSearch')?.value||'').toLowerCase();
+  let list = allOrders.filter(o => {
+    const matchFilter = orderFilter === 'Todos' || o.type === orderFilter;
+    const matchSearch = !q || o.client?.toLowerCase().includes(q) || o.id?.toString().includes(q);
+    return matchFilter && matchSearch;
+  });
+  if (list.length === 0) { document.getElementById('ordersList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum pedido encontrado.</div>'; return; }
+  document.getElementById('ordersList').innerHTML = list.map((o,i) => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="color:var(--sub);font-size:12px;font-weight:700;">APP ${String(o.id).padStart(3,'0')}</span>
+        <span style="font-size:14px;">✉️</span>
+      </div>
+      <div style="font-weight:700;font-size:13px;">${o.client}</div>
+      ${o.cnpj?`<div style="color:var(--sub);font-size:11px;margin-top:2px;">CNPJ: ${o.cnpj}</div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
+        <div><div style="color:var(--sub);font-size:11px;">${o.payment||'À vista'}</div><div style="color:var(--sub);font-size:11px;">CJ FIRESECURE LTDA</div></div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;font-size:16px;">R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')}</div>
+          <span style="color:${o.type==='Pedido'?'var(--success)':'var(--secondary)'};font-weight:800;font-size:13px;">${o.type}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterOrders() { renderOrders(); }
+function setOrderFilter(f, el) {
+  orderFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderOrders();
+}
+
+function openOrderForm() { openModal('orderFormModal'); }
+function openOrderFormForClient(name, cnpj) {
+  document.getElementById('orderClient').value = name;
+  document.getElementById('orderCnpj').value = cnpj;
+  openModal('orderFormModal');
+}
+
+async function saveOrder() {
+  const client = document.getElementById('orderClient').value.trim();
+  const value = document.getElementById('orderValue').value;
+  if (!client || !value) { showToast('⚠️ Preencha cliente e valor', 'error'); return; }
+  await dbInsert('orders', {
+    client, cnpj: document.getElementById('orderCnpj').value,
+    type: document.getElementById('orderType').value,
+    value: parseFloat(value),
+    payment: document.getElementById('orderPayment').value,
+    obs: document.getElementById('orderObs').value,
+    status: 'Confirmado'
+  });
+  closeModal('orderFormModal');
+  showToast('✅ Pedido registrado!', 'success');
+  loadOrders();
+}
+
+// ============================================================
+// REPORTS (Laudos)
+// ============================================================
+let allReports = [];
+let reportStep = 1;
+let reportForm = {};
+let photoBefore = false, photoAfter = false;
+
+async function loadReports() {
+  document.getElementById('reportsList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+  allReports = await dbGet('reports', 'order=created_at.desc');
+  if (!Array.isArray(allReports)) allReports = [];
+  if (allReports.length === 0) { document.getElementById('reportsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum laudo emitido ainda.<br><br><button class="btn btn-gradient" style="width:auto;padding:10px 20px;" onclick="openReportForm()">🔥 Criar primeiro laudo</button></div>'; return; }
+  document.getElementById('reportsList').innerHTML = allReports.map(r => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div><div style="font-weight:700;font-size:13px;">${r.title||'Laudo Técnico'}</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">📍 ${r.client}</div><div style="color:var(--sub);font-size:10px;margin-top:2px;">📅 ${r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):''}</div></div>
+        <span class="badge badge-${r.status==='Concluído'?'success':'secondary'}">${r.status||'Concluído'}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div style="flex:1;background:#ef444418;border:1px solid #ef444433;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:20px;">🔴</div><div style="color:var(--danger);font-size:10px;font-weight:700;margin-top:4px;">ANTES</div><div style="color:var(--sub);font-size:9px;">✓ Registrado</div></div>
+        <div style="display:flex;align-items:center;color:var(--sub);">→</div>
+        <div style="flex:1;background:#22c55e18;border:1px solid #22c55e33;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:20px;">🟢</div><div style="color:var(--success);font-size:10px;font-weight:700;margin-top:4px;">DEPOIS</div><div style="color:var(--sub);font-size:9px;">✓ Registrado</div></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;">📥 PDF</button>
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 WhatsApp</button>
+        <button class="btn btn-secondary btn-sm" onclick="deleteReport(${r.id})">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function openReportForm() {
+  reportStep = 1; reportForm = {}; photoBefore = false; photoAfter = false;
+  renderReportStep();
+  openModal('reportFormModal');
+}
+
+function renderReportStep() {
+  const steps = ['Dados','Foto Antes','Foto Depois','Finalizar'];
+  document.getElementById('reportStepBar').innerHTML = steps.map((s,i) => `<div class="step-item"><div class="step-line ${i+1<=reportStep?'done':'pending'}"></div><div class="step-name ${i+1===reportStep?'active':''}">${s}</div></div>`).join('');
+
+  const services = ['Extintor PQS 4kg','Extintor CO₂','Teste Hidrostático','Hidrante','Mangueira','Alarme','Luz Emergência','Placa Sinalização','Sprinkler'];
+  if (!reportForm.services) reportForm.services = [];
+
+  if (reportStep === 1) {
+    document.getElementById('reportFormContent').innerHTML = `
+      <div class="field"><label class="label">Cliente</label><input class="input" id="rClient" placeholder="Nome do cliente" value="${reportForm.client||''}" /></div>
+      <div class="field"><label class="label">Técnico responsável</label><input class="input" id="rTech" placeholder="Nome do técnico" value="${reportForm.tech||''}" /></div>
+      <div class="field"><label class="label">Serviços realizados</label>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${services.map(s=>`<button type="button" onclick="toggleService('${s}',this)" class="btn btn-sm" style="text-align:left;background:${reportForm.services.includes(s)?'var(--primary-glow)':'var(--card)'};color:${reportForm.services.includes(s)?'var(--primary)':'var(--sub)'};border:1px solid ${reportForm.services.includes(s)?'var(--primary)':'var(--border)'};border-radius:10px;padding:9px 14px;font-size:13px;width:100%;">${reportForm.services.includes(s)?'✅':'⬜'} ${s}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label class="label">Situação encontrada (antes)</label><textarea class="input" id="rObs" placeholder="Ex: Extintor com carga vencida...">${reportForm.obs||''}</textarea></div>
+      <button class="btn btn-primary" onclick="nextReportStep()">Próximo: Foto Antes →</button>`;
+  } else if (reportStep === 2) {
+    document.getElementById('reportFormContent').innerHTML = `
+      <div class="alert-banner alert-danger" style="margin-bottom:20px;"><span style="font-size:22px;">📸</span><div><div style="color:var(--danger);font-weight:700;font-size:13px;">Foto ANTES do serviço</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Registre a situação atual dos equipamentos.</div></div></div>
+      <div onclick="capturePhoto('before')" class="photo-box ${photoBefore?'captured-before':''}" style="margin-bottom:16px;">
+        <div class="photo-icon">${photoBefore?'🔴':'📷'}</div>
+        <div class="photo-label" style="color:${photoBefore?'var(--danger)':'var(--sub)'};">${photoBefore?'✓ Foto registrada':'Toque para tirar foto'}</div>
+        <div class="photo-hint">${photoBefore?'Toque para refazer':'ANTES do serviço'}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="reportStep=1;renderReportStep()">← Voltar</button>
+        <button class="btn ${photoBefore?'btn-primary':'btn-secondary'}" onclick="${photoBefore?'nextReportStep()':''}">${photoBefore?'Próximo: Foto Depois →':'Tire a foto para continuar'}</button>
+      </div>`;
+  } else if (reportStep === 3) {
+    document.getElementById('reportFormContent').innerHTML = `
+      <div class="alert-banner alert-success" style="margin-bottom:20px;"><span style="font-size:22px;">✅</span><div><div style="color:var(--success);font-weight:700;font-size:13px;">Foto DEPOIS do serviço</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Registre após a manutenção realizada.</div></div></div>
+      <div onclick="capturePhoto('after')" class="photo-box ${photoAfter?'captured-after':''}" style="margin-bottom:14px;">
+        <div class="photo-icon">${photoAfter?'🟢':'📷'}</div>
+        <div class="photo-label" style="color:${photoAfter?'var(--success)':'var(--sub)'};">${photoAfter?'✓ Foto registrada':'Toque para tirar foto'}</div>
+        <div class="photo-hint">${photoAfter?'Toque para refazer':'DEPOIS do serviço'}</div>
+      </div>
+      <div class="field"><label class="label">Observações finais</label><textarea class="input" id="rObsAfter" placeholder="Ex: Recarga realizada, tudo em conformidade...">${reportForm.obsAfter||''}</textarea></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="reportStep=2;renderReportStep()">← Voltar</button>
+        <button class="btn ${photoAfter?'btn-primary':'btn-secondary'}" onclick="${photoAfter?'nextReportStep()':''}">${photoAfter?'Próximo: Finalizar →':'Tire a foto para continuar'}</button>
+      </div>`;
+  } else if (reportStep === 4) {
+    document.getElementById('reportFormContent').innerHTML = `
+      <div class="card" style="margin-bottom:12px;">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px;">👤 ${reportForm.client||'—'}</div>
+        <div style="margin-bottom:8px;">${(reportForm.services||[]).map(s=>`<span class="chip chip-primary">${s}</span>`).join('')}</div>
+        ${reportForm.obs?`<div style="color:var(--sub);font-size:11px;">📍 Antes: ${reportForm.obs}</div>`:''}
+        ${reportForm.obsAfter?`<div style="color:var(--sub);font-size:11px;margin-top:4px;">✅ Depois: ${reportForm.obsAfter}</div>`:''}
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <div style="flex:1;background:#ef444418;border:1px solid #ef444433;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:28px;">🔴</div><div style="color:var(--danger);font-size:11px;font-weight:700;margin-top:4px;">ANTES</div><div style="color:var(--sub);font-size:9px;">✓ Registrado</div></div>
+        <div style="display:flex;align-items:center;color:var(--sub);font-size:18px;">→</div>
+        <div style="flex:1;background:#22c55e18;border:1px solid #22c55e33;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:28px;">🟢</div><div style="color:var(--success);font-size:11px;font-weight:700;margin-top:4px;">DEPOIS</div><div style="color:var(--sub);font-size:9px;">✓ Registrado</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 WhatsApp</button>
+        <button class="btn btn-primary btn-sm" style="flex:1;">📥 PDF</button>
+        <button class="btn btn-secondary btn-sm" style="flex:1;">✉️ E-mail</button>
+      </div>
+      <button class="btn btn-gradient" onclick="saveReport()">🔥 Gerar e Salvar Laudo</button>`;
+  }
+}
+
+function toggleService(name, btn) {
+  if (!reportForm.services) reportForm.services = [];
+  if (reportForm.services.includes(name)) {
+    reportForm.services = reportForm.services.filter(s=>s!==name);
+    btn.style.background='var(--card)'; btn.style.color='var(--sub)'; btn.style.borderColor='var(--border)';
+    btn.textContent = `⬜ ${name}`;
+  } else {
+    reportForm.services.push(name);
+    btn.style.background='var(--primary-glow)'; btn.style.color='var(--primary)'; btn.style.borderColor='var(--primary)';
+    btn.textContent = `✅ ${name}`;
+  }
+}
+
+function capturePhoto(type) {
+  if (type === 'before') { photoBefore = true; reportForm.photoBefore = true; }
+  else { photoAfter = true; reportForm.photoAfter = true; }
+  if (document.getElementById('rObsAfter')) reportForm.obsAfter = document.getElementById('rObsAfter').value;
+  renderReportStep();
+}
+
+function nextReportStep() {
+  if (reportStep === 1) {
+    reportForm.client = document.getElementById('rClient').value;
+    reportForm.tech = document.getElementById('rTech').value;
+    reportForm.obs = document.getElementById('rObs').value;
+  } else if (reportStep === 3) {
+    reportForm.obsAfter = document.getElementById('rObsAfter')?.value || '';
+  }
+  reportStep++;
+  renderReportStep();
+}
+
+async function saveReport() {
+  await dbInsert('reports', {
+    title: 'Laudo Técnico',
+    client: reportForm.client,
+    tech: reportForm.tech,
+    services: reportForm.services?.join(', '),
+    obs_before: reportForm.obs,
+    obs_after: reportForm.obsAfter,
+    status: 'Concluído'
+  });
+  closeModal('reportFormModal');
+  showToast('✅ Laudo salvo com sucesso!', 'success');
+  loadReports();
+}
+
+async function deleteReport(id) {
+  if (!confirm('Excluir este laudo?')) return;
+  await dbDelete('reports', id);
+  showToast('🗑️ Laudo removido', 'success');
+  loadReports();
+}
+
+// ============================================================
+// STOCK
+// ============================================================
+async function loadStock() {
+  const data = await dbGet('stock', 'order=name.asc');
+  if (!Array.isArray(data) || data.length === 0) { document.getElementById('stockList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum item no estoque.</div>'; return; }
+  document.getElementById('stockList').innerHTML = data.map(item => {
+    const low = parseInt(item.qty) <= parseInt(item.min_qty||0);
+    const pct = Math.min(100, Math.round((item.qty / Math.max(item.min_qty*2,1))*100));
+    return `<div class="card ${low?'danger-border':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:600;font-size:13px;">${item.name}</div>
+        <div style="font-weight:800;font-size:16px;color:${low?'var(--danger)':'var(--success)'};">${item.qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit||'un'}</span></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${low?'var(--danger)':'var(--success)'};"></div></div>
+      <div style="color:var(--sub);font-size:10px;margin-top:4px;">Mínimo: ${item.min_qty||0} ${item.unit||'un'}</div>
+      ${low?`<div style="color:var(--danger);font-size:11px;font-weight:600;margin-top:4px;">⚠️ Repor estoque</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function openStockForm() { openModal('stockFormModal'); }
+async function saveStock() {
+  const name = document.getElementById('stockName').value.trim();
+  if (!name) { showToast('⚠️ Informe o produto', 'error'); return; }
+  await dbInsert('stock', { name, qty: parseInt(document.getElementById('stockQty').value)||0, min_qty: parseInt(document.getElementById('stockMin').value)||0, unit: document.getElementById('stockUnit').value });
+  closeModal('stockFormModal');
+  showToast('✅ Estoque atualizado!', 'success');
+  loadStock();
+}
+
+// ============================================================
+// BILLING
+// ============================================================
+async function loadBilling() {
+  const data = await dbGet('billing', 'order=due_date.asc');
+  if (!Array.isArray(data)) return;
+  const total = data.filter(b=>b.status!=='Pago').reduce((a,b)=>a+parseFloat(b.value||0),0);
+  const overdue = data.filter(b=>b.status==='Vencido').reduce((a,b)=>a+parseFloat(b.value||0),0);
+  document.getElementById('billingTotal').textContent = `R$ ${total.toFixed(2).replace('.',',')}`;
+  document.getElementById('billingOverdue').textContent = `R$ ${overdue.toFixed(2).replace('.',',')}`;
+  if (data.length === 0) { document.getElementById('billingList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma cobrança registrada.</div>'; return; }
+  document.getElementById('billingList').innerHTML = data.map(b => `
+    <div class="card ${b.status==='Vencido'?'danger-border':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-weight:700;font-size:13px;">${b.client}</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">${b.service||'—'}</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">📅 ${b.due_date||'—'}</div></div>
+        <div style="text-align:right;"><div style="font-weight:800;font-size:15px;color:var(--secondary);">R$ ${parseFloat(b.value||0).toFixed(2).replace('.',',')}</div><span class="badge badge-${b.status==='Pago'?'success':b.status==='Vencido'?'danger':'warning'}">${b.status||'Pendente'}</span></div>
+      </div>
+      ${b.status!=='Pago'?`<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-success btn-sm" style="flex:1;" onclick="markPaid(${b.id})">✓ Marcar Pago</button><button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 Cobrar</button></div>`:''}
+    </div>`).join('');
+}
+
+async function markPaid(id) {
+  await dbUpdate('billing', id, { status: 'Pago' });
+  showToast('✅ Marcado como pago!', 'success');
+  loadBilling();
+}
+
+function openBillingForm() { openModal('billingFormModal'); }
+async function saveBilling() {
+  const client = document.getElementById('billingClient').value.trim();
+  if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
+  await dbInsert('billing', { client, service: document.getElementById('billingService').value, value: parseFloat(document.getElementById('billingValue').value)||0, due_date: document.getElementById('billingDue').value, status: 'Pendente' });
+  closeModal('billingFormModal');
+  showToast('✅ Cobrança registrada!', 'success');
+  loadBilling();
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+async function loadNotifications() {
+  const clients = await dbGet('clients', 'select=id,name,phone,status,next_visit&or=(status.eq.Vencendo,status.eq.Vencido)');
+  if (!Array.isArray(clients) || clients.length === 0) { document.getElementById('notificationsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:20px;">✅ Nenhum vencimento próximo!</div>'; return; }
+  document.getElementById('notificationsList').innerHTML = clients.map(c => `
+    <div class="card ${c.status==='Vencido'?'danger-border':'warning-border'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-size:11px;font-weight:800;color:${c.status==='Vencido'?'var(--danger)':'var(--warning)'};text-transform:uppercase;margin-bottom:4px;">${c.status==='Vencido'?'🚨 VENCIDO':'⚠️ VENCENDO'}</div><div style="font-weight:700;font-size:13px;">${c.name}</div>${c.phone?`<div style="color:var(--sub);font-size:11px;margin-top:2px;">📞 ${c.phone}</div>`:''}</div>
+        <span class="badge badge-${c.status==='Vencido'?'danger':'warning'}">${c.status}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 WhatsApp</button>
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="openOrderFormForClient('${c.name}','')">+ Pedido</button>
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
+// PRODUCTS
+// ============================================================
+let allProducts = [];
+
+async function loadProducts() {
+  allProducts = await dbGet('products', 'order=category.asc,name.asc');
+  if (!Array.isArray(allProducts)) allProducts = [];
+  renderProducts(allProducts);
+}
+
+function renderProducts(list) {
+  if (list.length === 0) { document.getElementById('productsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum produto cadastrado.</div>'; return; }
+  const cats = [...new Set(list.map(p=>p.category))];
+  document.getElementById('productsList').innerHTML = cats.map(cat => {
+    const items = list.filter(p=>p.category===cat);
+    return `<div class="divider"><div class="divider-line"></div><div class="divider-text">${cat}</div><div class="divider-line"></div></div>` +
+      items.map(p=>`<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div><div style="font-weight:600;font-size:13px;">${p.name}</div><div style="color:var(--sub);font-size:10px;">por ${p.unit||'un'}</div></div>
+        <button class="btn btn-sm" style="background:var(--secondary)22;color:var(--secondary);border:1px solid var(--secondary)44;font-size:14px;font-weight:800;" onclick="editPrice(${p.id},'${p.name}',${p.price})">R$ ${parseFloat(p.price||0).toFixed(2).replace('.',',')}</button>
+      </div>`).join('');
+  }).join('');
+}
+
+function filterProducts() {
+  const q = document.getElementById('productSearch').value.toLowerCase();
+  renderProducts(allProducts.filter(p=>p.name?.toLowerCase().includes(q)||p.category?.toLowerCase().includes(q)));
+}
+
+async function editPrice(id, name, price) {
+  const novo = prompt(`Novo preço para "${name}" (R$):`, price);
+  if (novo === null) return;
+  const val = parseFloat(novo.replace(',','.'));
+  if (isNaN(val)) { showToast('⚠️ Valor inválido', 'error'); return; }
+  await dbUpdate('products', id, { price: val });
+  showToast('✅ Preço atualizado!', 'success');
+  loadProducts();
+}
+
+function openProductForm() { openModal('productFormModal'); }
+async function saveProduct() {
+  const name = document.getElementById('productName').value.trim();
+  if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
+  await dbInsert('products', { name, category: document.getElementById('productCategory').value, price: parseFloat(document.getElementById('productPrice').value)||0, unit: document.getElementById('productUnit').value });
+  closeModal('productFormModal');
+  showToast('✅ Produto cadastrado!', 'success');
+  loadProducts();
+}
+
+// ============================================================
+// SUPPLIERS
+// ============================================================
+let allSuppliers = [];
+
+async function loadSuppliers() {
+  allSuppliers = await dbGet('suppliers', 'order=name.asc');
+  if (!Array.isArray(allSuppliers)) allSuppliers = [];
+  document.getElementById('supplierCount').textContent = `${allSuppliers.length} cadastrados`;
+  renderSuppliers(allSuppliers);
+}
+
+function renderSuppliers(list) {
+  if (list.length === 0) { document.getElementById('suppliersList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum fornecedor cadastrado.</div>'; return; }
+  document.getElementById('suppliersList').innerHTML = list.map(s=>`
+    <div class="card">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="width:42px;height:42px;border-radius:12px;background:var(--primary-glow);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏭</div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;"><div style="font-weight:700;font-size:14px;">${s.name}</div><span class="badge badge-primary">${s.category||'—'}</span></div>
+          <div style="color:var(--sub);font-size:11px;margin-top:3px;">👤 ${s.contact||'—'}</div>
+          <div style="color:var(--sub);font-size:11px;margin-top:2px;">📞 ${s.phone||'—'}</div>
+          <div style="color:var(--sub);font-size:11px;margin-top:2px;">📍 ${s.city||'—'}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 WhatsApp</button>
+        <button class="btn btn-secondary btn-sm" onclick="deleteSupplier(${s.id})">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function filterSuppliers() {
+  const q = document.getElementById('supplierSearch').value.toLowerCase();
+  renderSuppliers(allSuppliers.filter(s=>s.name?.toLowerCase().includes(q)||s.category?.toLowerCase().includes(q)));
+}
+
+function openSupplierForm() { openModal('supplierFormModal'); }
+async function saveSupplier() {
+  const name = document.getElementById('supplierName').value.trim();
+  if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
+  await dbInsert('suppliers', { cnpj: document.getElementById('supplierCnpj').value, name, contact: document.getElementById('supplierContact').value, phone: document.getElementById('supplierPhone').value, email: document.getElementById('supplierEmail').value, city: document.getElementById('supplierCity').value, category: document.getElementById('supplierCategory').value });
+  closeModal('supplierFormModal');
+  showToast('✅ Fornecedor cadastrado!', 'success');
+  loadSuppliers();
+}
+
+async function deleteSupplier(id) {
+  if (!confirm('Excluir este fornecedor?')) return;
+  await dbDelete('suppliers', id);
+  showToast('🗑️ Removido', 'success');
+  loadSuppliers();
+}
+
+// ============================================================
+// INSPECTIONS
+// ============================================================
+async function loadInspections() {
+  const data = await dbGet('inspections', 'order=created_at.desc');
+  if (!Array.isArray(data) || data.length === 0) { document.getElementById('inspectionsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma inspeção registrada.</div>'; return; }
+  document.getElementById('inspectionsList').innerHTML = data.map(insp=>`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-weight:700;font-size:14px;">${insp.client}</div><div style="color:var(--sub);font-size:11px;margin-top:3px;">👷 ${insp.tech||'—'} · 📅 ${insp.date||'—'}</div></div>
+        <span class="badge badge-${insp.status==='Concluída'?'success':insp.status==='Agendada'?'warning':'muted'}">${insp.status||'Pendente'}</span>
+      </div>
+      ${insp.items?`<div style="margin-top:8px;">${insp.items.split(',').map(i=>`<span class="chip">${i.trim()}</span>`).join('')}</div>`:''}
+    </div>`).join('');
+}
+
+function openInspectionForm() { openModal('inspectionFormModal'); }
+async function saveInspection() {
+  const client = document.getElementById('inspClient').value.trim();
+  if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
+  await dbInsert('inspections', { client, tech: document.getElementById('inspTech').value, date: document.getElementById('inspDate').value, items: document.getElementById('inspItems').value, status: 'Agendada' });
+  closeModal('inspectionFormModal');
+  showToast('✅ Inspeção registrada!', 'success');
+  loadInspections();
+}
+
+// ============================================================
+// CNPJ AUTO-FILL
+// ============================================================
+function formatCnpj(v) {
+  const d = v.replace(/\D/g,'').slice(0,14);
+  return d.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2');
+}
+
+async function handleCnpjInput(input, type) {
+  input.value = formatCnpj(input.value);
+  const digits = input.value.replace(/\D/g,'');
+  const icon = document.getElementById(`${type}CnpjIcon`);
+  const hint = document.getElementById(`${type}CnpjHint`);
+  if (digits.length === 14) {
+    icon.textContent = '⏳';
+    hint.textContent = '🔎 Consultando Receita Federal...';
+    hint.style.color = 'var(--secondary)';
+    try {
+      const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      const prefix = type;
+      document.getElementById(`${prefix}Name`).value = data.razao_social || '';
+      if (document.getElementById(`${prefix}Fantasia`)) document.getElementById(`${prefix}Fantasia`).value = data.nome_fantasia || '';
+      if (document.getElementById(`${prefix}Phone`)) document.getElementById(`${prefix}Phone`).value = data.ddd_telefone_1 || '';
+      if (document.getElementById(`${prefix}Email`)) document.getElementById(`${prefix}Email`).value = data.email || '';
+      if (document.getElementById(`${prefix}City`)) document.getElementById(`${prefix}City`).value = `${data.municipio||''} - ${data.uf||''}`;
+      if (document.getElementById(`${prefix}Address`)) document.getElementById(`${prefix}Address`).value = `${data.logradouro||''}, ${data.numero||''} ${data.complemento||''}`.trim();
+      icon.textContent = '✅';
+      hint.textContent = '✓ Dados preenchidos automaticamente!';
+      hint.style.color = 'var(--success)';
+    } catch {
+      icon.textContent = '❌';
+      hint.textContent = 'CNPJ não encontrado. Preencha manualmente.';
+      hint.style.color = 'var(--danger)';
+    }
+  } else {
+    icon.textContent = '🔍';
+    hint.textContent = '';
+  }
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', () => {
+  const token = localStorage.getItem('cj_token');
+  const user = localStorage.getItem('cj_user');
+  if (token && user) {
+    currentUser = JSON.parse(user);
+    showApp();
+  }
+  setDate();
+});
+</script>
+</body>
+</html>
