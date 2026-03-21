@@ -1336,42 +1336,11 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // INIT
 // ============================================================
 window.addEventListener('load', () => {
-  // Detecta usuário pelo parâmetro da URL
-  const params = new URLSearchParams(window.location.search);
-  const user = params.get('user');
-  
-  let userName = 'Gestor';
-  if (user === 'caio') userName = 'Caio Vinícius';
-  else if (user === 'jhonatan') userName = 'Jhonatan';
-  else if (!user) {
-    // Se não tiver parâmetro, mostra tela de seleção
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'none';
-    document.getElementById('registerScreen').style.display = 'none';
-    document.body.innerHTML += `
-      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:#0f1117;">
-        <div style="font-size:60px;margin-bottom:8px;">🦅</div>
-        <div style="color:#e8210a;font-weight:900;font-size:20px;letter-spacing:1px;margin-bottom:4px;">CJ FIRE APP</div>
-        <div style="color:#94a3b8;font-size:13px;margin-bottom:40px;">CJ FireSecure Ltda</div>
-        <div style="color:#94a3b8;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Quem está acessando?</div>
-        <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;">
-          <a href="?user=caio" style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;transition:all 0.2s;">
-            <div style="width:46px;height:46px;border-radius:50%;background:#e8210a22;display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>
-            <div><div style="color:#f1f5f9;font-weight:700;font-size:15px;">Caio Vinícius</div><div style="color:#94a3b8;font-size:11px;margin-top:2px;">Gestor · Dono</div></div>
-          </a>
-          <a href="?user=jhonatan" style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;transition:all 0.2s;">
-            <div style="width:46px;height:46px;border-radius:50%;background:#f0a50022;display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>
-            <div><div style="color:#f1f5f9;font-weight:700;font-size:15px;">Jhonatan</div><div style="color:#94a3b8;font-size:11px;margin-top:2px;">Sócio · Gestor</div></div>
-          </a>
-        </div>
-      </div>`;
-    return;
-  }
-
+  // Vai direto para o app sem precisar de login
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('registerScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('homeUserName').textContent = userName;
+  document.getElementById('homeUserName').textContent = 'Caio Vinícius';
   loadHomeData();
   setDate();
 });
