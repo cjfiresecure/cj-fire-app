@@ -866,15 +866,28 @@ async function loadReports() {
   if (!data.length) { document.getElementById('reportsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum laudo ainda.<br><br><button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="openReportForm()">+ Criar laudo</button></div>'; return; }
   document.getElementById('reportsList').innerHTML = data.map(r => `
     <div class="card">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><div><div style="font-weight:700;">${r.title || 'Laudo Técnico'}</div><div style="color:var(--sub);font-size:11px;">📍 ${r.client} · 📅 ${r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : ''}</div></div><span class="badge badge-success">${r.status || 'Concluído'}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;">${r.title || 'Laudo Técnico'}</div>
+          <div style="color:var(--sub);font-size:11px;">📍 ${r.client} · 👷 ${r.tech || '—'}</div>
+          <div style="color:var(--sub);font-size:11px;">📅 ${r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : ''}</div>
+        </div>
+        <span class="badge badge-success">${r.status || 'Concluído'}</span>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <div style="flex:1;background:#ef444418;border:1px solid #ef444433;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:20px;">🔴</div><div style="color:var(--danger);font-size:10px;font-weight:700;margin-top:4px;">ANTES</div></div>
+        <div style="flex:1;background:#ef444418;border:1px solid #ef444433;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:20px;">${r.has_photo_before ? '✅' : '🔴'}</div>
+          <div style="color:var(--danger);font-size:10px;font-weight:700;margin-top:4px;">ANTES</div>
+        </div>
         <div style="display:flex;align-items:center;color:var(--sub);">→</div>
-        <div style="flex:1;background:#22c55e18;border:1px solid #22c55e33;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:20px;">🟢</div><div style="color:var(--success);font-size:10px;font-weight:700;margin-top:4px;">DEPOIS</div></div>
+        <div style="flex:1;background:#22c55e18;border:1px solid #22c55e33;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:20px;">${r.has_photo_after ? '✅' : '🟢'}</div>
+          <div style="color:var(--success);font-size:10px;font-weight:700;margin-top:4px;">DEPOIS</div>
+        </div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-primary btn-sm" style="flex:1;">📥 PDF</button>
-        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 WhatsApp</button>
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewReportPDF(${r.id})">📄 PDF</button>
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="shareReportPDF(${r.id})">📲 WhatsApp</button>
         <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteReport(${r.id})">🗑️</button>
       </div>
     </div>`).join('');
@@ -941,6 +954,70 @@ async function saveReport() {
   else showToast('❌ Erro ao salvar', 'error');
 }
 async function deleteReport(id) { if (!confirm('Excluir?')) return; await dbDelete('reports', id); showToast('🗑️ Laudo removido', 'success'); loadReports(); }
+
+function buildReportHTML(r) {
+  const date = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  return `
+    <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div>
+          <div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30</div>
+          <div style="font-size:10px;color:#666;">Tel: (34) 99706-0025</div>
+          <div style="font-size:10px;color:#666;">cjextintores28@gmail.com</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:14px;font-weight:800;color:#e8210a;">LAUDO TÉCNICO</div>
+          <div style="font-size:11px;color:#666;">Data: ${date}</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">CLIENTE</div>
+      <div style="font-size:13px;font-weight:700;">${r.client}</div>
+      ${r.tech ? `<div style="font-size:11px;color:#666;">Técnico: ${r.tech}</div>` : ''}
+    </div>
+    ${r.services ? `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">SERVIÇOS REALIZADOS</div>
+      <div style="font-size:12px;background:#fff3e0;border-radius:8px;padding:10px;">${r.services}</div>
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div style="background:#ffebee;border-radius:8px;padding:10px;">
+        <div style="font-size:11px;font-weight:700;color:#e8210a;margin-bottom:4px;">🔴 SITUAÇÃO ANTES</div>
+        <div style="font-size:11px;">${r.obs_before || 'Não informado'}</div>
+        ${r.has_photo_before ? '<div style="font-size:10px;color:#666;margin-top:4px;">📸 Foto registrada</div>' : ''}
+      </div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:10px;">
+        <div style="font-size:11px;font-weight:700;color:#22c55e;margin-bottom:4px;">🟢 SITUAÇÃO DEPOIS</div>
+        <div style="font-size:11px;">${r.obs_after || 'Não informado'}</div>
+        ${r.has_photo_after ? '<div style="font-size:10px;color:#666;margin-top:4px;">📸 Foto registrada</div>' : ''}
+      </div>
+    </div>
+    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;margin-top:12px;">
+      CJ FireSecure Ltda · Segurança contra incêndio · (34) 99706-0025
+    </div>`;
+}
+
+let currentReportData = null;
+
+async function viewReportPDF(id) {
+  const data = await dbGet('reports', {});
+  const r = data.find(x => x.id === id);
+  if (!r) return;
+  currentReportData = r;
+  document.getElementById('pdfContent').innerHTML = buildReportHTML(r);
+  openModal('pdfModal');
+}
+
+async function shareReportPDF(id) {
+  const data = await dbGet('reports', {});
+  const r = data.find(x => x.id === id);
+  if (!r) return;
+  currentReportData = r;
+  document.getElementById('pdfContent').innerHTML = buildReportHTML(r);
+  sharePDF();
+}
 
 // ============================================================
 // STOCK
