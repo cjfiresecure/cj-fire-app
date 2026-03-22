@@ -458,14 +458,80 @@
 <!-- Order Form Modal -->
 <div class="modal-overlay" id="orderFormModal">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">Novo Pedido</div><button class="modal-close" onclick="closeModal('orderFormModal')">✕</button></div>
-    <div class="field"><label class="label">Cliente</label><input class="input" id="orderClient" placeholder="Nome do cliente" /></div>
-    <div class="field"><label class="label">CNPJ</label><input class="input" id="orderCnpj" placeholder="00.000.000/0001-00" /></div>
-    <div class="field"><label class="label">Tipo</label><select class="input" id="orderType"><option>Pedido</option><option>Orçamento</option></select></div>
-    <div class="field"><label class="label">Valor (R$)</label><input class="input" id="orderValue" type="number" step="0.01" placeholder="0,00" /></div>
-    <div class="field"><label class="label">Pagamento</label><select class="input" id="orderPayment"><option>À vista</option><option>30 dias</option><option>60 dias</option><option>Parcelado</option></select></div>
-    <div class="field"><label class="label">Observações</label><textarea class="input" id="orderObs" placeholder="Detalhes do pedido..."></textarea></div>
-    <button class="btn btn-primary" onclick="saveOrder()">✓ Confirmar Pedido</button>
+    <div class="modal-header"><div class="modal-title">Novo Pedido / Orçamento</div><button class="modal-close" onclick="closeModal('orderFormModal')">✕</button></div>
+    
+    <!-- Tipo -->
+    <div class="field">
+      <label class="label">Tipo</label>
+      <div style="display:flex;gap:8px;">
+        <button id="typePedido" onclick="setOrderType('Pedido')" style="flex:1;background:var(--success)22;color:var(--success);border:1px solid var(--success)88;border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">✓ Pedido</button>
+        <button id="typeOrcamento" onclick="setOrderType('Orçamento')" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">Orçamento</button>
+      </div>
+    </div>
+
+    <!-- Selecionar Cliente -->
+    <div class="field">
+      <label class="label">Cliente</label>
+      <div style="position:relative;">
+        <input class="input" id="orderClientSearch" placeholder="🔍 Digite para buscar cliente..." oninput="searchOrderClient()" autocomplete="off" />
+        <div id="orderClientDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:180px;overflow-y:auto;z-index:999;margin-top:4px;"></div>
+      </div>
+      <div id="orderClientSelected" style="display:none;background:var(--success)18;border:1px solid var(--success)44;border-radius:10px;padding:10px 14px;margin-top:6px;">
+        <div style="color:var(--success);font-weight:700;font-size:12px;">✓ Cliente selecionado</div>
+        <div id="orderClientName" style="color:var(--text);font-weight:700;font-size:13px;margin-top:2px;"></div>
+        <div id="orderClientCnpj" style="color:var(--sub);font-size:11px;margin-top:1px;"></div>
+      </div>
+    </div>
+
+    <!-- Pagamento -->
+    <div class="field">
+      <label class="label">Condição de Pagamento</label>
+      <select class="input" id="orderPayment"><option>À vista</option><option>30 dias</option><option>60 dias</option><option>30/60 dias</option><option>Parcelado</option></select>
+    </div>
+
+    <!-- Produtos -->
+    <div class="field">
+      <label class="label">Produtos / Serviços</label>
+      <div id="orderProductsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+      <button onclick="openAddProductToOrder()" style="width:100%;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:10px;color:var(--sub);font-size:13px;cursor:pointer;">+ Adicionar produto/serviço</button>
+    </div>
+
+    <!-- Total -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="color:var(--sub);font-size:13px;">Total do Pedido</div>
+        <div id="orderTotal" style="color:var(--secondary);font-weight:800;font-size:20px;">R$ 0,00</div>
+      </div>
+    </div>
+
+    <!-- Observações -->
+    <div class="field"><label class="label">Observações</label><textarea class="input" id="orderObs" placeholder="Informações adicionais..." style="height:60px;"></textarea></div>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="saveOrder()" style="flex:2;">✓ Confirmar</button>
+      <button onclick="generateOrderPDF()" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📄 PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Product to Order Modal -->
+<div class="modal-overlay" id="addProductModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Selecionar Produto</div><button class="modal-close" onclick="closeModal('addProductModal')">✕</button></div>
+    <input class="input" id="addProductSearch" placeholder="🔍 Buscar produto..." oninput="filterAddProduct()" style="margin-bottom:12px;" />
+    <div id="addProductList" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- PDF Preview Modal -->
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal" style="max-height:95vh;">
+    <div class="modal-header"><div class="modal-title">📄 Orçamento/Pedido</div><button class="modal-close" onclick="closeModal('pdfModal')">✕</button></div>
+    <div id="pdfContent" style="background:#fff;border-radius:12px;padding:16px;color:#000;font-family:Arial,sans-serif;font-size:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="printPDF()" style="flex:1;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">🖨️ Imprimir / Salvar PDF</button>
+      <button onclick="sharePDF()" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📲 WhatsApp</button>
+    </div>
   </div>
 </div>
 
@@ -561,16 +627,25 @@ const headers = () => ({
 });
 
 async function dbGet(table, query = '') {
-  const r = await fetch(`${api(table)}?${query}`, { headers: headers() });
-  return r.json();
+  try {
+    const r = await fetch(`${api(table)}?${query}`, { headers: headers() });
+    if (!r.ok) { console.error('dbGet error:', r.status, await r.text()); return []; }
+    return r.json();
+  } catch(e) { console.error('dbGet fetch error:', e); return []; }
 }
 async function dbInsert(table, data) {
-  const r = await fetch(api(table), { method: 'POST', headers: headers(), body: JSON.stringify(data) });
-  return r.json();
+  try {
+    const r = await fetch(api(table), { method: 'POST', headers: headers(), body: JSON.stringify(data) });
+    const result = await r.json();
+    if (!r.ok) { console.error('dbInsert error:', r.status, result); return null; }
+    return result;
+  } catch(e) { console.error('dbInsert fetch error:', e); return null; }
 }
 async function dbUpdate(table, id, data) {
-  const r = await fetch(`${api(table)}?id=eq.${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify(data) });
-  return r.json();
+  try {
+    const r = await fetch(`${api(table)}?id=eq.${id}`, { method: 'PATCH', headers: headers(), body: JSON.stringify(data) });
+    return r.json();
+  } catch(e) { console.error('dbUpdate error:', e); return null; }
 }
 async function dbDelete(table, id) {
   await fetch(`${api(table)}?id=eq.${id}`, { method: 'DELETE', headers: headers() });
@@ -783,6 +858,7 @@ function openClientForm() { openModal('clientFormModal'); }
 async function saveClient() {
   const name = document.getElementById('clientName').value.trim();
   if (!name) { showToast('⚠️ Informe o nome do cliente', 'error'); return; }
+  showToast('⏳ Salvando...', 'success');
   const data = {
     cnpj: document.getElementById('clientCnpj').value,
     name, fantasia: document.getElementById('clientFantasia').value,
@@ -791,15 +867,24 @@ async function saveClient() {
     email: document.getElementById('clientEmail').value,
     city: document.getElementById('clientCity').value,
     address: document.getElementById('clientAddress').value,
-    equipments: document.getElementById('clientEquipments').value || 0,
+    equipments: parseInt(document.getElementById('clientEquipments').value) || 0,
     next_visit: document.getElementById('clientNext').value,
     type: document.getElementById('clientType').value,
     status: 'Em dia'
   };
-  await dbInsert('clients', data);
-  closeModal('clientFormModal');
-  showToast('✅ Cliente cadastrado!', 'success');
-  loadClients();
+  try {
+    const result = await dbInsert('clients', data);
+    if (result && (Array.isArray(result) ? result.length > 0 : result.id)) {
+      closeModal('clientFormModal');
+      showToast('✅ Cliente cadastrado!', 'success');
+      loadClients();
+    } else {
+      showToast('❌ Erro ao salvar. Verifique a conexão.', 'error');
+      console.error('Save result:', result);
+    }
+  } catch(e) {
+    showToast('❌ Erro: ' + e.message, 'error');
+  }
 }
 
 async function deleteClient(id) {
@@ -814,6 +899,10 @@ async function deleteClient(id) {
 // ============================================================
 let allOrders = [];
 let orderFilter = 'Todos';
+let currentOrderType = 'Pedido';
+let orderItems = [];
+let selectedOrderClient = null;
+let allProductsForOrder = [];
 
 async function loadOrders() {
   document.getElementById('ordersList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
@@ -844,7 +933,7 @@ function renderOrders() {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="color:var(--sub);font-size:12px;font-weight:700;">APP ${String(o.id).padStart(3,'0')}</span>
-        <span style="font-size:14px;">✉️</span>
+        <button onclick="viewOrderPDF(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;">📄</button>
       </div>
       <div style="font-weight:700;font-size:13px;">${o.client}</div>
       ${o.cnpj?`<div style="color:var(--sub);font-size:11px;margin-top:2px;">CNPJ: ${o.cnpj}</div>`:''}
@@ -866,29 +955,235 @@ function setOrderFilter(f, el) {
   renderOrders();
 }
 
-function openOrderForm() { openModal('orderFormModal'); }
-function openOrderFormForClient(name, cnpj) {
-  document.getElementById('orderClient').value = name;
-  document.getElementById('orderCnpj').value = cnpj;
+function setOrderType(type) {
+  currentOrderType = type;
+  document.getElementById('typePedido').style.background = type==='Pedido' ? 'var(--success)22' : 'var(--card)';
+  document.getElementById('typePedido').style.color = type==='Pedido' ? 'var(--success)' : 'var(--sub)';
+  document.getElementById('typePedido').style.borderColor = type==='Pedido' ? 'var(--success)' : 'var(--border)';
+  document.getElementById('typeOrcamento').style.background = type==='Orçamento' ? 'var(--secondary)22' : 'var(--card)';
+  document.getElementById('typeOrcamento').style.color = type==='Orçamento' ? 'var(--secondary)' : 'var(--sub)';
+  document.getElementById('typeOrcamento').style.borderColor = type==='Orçamento' ? 'var(--secondary)' : 'var(--border)';
+}
+
+function searchOrderClient() {
+  const q = document.getElementById('orderClientSearch').value.toLowerCase();
+  const dropdown = document.getElementById('orderClientDropdown');
+  if (!q || q.length < 2) { dropdown.style.display = 'none'; return; }
+  const matches = allClients.filter(c => c.name?.toLowerCase().includes(q) || c.cnpj?.includes(q)).slice(0, 6);
+  if (matches.length === 0) { dropdown.style.display = 'none'; return; }
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = matches.map(c => `
+    <div onclick="selectOrderClient(${c.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" 
+         onmouseover="this.style.background='var(--primary)18'" onmouseout="this.style.background='transparent'">
+      <div style="color:var(--text);font-weight:600;font-size:13px;">${c.name}</div>
+      ${c.cnpj?`<div style="color:var(--sub);font-size:11px;">${c.cnpj}</div>`:''}
+    </div>`).join('');
+}
+
+function selectOrderClient(id) {
+  selectedOrderClient = allClients.find(c => c.id === id);
+  if (!selectedOrderClient) return;
+  document.getElementById('orderClientSearch').value = '';
+  document.getElementById('orderClientDropdown').style.display = 'none';
+  document.getElementById('orderClientSelected').style.display = 'block';
+  document.getElementById('orderClientName').textContent = selectedOrderClient.name;
+  document.getElementById('orderClientCnpj').textContent = selectedOrderClient.cnpj || '';
+}
+
+function openOrderForm() {
+  orderItems = [];
+  selectedOrderClient = null;
+  currentOrderType = 'Pedido';
+  document.getElementById('orderClientSearch').value = '';
+  document.getElementById('orderClientSelected').style.display = 'none';
+  document.getElementById('orderClientDropdown').style.display = 'none';
+  document.getElementById('orderObs').value = '';
+  document.getElementById('orderTotal').textContent = 'R$ 0,00';
+  renderOrderItems();
+  setOrderType('Pedido');
+  if (allClients.length === 0) loadClients();
   openModal('orderFormModal');
 }
 
+function openOrderFormForClient(name, cnpj) {
+  openOrderForm();
+  setTimeout(() => {
+    const client = allClients.find(c => c.name === name);
+    if (client) selectOrderClient(client.id);
+  }, 100);
+}
+
+function renderOrderItems() {
+  const list = document.getElementById('orderProductsList');
+  if (orderItems.length === 0) { list.innerHTML = ''; updateOrderTotal(); return; }
+  list.innerHTML = orderItems.map((item, i) => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="flex:1;">
+          <div style="color:var(--text);font-size:13px;font-weight:600;">${item.name}</div>
+          <div style="color:var(--secondary);font-size:12px;font-weight:700;">R$ ${parseFloat(item.price).toFixed(2).replace('.',',')} / ${item.unit||'un'}</div>
+        </div>
+        <button onclick="removeOrderItem(${i})" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <button onclick="changeQty(${i},-1)" style="width:32px;height:32px;border-radius:8px;background:var(--primary)22;color:var(--primary);border:1px solid var(--primary)44;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+        <span style="color:var(--text);font-weight:700;font-size:15px;min-width:30px;text-align:center;">${item.qty}</span>
+        <button onclick="changeQty(${i},1)" style="width:32px;height:32px;border-radius:8px;background:var(--primary)22;color:var(--primary);border:1px solid var(--primary)44;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+        <div style="margin-left:auto;color:var(--secondary);font-weight:800;font-size:14px;">R$ ${(item.price * item.qty).toFixed(2).replace('.',',')}</div>
+      </div>
+    </div>`).join('');
+  updateOrderTotal();
+}
+
+function changeQty(i, delta) {
+  orderItems[i].qty = Math.max(1, orderItems[i].qty + delta);
+  renderOrderItems();
+}
+
+function removeOrderItem(i) {
+  orderItems.splice(i, 1);
+  renderOrderItems();
+}
+
+function updateOrderTotal() {
+  const total = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
+  document.getElementById('orderTotal').textContent = `R$ ${total.toFixed(2).replace('.',',')}`;
+}
+
+async function openAddProductToOrder() {
+  if (allProductsForOrder.length === 0) {
+    allProductsForOrder = await dbGet('products', 'order=category.asc,name.asc');
+    if (!Array.isArray(allProductsForOrder)) allProductsForOrder = [];
+  }
+  filterAddProduct();
+  openModal('addProductModal');
+}
+
+function filterAddProduct() {
+  const q = (document.getElementById('addProductSearch')?.value||'').toLowerCase();
+  const list = allProductsForOrder.filter(p => p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q));
+  document.getElementById('addProductList').innerHTML = list.map(p => `
+    <div onclick="addProductToOrder(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price},'${p.unit||'un'}')" 
+         style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
+         onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div>
+        <div style="color:var(--text);font-weight:600;font-size:13px;">${p.name}</div>
+        <div style="color:var(--sub);font-size:11px;">${p.category} · ${p.unit||'un'}</div>
+      </div>
+      <div style="color:var(--secondary);font-weight:800;font-size:14px;">R$ ${parseFloat(p.price||0).toFixed(2).replace('.',',')}</div>
+    </div>`).join('');
+}
+
+function addProductToOrder(id, name, price, unit) {
+  const existing = orderItems.find(i => i.id === id);
+  if (existing) { existing.qty++; }
+  else { orderItems.push({ id, name, price: parseFloat(price), unit, qty: 1 }); }
+  closeModal('addProductModal');
+  renderOrderItems();
+}
+
 async function saveOrder() {
-  const client = document.getElementById('orderClient').value.trim();
-  const value = document.getElementById('orderValue').value;
-  if (!client || !value) { showToast('⚠️ Preencha cliente e valor', 'error'); return; }
+  if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
+  if (orderItems.length === 0) { showToast('⚠️ Adicione pelo menos 1 produto', 'error'); return; }
+  const total = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
+  const itemsJson = JSON.stringify(orderItems);
   await dbInsert('orders', {
-    client, cnpj: document.getElementById('orderCnpj').value,
-    type: document.getElementById('orderType').value,
-    value: parseFloat(value),
+    client: selectedOrderClient.name,
+    cnpj: selectedOrderClient.cnpj || '',
+    type: currentOrderType,
+    value: total,
     payment: document.getElementById('orderPayment').value,
     obs: document.getElementById('orderObs').value,
+    items: itemsJson,
     status: 'Confirmado'
   });
   closeModal('orderFormModal');
   showToast('✅ Pedido registrado!', 'success');
   loadOrders();
 }
+
+function generateOrderPDF() {
+  if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente primeiro', 'error'); return; }
+  buildPDF(selectedOrderClient, currentOrderType, orderItems, document.getElementById('orderPayment').value, document.getElementById('orderObs').value);
+}
+
+function viewOrderPDF(id) {
+  const order = allOrders.find(o => o.id === id);
+  if (!order) return;
+  let items = [];
+  try { items = JSON.parse(order.items || '[]'); } catch {}
+  const client = { name: order.client, cnpj: order.cnpj };
+  buildPDF(client, order.type, items, order.payment, order.obs);
+}
+
+function buildPDF(client, type, items, payment, obs) {
+  const date = new Date().toLocaleDateString('pt-BR');
+  const total = items.reduce((a, item) => a + item.price * item.qty, 0);
+  const num = Math.floor(Math.random() * 900) + 100;
+  document.getElementById('pdfContent').innerHTML = `
+    <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:16px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div>
+          <div style="font-size:10px;color:#666;margin-top:2px;">CNPJ: 48.794.963/0001-30</div>
+          <div style="font-size:10px;color:#666;">Tel: (34) 99706-0025</div>
+          <div style="font-size:10px;color:#666;">cjextintores28@gmail.com</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:14px;font-weight:800;color:${type==='Pedido'?'#22c55e':'#f0a500'};">${type.toUpperCase()}</div>
+          <div style="font-size:11px;color:#666;">Nº ${num}</div>
+          <div style="font-size:11px;color:#666;">${date}</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">CLIENTE</div>
+      <div style="font-size:13px;font-weight:700;">${client.name}</div>
+      ${client.cnpj?`<div style="font-size:11px;color:#666;">CNPJ: ${client.cnpj}</div>`:''}
+      <div style="font-size:11px;color:#666;margin-top:2px;">Pagamento: ${payment}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+      <thead><tr style="background:#e8210a;color:#fff;">
+        <th style="padding:6px 8px;text-align:left;font-size:11px;">Produto/Serviço</th>
+        <th style="padding:6px 8px;text-align:center;font-size:11px;">Qtd</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;">Unit.</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;">Total</th>
+      </tr></thead>
+      <tbody>
+        ${items.map((item,i) => `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};">
+          <td style="padding:6px 8px;font-size:11px;">${item.name}</td>
+          <td style="padding:6px 8px;text-align:center;font-size:11px;">${item.qty}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:11px;">R$ ${parseFloat(item.price).toFixed(2).replace('.',',')}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:11px;font-weight:700;">R$ ${(item.price*item.qty).toFixed(2).replace('.',',')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <div style="background:#e8210a;color:#fff;border-radius:8px;padding:10px 16px;text-align:right;">
+        <div style="font-size:11px;">TOTAL</div>
+        <div style="font-size:18px;font-weight:800;">R$ ${total.toFixed(2).replace('.',',')}</div>
+      </div>
+    </div>
+    ${obs?`<div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:4px;">OBSERVAÇÕES</div><div style="font-size:11px;">${obs}</div></div>`:''}
+    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;">
+      CJ FireSecure Ltda · Segurança contra incêndio · (34) 99706-0025
+    </div>`;
+  openModal('pdfModal');
+}
+
+function printPDF() {
+  const content = document.getElementById('pdfContent').innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>CJ FireSecure - Pedido</title><style>body{font-family:Arial,sans-serif;margin:20px;}@media print{body{margin:0;}}</style></head><body>${content}</body></html>`);
+  w.document.close();
+  w.print();
+}
+
+function sharePDF() {
+  showToast('📲 Abrindo WhatsApp...', 'success');
+  window.open('https://wa.me/?text=Segue+o+orçamento+da+CJ+FireSecure+🔥', '_blank');
+}
+
 
 // ============================================================
 // REPORTS (Laudos)
@@ -1336,11 +1631,42 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // INIT
 // ============================================================
 window.addEventListener('load', () => {
-  // Vai direto para o app sem precisar de login
+  // Detecta usuário pelo parâmetro da URL
+  const params = new URLSearchParams(window.location.search);
+  const user = params.get('user');
+  
+  let userName = 'Gestor';
+  if (user === 'caio') userName = 'Caio Vinícius';
+  else if (user === 'jhonatan') userName = 'Jhonatan';
+  else if (!user) {
+    // Se não tiver parâmetro, mostra tela de seleção
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('registerScreen').style.display = 'none';
+    document.body.innerHTML += `
+      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:#0f1117;">
+        <div style="font-size:60px;margin-bottom:8px;">🦅</div>
+        <div style="color:#e8210a;font-weight:900;font-size:20px;letter-spacing:1px;margin-bottom:4px;">CJ FIRE APP</div>
+        <div style="color:#94a3b8;font-size:13px;margin-bottom:40px;">CJ FireSecure Ltda</div>
+        <div style="color:#94a3b8;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Quem está acessando?</div>
+        <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;">
+          <a href="?user=caio" style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;transition:all 0.2s;">
+            <div style="width:46px;height:46px;border-radius:50%;background:#e8210a22;display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>
+            <div><div style="color:#f1f5f9;font-weight:700;font-size:15px;">Caio Vinícius</div><div style="color:#94a3b8;font-size:11px;margin-top:2px;">Gestor · Dono</div></div>
+          </a>
+          <a href="?user=jhonatan" style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;transition:all 0.2s;">
+            <div style="width:46px;height:46px;border-radius:50%;background:#f0a50022;display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>
+            <div><div style="color:#f1f5f9;font-weight:700;font-size:15px;">Jhonatan</div><div style="color:#94a3b8;font-size:11px;margin-top:2px;">Sócio · Gestor</div></div>
+          </a>
+        </div>
+      </div>`;
+    return;
+  }
+
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('registerScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('homeUserName').textContent = 'Caio Vinícius';
+  document.getElementById('homeUserName').textContent = userName;
   loadHomeData();
   setDate();
 });
