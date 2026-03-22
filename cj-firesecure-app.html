@@ -888,12 +888,14 @@ async function loadReports() {
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewReportPDF(${r.id})">📄 PDF</button>
         <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="shareReportPDF(${r.id})">📲 WhatsApp</button>
+        <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="editReport(${r.id})">✏️</button>
         <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteReport(${r.id})">🗑️</button>
       </div>
     </div>`).join('');
 }
 
 function openReportForm() {
+  editingReportId = null;
   document.getElementById('rClientSearch').value = '';
   document.getElementById('rClient').value = '';
   document.getElementById('rClientDropdown').style.display = 'none';
@@ -905,6 +907,8 @@ function openReportForm() {
   document.getElementById('previewAfter').innerHTML = '📷';
   document.getElementById('photoBefore').value = '';
   document.getElementById('photoAfter').value = '';
+  document.querySelector('#reportFormModal .modal-title').textContent = 'Novo Laudo';
+  document.querySelector('#reportFormModal .btn-primary').textContent = '✓ Salvar Laudo';
   openModal('reportFormModal');
 }
 
@@ -939,21 +943,56 @@ async function saveReport() {
   if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
   const hasBefore = document.getElementById('photoBefore').files?.length > 0;
   const hasAfter = document.getElementById('photoAfter').files?.length > 0;
-  const result = await dbInsert('reports', {
+  const reportData = {
     title: 'Laudo Técnico',
     client,
     tech: document.getElementById('rTech').value,
     services: document.getElementById('rServices').value,
     obs_before: document.getElementById('rObsBefore').value,
     obs_after: document.getElementById('rObsAfter').value,
-    has_photo_before: hasBefore,
-    has_photo_after: hasAfter,
     status: 'Concluído'
-  });
-  if (result) { closeModal('reportFormModal'); showToast('✅ Laudo salvo!', 'success'); loadReports(); }
-  else showToast('❌ Erro ao salvar', 'error');
+  };
+  if (hasBefore) reportData.has_photo_before = true;
+  if (hasAfter) reportData.has_photo_after = true;
+
+  let result;
+  if (editingReportId) {
+    result = await dbUpdate('reports', editingReportId, reportData);
+    editingReportId = null;
+  } else {
+    result = await dbInsert('reports', reportData);
+  }
+
+  if (result !== false && result !== null) {
+    closeModal('reportFormModal');
+    showToast('✅ Laudo salvo!', 'success');
+    loadReports();
+  } else {
+    showToast('❌ Erro ao salvar', 'error');
+  }
 }
 async function deleteReport(id) { if (!confirm('Excluir?')) return; await dbDelete('reports', id); showToast('🗑️ Laudo removido', 'success'); loadReports(); }
+
+let editingReportId = null;
+
+async function editReport(id) {
+  const data = await dbGet('reports', {});
+  const r = data.find(x => x.id === id);
+  if (!r) return;
+  editingReportId = id;
+  document.getElementById('rClientSearch').value = r.client || '';
+  document.getElementById('rClient').value = r.client || '';
+  document.getElementById('rTech').value = r.tech || '';
+  document.getElementById('rServices').value = r.services || '';
+  document.getElementById('rObsBefore').value = r.obs_before || '';
+  document.getElementById('rObsAfter').value = r.obs_after || '';
+  document.getElementById('previewBefore').innerHTML = r.has_photo_before ? '✅' : '📷';
+  document.getElementById('previewAfter').innerHTML = r.has_photo_after ? '✅' : '📷';
+  // Muda título e botão para modo edição
+  document.querySelector('#reportFormModal .modal-title').textContent = '✏️ Editar Laudo';
+  document.querySelector('#reportFormModal .btn-primary').textContent = '✓ Salvar Alterações';
+  openModal('reportFormModal');
+}
 
 function buildReportHTML(r) {
   const date = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
