@@ -353,7 +353,11 @@ textarea.input{resize:none;height:70px}
 <div class="modal-overlay" id="billingFormModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Nova Cobrança</div><button class="modal-close" onclick="closeModal('billingFormModal')">✕</button></div>
-    <div class="field"><label class="label">Cliente</label><input class="input" id="billingClient" placeholder="Nome do cliente" /></div>
+    <div class="field">
+      <label class="label">Cliente</label>
+      <input class="input" id="billingClient" placeholder="🔍 Digite para buscar..." oninput="autocompleteClient('billingClient','billingClientDd')" autocomplete="off" />
+      <div id="billingClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+    </div>
     <div class="field"><label class="label">Serviço</label><input class="input" id="billingService" placeholder="Ex: Manutenção Extintores" /></div>
     <div class="field"><label class="label">Valor (R$)</label><input class="input" id="billingValue" type="number" step="0.01" placeholder="0,00" /></div>
     <div class="field"><label class="label">Vencimento</label><input class="input" id="billingDue" type="date" /></div>
@@ -392,7 +396,11 @@ textarea.input{resize:none;height:70px}
 <div class="modal-overlay" id="inspectionFormModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Nova Inspeção</div><button class="modal-close" onclick="closeModal('inspectionFormModal')">✕</button></div>
-    <div class="field"><label class="label">Cliente</label><input class="input" id="inspClient" placeholder="Nome do cliente" /></div>
+    <div class="field">
+      <label class="label">Cliente</label>
+      <input class="input" id="inspClient" placeholder="🔍 Digite para buscar..." oninput="autocompleteClient('inspClient','inspClientDd')" autocomplete="off" />
+      <div id="inspClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+    </div>
     <div class="field"><label class="label">Técnico</label><input class="input" id="inspTech" placeholder="Nome do técnico" /></div>
     <div class="field"><label class="label">Data</label><input class="input" id="inspDate" type="date" /></div>
     <div class="field"><label class="label">Equipamentos</label><textarea class="input" id="inspItems" placeholder="Ex: Extintor, Alarme, Luz de Emergência"></textarea></div>
@@ -634,6 +642,7 @@ function renderOrders() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="color:var(--sub);font-size:12px;font-weight:700;">APP ${String(o.id).padStart(3,'0')}</span>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button onclick="editOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--secondary);">✏️</button>
           <button onclick="viewOrderPDF(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--sub);">📄</button>
           <button onclick="deleteOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--danger);">🗑️</button>
         </div>
@@ -690,7 +699,10 @@ function selectOrderClient(id) {
   document.getElementById('orderClientCnpj').textContent = selectedOrderClient.cnpj || '';
 }
 
+let editingOrderId = null;
+
 function openOrderForm() {
+  editingOrderId = null;
   orderItems = []; selectedOrderClient = null; currentOrderType = 'Pedido';
   document.getElementById('orderClientSearch').value = '';
   document.getElementById('orderClientSelected').style.display = 'none';
@@ -698,7 +710,30 @@ function openOrderForm() {
   document.getElementById('orderObs').value = '';
   document.getElementById('orderTotal').textContent = 'R$ 0,00';
   document.getElementById('orderProductsList').innerHTML = '';
+  document.querySelector('#orderFormModal .modal-title').textContent = 'Novo Pedido';
+  document.querySelector('#orderFormModal .btn-primary').textContent = '✓ Confirmar';
   setOrderType('Pedido');
+  if (!allClients.length) loadClients();
+  openModal('orderFormModal');
+}
+
+async function editOrder(id) {
+  const o = allOrders.find(x => x.id === id);
+  if (!o) return;
+  editingOrderId = id;
+  orderItems = []; try { orderItems = JSON.parse(o.items || '[]'); } catch {}
+  selectedOrderClient = { name: o.client, cnpj: o.cnpj || '' };
+  currentOrderType = o.type || 'Pedido';
+  document.getElementById('orderClientSearch').value = '';
+  document.getElementById('orderClientSelected').style.display = 'block';
+  document.getElementById('orderClientName').textContent = o.client;
+  document.getElementById('orderClientCnpj').textContent = o.cnpj || '';
+  document.getElementById('orderPayment').value = o.payment || 'À vista';
+  document.getElementById('orderObs').value = o.obs || '';
+  document.querySelector('#orderFormModal .modal-title').textContent = '✏️ Editar Pedido';
+  document.querySelector('#orderFormModal .btn-primary').textContent = '✓ Salvar Alterações';
+  setOrderType(currentOrderType);
+  renderOrderItems();
   if (!allClients.length) loadClients();
   openModal('orderFormModal');
 }
@@ -754,13 +789,38 @@ async function saveOrder() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
   if (!orderItems.length) { showToast('⚠️ Adicione pelo menos 1 produto', 'error'); return; }
   const total = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
-  const result = await dbInsert('orders', {
+  const orderData = {
     client: selectedOrderClient.name, cnpj: selectedOrderClient.cnpj || '',
     type: currentOrderType, value: total, payment: document.getElementById('orderPayment').value,
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
-  });
-  if (result) { closeModal('orderFormModal'); showToast('✅ Pedido registrado!', 'success'); loadOrders(); }
-  else showToast('❌ Erro ao salvar', 'error');
+  };
+  let result;
+  if (editingOrderId) {
+    result = await dbUpdate('orders', editingOrderId, orderData);
+    editingOrderId = null;
+    closeModal('orderFormModal');
+    showToast('✅ Pedido atualizado!', 'success');
+    loadOrders();
+  } else {
+    result = await dbInsert('orders', orderData);
+    if (result) {
+      // Cobrança automática ao criar pedido
+      const dueDate = new Date();
+      const payment = document.getElementById('orderPayment').value;
+      if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
+      else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
+      await dbInsert('billing', {
+        client: selectedOrderClient.name,
+        service: `${currentOrderType} - ${orderItems.map(i => i.name).join(', ')}`,
+        value: total,
+        due_date: dueDate.toISOString().split('T')[0],
+        status: 'Pendente'
+      });
+      closeModal('orderFormModal');
+      showToast('✅ Pedido e cobrança criados!', 'success');
+      loadOrders();
+    } else showToast('❌ Erro ao salvar', 'error');
+  }
 }
 
 function buildPDF(client, type, items, payment, obs) {
@@ -1068,22 +1128,63 @@ async function loadStock() {
     const low = parseInt(item.qty) <= parseInt(item.min_qty || 0);
     const pct = Math.min(100, Math.round((item.qty / Math.max(item.min_qty * 2, 1)) * 100));
     return `<div class="card ${low ? 'danger-border' : ''}">
-      <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="font-weight:800;font-size:16px;color:${low ? 'var(--danger)' : 'var(--success)'};">${item.qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit || 'un'}</span></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="color:var(--sub);font-size:10px;">Mínimo: ${item.min_qty || 0}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-weight:800;font-size:16px;color:${low ? 'var(--danger)' : 'var(--success)'};">${item.qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit || 'un'}</span></div>
+          <button onclick="editStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
+          <button onclick="deleteStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
+        </div>
+      </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${low ? 'var(--danger)' : 'var(--success)'};"></div></div>
-      <div style="color:var(--sub);font-size:10px;margin-top:4px;">Mínimo: ${item.min_qty || 0}</div>
       ${low ? '<div style="color:var(--danger);font-size:11px;font-weight:600;margin-top:4px;">⚠️ Repor estoque</div>' : ''}
     </div>`;
   }).join('');
 }
 
-function openStockForm() { openModal('stockFormModal'); }
+let editingStockId = null;
+
+function openStockForm() {
+  editingStockId = null;
+  document.getElementById('stockName').value = '';
+  document.getElementById('stockQty').value = '';
+  document.getElementById('stockMin').value = '';
+  document.getElementById('stockUnit').value = 'un';
+  document.querySelector('#stockFormModal .modal-title').textContent = 'Entrada de Estoque';
+  document.querySelector('#stockFormModal .btn-primary').textContent = '✓ Registrar';
+  openModal('stockFormModal');
+}
+
+async function editStock(id) {
+  const data = await dbGet('stock', {});
+  const item = data.find(x => x.id === id);
+  if (!item) return;
+  editingStockId = id;
+  document.getElementById('stockName').value = item.name || '';
+  document.getElementById('stockQty').value = item.qty || '';
+  document.getElementById('stockMin').value = item.min_qty || '';
+  document.getElementById('stockUnit').value = item.unit || 'un';
+  document.querySelector('#stockFormModal .modal-title').textContent = '✏️ Editar Estoque';
+  document.querySelector('#stockFormModal .btn-primary').textContent = '✓ Salvar Alterações';
+  openModal('stockFormModal');
+}
+
 async function saveStock() {
   const name = document.getElementById('stockName').value.trim();
   if (!name) { showToast('⚠️ Informe o produto', 'error'); return; }
-  const result = await dbInsert('stock', { name, qty: parseInt(document.getElementById('stockQty').value) || 0, min_qty: parseInt(document.getElementById('stockMin').value) || 0, unit: document.getElementById('stockUnit').value });
-  if (result) { closeModal('stockFormModal'); showToast('✅ Estoque atualizado!', 'success'); loadStock(); }
+  const stockData = { name, qty: parseInt(document.getElementById('stockQty').value) || 0, min_qty: parseInt(document.getElementById('stockMin').value) || 0, unit: document.getElementById('stockUnit').value };
+  let result;
+  if (editingStockId) {
+    result = await dbUpdate('stock', editingStockId, stockData);
+    editingStockId = null;
+  } else {
+    result = await dbInsert('stock', stockData);
+  }
+  if (result !== false && result !== null) { closeModal('stockFormModal'); showToast('✅ Estoque salvo!', 'success'); loadStock(); }
   else showToast('❌ Erro ao salvar', 'error');
 }
+
+async function deleteStock(id) { if (!confirm('Excluir item?')) return; await dbDelete('stock', id); showToast('🗑️ Removido', 'success'); loadStock(); }
 
 // ============================================================
 // BILLING
@@ -1099,19 +1200,63 @@ async function loadBilling() {
     <div class="card ${b.status === 'Vencido' ? 'danger-border' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div><div style="font-weight:700;font-size:13px;">${b.client}</div><div style="color:var(--sub);font-size:11px;">${b.service || '—'}</div><div style="color:var(--sub);font-size:11px;">📅 ${b.due_date || '—'}</div></div>
-        <div style="text-align:right;"><div style="font-weight:800;font-size:15px;color:var(--secondary);">R$ ${parseFloat(b.value || 0).toFixed(2).replace('.', ',')}</div><span class="badge badge-${b.status === 'Pago' ? 'success' : b.status === 'Vencido' ? 'danger' : 'warning'}">${b.status || 'Pendente'}</span></div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;font-size:15px;color:var(--secondary);">R$ ${parseFloat(b.value || 0).toFixed(2).replace('.', ',')}</div>
+          <span class="badge badge-${b.status === 'Pago' ? 'success' : b.status === 'Vencido' ? 'danger' : 'warning'}">${b.status || 'Pendente'}</span>
+        </div>
       </div>
-      ${b.status !== 'Pago' ? `<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-sm" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="markPaid(${b.id})">✓ Marcar Pago</button><button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 Cobrar</button></div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        ${b.status !== 'Pago' ? `<button class="btn btn-sm" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="markPaid(${b.id})">✓ Pago</button>` : ''}
+        <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="editBilling(${b.id})">✏️</button>
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="chargeWhatsApp('${b.client.replace(/'/g,"\\'")}',${b.value})">📲 Cobrar</button>
+        <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteBilling(${b.id})">🗑️</button>
+      </div>
     </div>`).join('');
 }
 
 async function markPaid(id) { await dbUpdate('billing', id, { status: 'Pago' }); showToast('✅ Marcado como pago!', 'success'); loadBilling(); }
-function openBillingForm() { openModal('billingFormModal'); }
+async function deleteBilling(id) { if (!confirm('Excluir cobrança?')) return; await dbDelete('billing', id); showToast('🗑️ Removida', 'success'); loadBilling(); }
+function chargeWhatsApp(client, value) { window.open(`https://wa.me/?text=Olá ${client}! Você tem uma cobrança pendente de R$ ${parseFloat(value).toFixed(2).replace('.',',')} com a CJ FireSecure. Entre em contato! (34) 99706-0025 🔥`, '_blank'); }
+
+let editingBillingId = null;
+
+function openBillingForm() {
+  editingBillingId = null;
+  document.getElementById('billingClient').value = '';
+  document.getElementById('billingService').value = '';
+  document.getElementById('billingValue').value = '';
+  document.getElementById('billingDue').value = '';
+  document.querySelector('#billingFormModal .modal-title').textContent = 'Nova Cobrança';
+  document.querySelector('#billingFormModal .btn-primary').textContent = '✓ Registrar';
+  openModal('billingFormModal');
+}
+
+async function editBilling(id) {
+  const data = await dbGet('billing', {});
+  const b = data.find(x => x.id === id);
+  if (!b) return;
+  editingBillingId = id;
+  document.getElementById('billingClient').value = b.client || '';
+  document.getElementById('billingService').value = b.service || '';
+  document.getElementById('billingValue').value = b.value || '';
+  document.getElementById('billingDue').value = b.due_date || '';
+  document.querySelector('#billingFormModal .modal-title').textContent = '✏️ Editar Cobrança';
+  document.querySelector('#billingFormModal .btn-primary').textContent = '✓ Salvar Alterações';
+  openModal('billingFormModal');
+}
+
 async function saveBilling() {
   const client = document.getElementById('billingClient').value.trim();
   if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
-  const result = await dbInsert('billing', { client, service: document.getElementById('billingService').value, value: parseFloat(document.getElementById('billingValue').value) || 0, due_date: document.getElementById('billingDue').value, status: 'Pendente' });
-  if (result) { closeModal('billingFormModal'); showToast('✅ Cobrança registrada!', 'success'); loadBilling(); }
+  const billingData = { client, service: document.getElementById('billingService').value, value: parseFloat(document.getElementById('billingValue').value) || 0, due_date: document.getElementById('billingDue').value, status: 'Pendente' };
+  let result;
+  if (editingBillingId) {
+    result = await dbUpdate('billing', editingBillingId, billingData);
+    editingBillingId = null;
+  } else {
+    result = await dbInsert('billing', billingData);
+  }
+  if (result !== false && result !== null) { closeModal('billingFormModal'); showToast('✅ Cobrança salva!', 'success'); loadBilling(); }
   else showToast('❌ Erro ao salvar', 'error');
 }
 
@@ -1151,32 +1296,67 @@ function renderProducts(list) {
   document.getElementById('productsList').innerHTML = cats.map(cat => {
     const items = list.filter(p => p.category === cat);
     return `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px;">${cat}</div>` +
-      items.map(p => `<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:12px 14px;">
-        <div><div style="font-weight:600;font-size:13px;">${p.name}</div><div style="color:var(--sub);font-size:10px;">por ${p.unit || 'un'}</div></div>
-        <button onclick="editPrice(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price})" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 12px;font-size:14px;font-weight:800;cursor:pointer;">R$ ${parseFloat(p.price || 0).toFixed(2).replace('.', ',')}</button>
-      </div>`).join('');
+      items.map(p => `
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:12px 14px;">
+          <div style="flex:1;"><div style="font-weight:600;font-size:13px;">${p.name}</div><div style="color:var(--sub);font-size:10px;">por ${p.unit || 'un'}</div></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="editPrice(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price})" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer;">R$ ${parseFloat(p.price || 0).toFixed(2).replace('.', ',')}</button>
+            <button onclick="editProduct(${p.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
+            <button onclick="deleteProduct(${p.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
+          </div>
+        </div>`).join('');
   }).join('');
 }
 
-function filterProducts() { const q = document.getElementById('productSearch').value.toLowerCase(); renderProducts(allProducts.filter(p => p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q))); }
+let editingProductId = null;
 
-async function editPrice(id, name, price) {
-  const novo = prompt(`Novo preço para "${name}" (R$):`, price);
-  if (novo === null) return;
-  const val = parseFloat(novo.replace(',', '.'));
-  if (isNaN(val)) { showToast('⚠️ Valor inválido', 'error'); return; }
-  await dbUpdate('products', id, { price: val });
-  showToast('✅ Preço atualizado!', 'success');
-  loadProducts();
+function openProductForm() {
+  editingProductId = null;
+  document.getElementById('productName').value = '';
+  document.getElementById('productCategory').value = '';
+  document.getElementById('productPrice').value = '';
+  document.getElementById('productUnit').value = 'un';
+  document.querySelector('#productFormModal .modal-title').textContent = 'Novo Produto';
+  document.querySelector('#productFormModal .btn-primary').textContent = '✓ Cadastrar';
+  openModal('productFormModal');
 }
 
-function openProductForm() { openModal('productFormModal'); }
+async function editProduct(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  editingProductId = id;
+  document.getElementById('productName').value = p.name || '';
+  document.getElementById('productCategory').value = p.category || '';
+  document.getElementById('productPrice').value = p.price || '';
+  document.getElementById('productUnit').value = p.unit || 'un';
+  document.querySelector('#productFormModal .modal-title').textContent = '✏️ Editar Produto';
+  document.querySelector('#productFormModal .btn-primary').textContent = '✓ Salvar Alterações';
+  openModal('productFormModal');
+}
+
 async function saveProduct() {
   const name = document.getElementById('productName').value.trim();
   if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
-  const result = await dbInsert('products', { name, category: document.getElementById('productCategory').value, price: parseFloat(document.getElementById('productPrice').value) || 0, unit: document.getElementById('productUnit').value });
-  if (result) { closeModal('productFormModal'); showToast('✅ Produto cadastrado!', 'success'); loadProducts(); }
+  const productData = { name, category: document.getElementById('productCategory').value, price: parseFloat(document.getElementById('productPrice').value) || 0, unit: document.getElementById('productUnit').value };
+  let result;
+  if (editingProductId) {
+    result = await dbUpdate('products', editingProductId, productData);
+    allProductsForOrder = []; // reset cache
+    editingProductId = null;
+  } else {
+    result = await dbInsert('products', productData);
+    allProductsForOrder = [];
+  }
+  if (result !== false && result !== null) { closeModal('productFormModal'); showToast('✅ Produto salvo!', 'success'); loadProducts(); }
   else showToast('❌ Erro ao salvar', 'error');
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Excluir produto?')) return;
+  await dbDelete('products', id);
+  allProductsForOrder = [];
+  showToast('🗑️ Produto removido', 'success');
+  loadProducts();
 }
 
 // ============================================================
@@ -1289,6 +1469,40 @@ function showToast(msg, type) {
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
 });
+
+// ============================================================
+// AUTOCOMPLETE GLOBAL
+// ============================================================
+function autocompleteClient(inputId, dropdownId) {
+  const q = document.getElementById(inputId).value.toLowerCase();
+  const dd = document.getElementById(dropdownId);
+  if (!q || q.length < 1) { dd.style.display = 'none'; return; }
+  const matches = allClients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 6);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matches.map(c => `
+    <div onclick="selectAutocompleteClient('${inputId}','${dropdownId}','${c.name.replace(/'/g,"\\'")}','${c.phone||''}')" 
+         style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">
+      ${c.name}${c.phone ? `<br><span style="color:var(--sub);font-size:11px;">📞 ${c.phone}</span>` : ''}
+    </div>`).join('');
+}
+
+function selectAutocompleteClient(inputId, dropdownId, name, phone) {
+  document.getElementById(inputId).value = name;
+  document.getElementById(dropdownId).style.display = 'none';
+}
+
+function autocompleteSupplier(inputId, dropdownId) {
+  const q = document.getElementById(inputId).value.toLowerCase();
+  const dd = document.getElementById(dropdownId);
+  if (!q || q.length < 1) { dd.style.display = 'none'; return; }
+  const matches = allSuppliers.filter(s => s.name?.toLowerCase().includes(q)).slice(0, 6);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matches.map(s => `
+    <div onclick="document.getElementById('${inputId}').value='${s.name.replace(/'/g,"\\'")}';document.getElementById('${dropdownId}').style.display='none'" 
+         style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${s.name}</div>`).join('');
+}
 
 // ============================================================
 // INIT
