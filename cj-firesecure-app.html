@@ -168,7 +168,7 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('notifications')"><div style="font-size:28px;">🔔</div><div style="font-weight:700;">Alertas</div><div style="color:var(--sub);font-size:11px;">Vencimentos</div></button>
       <button class="menu-item" onclick="navigate('products')"><div style="font-size:28px;">🧯</div><div style="font-weight:700;">Produtos</div><div style="color:var(--sub);font-size:11px;">Tabela de preços</div></button>
       <button class="menu-item" onclick="navigate('suppliers')"><div style="font-size:28px;">🏭</div><div style="font-weight:700;">Fornecedores</div><div style="color:var(--sub);font-size:11px;">Cadastros</div></button>
-      <button class="menu-item" onclick="navigate('inspections')"><div style="font-size:28px;">🔍</div><div style="font-weight:700;">Inspeções</div><div style="color:var(--sub);font-size:11px;">Visitas técnicas</div></button>
+      <button class="menu-item" onclick="navigate('reports')"><div style="font-size:28px;">📄</div><div style="font-weight:700;">Laudos</div><div style="color:var(--sub);font-size:11px;">Fotos antes/depois</div></button>
       <button class="menu-item" onclick="navigate('extintores')" style="border-color:#e8210a44;"><div style="font-size:28px;">🧯</div><div style="font-weight:700;color:var(--primary);">Extintores</div><div style="color:var(--sub);font-size:11px;">QR Code · NBR</div></button>
       <button class="menu-item" onclick="navigate('nbr')" style="border-color:#f0a50044;"><div style="font-size:28px;">📋</div><div style="font-weight:700;color:var(--secondary);">Inspeção NBR</div><div style="color:var(--sub);font-size:11px;">Checklist 12962</div></button>
     </div>
@@ -238,18 +238,12 @@ textarea.input{resize:none;height:70px}
     <div id="suppliersList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
-  <!-- INSPEÇÕES -->
-  <div id="screen-inspections" class="screen">
-    <div class="page-header"><div class="page-title">Inspeções</div><button class="btn btn-primary btn-sm" onclick="openInspectionForm()">+ Nova</button></div>
-    <div id="inspectionsList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
-  </div>
-
   <!-- NAV -->
   <nav class="bottom-nav">
     <button class="nav-btn active" onclick="navigate('home')" id="nav-home"><span class="icon">🏠</span><span class="label">Início</span></button>
     <button class="nav-btn" onclick="navigate('clients')" id="nav-clients"><span class="icon">👥</span><span class="label">Clientes</span></button>
     <button class="nav-btn" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span><span class="label">Pedidos</span></button>
-    <button class="nav-btn" onclick="navigate('reports')" id="nav-reports"><span class="icon">📄</span><span class="label">Laudos</span></button>
+    <button class="nav-btn" onclick="navigate('nbr')" id="nav-nbr"><span class="icon">📋</span><span class="label">Inspeção</span></button>
     <button class="nav-btn" onclick="navigate('menu')" id="nav-menu"><span class="icon">☰</span><span class="label">Menu</span></button>
   </nav>
 </div>
@@ -423,21 +417,6 @@ textarea.input{resize:none;height:70px}
   </div>
 </div>
 
-<div class="modal-overlay" id="inspectionFormModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">Nova Inspeção</div><button class="modal-close" onclick="closeModal('inspectionFormModal')">✕</button></div>
-    <div class="field">
-      <label class="label">Cliente</label>
-      <input class="input" id="inspClient" placeholder="🔍 Digite para buscar..." oninput="autocompleteClient('inspClient','inspClientDd')" autocomplete="off" />
-      <div id="inspClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
-    </div>
-    <div class="field"><label class="label">Técnico</label><input class="input" id="inspTech" placeholder="Nome do técnico" /></div>
-    <div class="field"><label class="label">Data</label><input class="input" id="inspDate" type="date" /></div>
-    <div class="field"><label class="label">Equipamentos</label><textarea class="input" id="inspItems" placeholder="Ex: Extintor, Alarme, Luz de Emergência"></textarea></div>
-    <button class="btn btn-primary" onclick="saveInspection()">✓ Registrar</button>
-  </div>
-</div>
-
 <!-- EXTINTOR FORM MODAL -->
 <div class="modal-overlay" id="extintorFormModal">
   <div class="modal">
@@ -508,17 +487,32 @@ textarea.input{resize:none;height:70px}
   <div class="modal" style="max-height:95vh;">
     <div class="modal-header"><div class="modal-title" id="nbrFormTitle">Inspeção NBR 12962</div><button class="modal-close" onclick="closeModal('nbrFormModal')">✕</button></div>
     
+    <!-- Buscar extintor por QR ou série -->
     <div class="field">
-      <label class="label">Extintor (Nº Série)</label>
-      <input class="input" id="nbrExtSearch" placeholder="🔍 Buscar número de série..." oninput="searchExtintorNBR()" autocomplete="off" />
+      <label class="label">Extintor</label>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="openQrForNbr()" style="flex:1;background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">📷 Ler QR Code</button>
+        <input type="file" id="nbrQrInput" accept="image/*" capture="environment" style="display:none;" onchange="processNbrQr(this)" />
+      </div>
+      <input class="input" id="nbrExtSearch" placeholder="🔍 Ou busque pelo nº de série..." oninput="searchExtintorNBR()" autocomplete="off" />
       <div id="nbrExtDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
       <div id="nbrExtSelected" style="display:none;background:#22c55e18;border:1px solid #22c55e44;border-radius:10px;padding:10px;margin-top:6px;font-size:12px;"></div>
     </div>
+
+    <!-- Foto do extintor -->
+    <div class="field">
+      <label class="label">📸 Foto do Extintor</label>
+      <label style="display:flex;align-items:center;gap:12px;background:var(--card);border:2px dashed var(--border);border-radius:12px;padding:14px;cursor:pointer;">
+        <input type="file" id="nbrExtPhoto" accept="image/*" capture="environment" style="display:none;" onchange="previewNbrPhoto(this)" />
+        <div id="nbrExtPhotoPreview" style="font-size:32px;">📷</div>
+        <div><div style="color:var(--text);font-size:13px;font-weight:600;">Foto do extintor</div><div style="color:var(--sub);font-size:11px;">Primeira inspeção ou novo cliente</div></div>
+      </label>
+    </div>
+
     <div class="field"><label class="label">Técnico</label><input class="input" id="nbrTecnico" placeholder="Nome do técnico" /></div>
     <div class="field"><label class="label">Data da Inspeção</label><input class="input" id="nbrData" type="date" /></div>
 
     <div style="color:var(--primary);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📋 Checklist NBR 12962</div>
-    
     <div id="nbrChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
     
     <div class="field" style="margin-top:16px;"><label class="label">Observações</label><textarea class="input" id="nbrObs" placeholder="Observações adicionais..."></textarea></div>
@@ -631,7 +625,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, reports: loadReports, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, inspections: loadInspections, home: loadHomeData, extintores: loadExtintores, nbr: loadNbrInspecoes };
+  const map = { clients: loadClients, orders: loadOrders, reports: loadReports, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: loadNbrInspecoes };
   if (map[s]) map[s]();
 }
 
@@ -910,6 +904,19 @@ function addProductToOrder(id, name, price, unit) {
   renderOrderItems();
 }
 
+// Baixa ou devolve estoque baseado nos itens do pedido
+async function adjustStock(items, deduct) {
+  const stockData = await dbGet('stock', {});
+  for (const item of items) {
+    const stockItem = stockData.find(s => s.name?.toLowerCase() === item.name?.toLowerCase());
+    if (!stockItem) continue; // Produto não está no estoque, ignora
+    const newQty = deduct
+      ? Math.max(0, parseInt(stockItem.qty) - item.qty)
+      : parseInt(stockItem.qty) + item.qty;
+    await dbUpdate('stock', stockItem.id, { qty: newQty });
+  }
+}
+
 async function saveOrder() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
   if (!orderItems.length) { showToast('⚠️ Adicione pelo menos 1 produto', 'error'); return; }
@@ -919,17 +926,45 @@ async function saveOrder() {
     type: currentOrderType, value: total, payment: document.getElementById('orderPayment').value,
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
-  let result;
+
   if (editingOrderId) {
-    result = await dbUpdate('orders', editingOrderId, orderData);
+    // Editando pedido existente
+    const oldOrder = allOrders.find(o => o.id === editingOrderId);
+    const oldType = oldOrder?.type;
+    const oldItems = JSON.parse(oldOrder?.items || '[]');
+
+    // Se mudou de Pedido → Orçamento: devolve estoque antigo
+    if (oldType === 'Pedido' && currentOrderType === 'Orçamento') {
+      await adjustStock(oldItems, false); // devolve
+      showToast('📦 Estoque devolvido!', 'success');
+    }
+    // Se mudou de Orçamento → Pedido: baixa estoque novo
+    else if (oldType === 'Orçamento' && currentOrderType === 'Pedido') {
+      await adjustStock(orderItems, true); // baixa
+      showToast('📦 Estoque atualizado!', 'success');
+    }
+    // Se era Pedido e continua Pedido: ajusta diferença
+    else if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
+      await adjustStock(oldItems, false); // devolve antigo
+      await adjustStock(orderItems, true); // baixa novo
+    }
+
+    await dbUpdate('orders', editingOrderId, orderData);
     editingOrderId = null;
     closeModal('orderFormModal');
     showToast('✅ Pedido atualizado!', 'success');
     loadOrders();
+
   } else {
-    result = await dbInsert('orders', orderData);
+    // Novo pedido
+    const result = await dbInsert('orders', orderData);
     if (result) {
-      // Cobrança automática ao criar pedido
+      // Baixa estoque só se for Pedido
+      if (currentOrderType === 'Pedido') {
+        await adjustStock(orderItems, true);
+      }
+
+      // Cobrança automática
       const dueDate = new Date();
       const payment = document.getElementById('orderPayment').value;
       if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
@@ -941,8 +976,9 @@ async function saveOrder() {
         due_date: dueDate.toISOString().split('T')[0],
         status: 'Pendente'
       });
+
       closeModal('orderFormModal');
-      showToast('✅ Pedido e cobrança criados!', 'success');
+      showToast(`✅ ${currentOrderType} criado${currentOrderType === 'Pedido' ? ' · Estoque atualizado!' : '!'}`, 'success');
       loadOrders();
     } else showToast('❌ Erro ao salvar', 'error');
   }
@@ -1525,30 +1561,6 @@ async function saveSupplier() {
 async function deleteSupplier(id) { if (!confirm('Excluir?')) return; await dbDelete('suppliers', id); showToast('🗑️ Removido', 'success'); loadSuppliers(); }
 
 // ============================================================
-// INSPECTIONS
-// ============================================================
-async function loadInspections() {
-  const data = await dbGet('inspections', { order: 'created_at', asc: false });
-  if (!data.length) { document.getElementById('inspectionsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma inspeção.</div>'; return; }
-  document.getElementById('inspectionsList').innerHTML = data.map(i => `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div><div style="font-weight:700;font-size:14px;">${i.client}</div><div style="color:var(--sub);font-size:11px;">👷 ${i.tech || '—'} · 📅 ${i.date || '—'}</div></div>
-        <span class="badge badge-${i.status === 'Concluída' ? 'success' : i.status === 'Agendada' ? 'warning' : 'secondary'}">${i.status || 'Pendente'}</span>
-      </div>
-      ${i.items ? `<div style="margin-top:8px;">${i.items.split(',').map(x => `<span style="background:#ffffff10;color:var(--sub);border-radius:6px;padding:3px 8px;font-size:10px;display:inline-block;margin:2px;">${x.trim()}</span>`).join('')}</div>` : ''}
-    </div>`).join('');
-}
-
-function openInspectionForm() { openModal('inspectionFormModal'); }
-async function saveInspection() {
-  const client = document.getElementById('inspClient').value.trim();
-  if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
-  const result = await dbInsert('inspections', { client, tech: document.getElementById('inspTech').value, date: document.getElementById('inspDate').value, items: document.getElementById('inspItems').value, status: 'Agendada' });
-  if (result) { closeModal('inspectionFormModal'); showToast('✅ Inspeção registrada!', 'success'); loadInspections(); }
-  else showToast('❌ Erro ao salvar', 'error');
-}
-
 // ============================================================
 // CNPJ AUTO-FILL
 // ============================================================
@@ -1901,10 +1913,34 @@ function openNbrForm() {
   document.getElementById('nbrObs').value = '';
   document.getElementById('nbrData').value = new Date().toISOString().split('T')[0];
   document.getElementById('nbrFormTitle').textContent = 'Inspeção NBR 12962';
+  document.getElementById('nbrExtPhotoPreview').innerHTML = '📷';
+  document.getElementById('nbrExtPhoto').value = '';
   buildNbrChecklist();
   setNbrResult('Aprovado');
   if (!allExtintores.length) loadExtintores();
   openModal('nbrFormModal');
+}
+
+function openQrForNbr() {
+  document.getElementById('nbrQrInput').click();
+}
+
+function processNbrQr(input) {
+  // Quando capturar a imagem tenta decodificar o QR
+  // Como não temos biblioteca de QR no browser, usamos busca manual por série
+  showToast('📷 Foto capturada! Busque pelo número de série abaixo.', 'success');
+  // Foca no campo de busca
+  setTimeout(() => document.getElementById('nbrExtSearch').focus(), 500);
+}
+
+function previewNbrPhoto(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('nbrExtPhotoPreview').innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;" />`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
 }
 
 function openNbrFormForExtintor(id, serie, client) {
@@ -1915,14 +1951,16 @@ function openNbrFormForExtintor(id, serie, client) {
 async function saveNbrInspecao() {
   if (!selectedNbrExtintor) { showToast('⚠️ Selecione o extintor', 'error'); return; }
   const checklist = { ...nbrCheckValues };
+  const hasPhoto = document.getElementById('nbrExtPhoto').files?.length > 0;
   const result = await dbInsert('inspecoes_nbr', {
-    extintor_id: selectedNbrExtintor.id,
+    extintor_id: selectedNbrExtintor.numero_serie || selectedNbrExtintor.id,
     client_name: selectedNbrExtintor.client_name,
     tecnico: document.getElementById('nbrTecnico').value,
     data_inspecao: document.getElementById('nbrData').value,
     checklist: JSON.stringify(checklist),
     resultado: nbrResult,
-    obs: document.getElementById('nbrObs').value
+    obs: document.getElementById('nbrObs').value,
+    has_photo: hasPhoto
   });
   if (result) {
     // Atualiza data de inspeção do extintor
