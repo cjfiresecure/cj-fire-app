@@ -169,7 +169,37 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('products')"><div style="font-size:28px;">🧯</div><div style="font-weight:700;">Produtos</div><div style="color:var(--sub);font-size:11px;">Tabela de preços</div></button>
       <button class="menu-item" onclick="navigate('suppliers')"><div style="font-size:28px;">🏭</div><div style="font-weight:700;">Fornecedores</div><div style="color:var(--sub);font-size:11px;">Cadastros</div></button>
       <button class="menu-item" onclick="navigate('inspections')"><div style="font-size:28px;">🔍</div><div style="font-weight:700;">Inspeções</div><div style="color:var(--sub);font-size:11px;">Visitas técnicas</div></button>
+      <button class="menu-item" onclick="navigate('extintores')" style="border-color:#e8210a44;"><div style="font-size:28px;">🧯</div><div style="font-weight:700;color:var(--primary);">Extintores</div><div style="color:var(--sub);font-size:11px;">QR Code · NBR</div></button>
+      <button class="menu-item" onclick="navigate('nbr')" style="border-color:#f0a50044;"><div style="font-size:28px;">📋</div><div style="font-weight:700;color:var(--secondary);">Inspeção NBR</div><div style="color:var(--sub);font-size:11px;">Checklist 12962</div></button>
     </div>
+  </div>
+
+  <!-- EXTINTORES -->
+  <div id="screen-extintores" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Extintores</div><div style="color:var(--sub);font-size:12px;" id="extintorCount">Carregando...</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="openQrReader()">📷 QR</button>
+        <button class="btn btn-primary btn-sm" onclick="openExtintorForm()">+ Novo</button>
+      </div>
+    </div>
+    <input class="input" id="extintorSearch" placeholder="🔍 Buscar por série ou cliente..." oninput="filterExtintores()" style="margin-bottom:12px;" />
+    <div class="filter-tabs">
+      <div class="filter-tab active" onclick="setExtintorFilter('Todos',this)">Todos</div>
+      <div class="filter-tab" onclick="setExtintorFilter('Ativo',this)">Ativos</div>
+      <div class="filter-tab" onclick="setExtintorFilter('Vencendo',this)">Vencendo</div>
+      <div class="filter-tab" onclick="setExtintorFilter('Vencido',this)">Vencidos</div>
+    </div>
+    <div id="extintoresList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+  </div>
+
+  <!-- NBR 12962 INSPEÇÃO -->
+  <div id="screen-nbr" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Inspeção NBR</div><div style="color:var(--sub);font-size:12px;">Checklist NBR 12962</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openNbrForm()">+ Nova</button>
+    </div>
+    <div id="nbrList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
   <!-- ESTOQUE -->
@@ -408,6 +438,101 @@ textarea.input{resize:none;height:70px}
   </div>
 </div>
 
+<!-- EXTINTOR FORM MODAL -->
+<div class="modal-overlay" id="extintorFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="extintorFormTitle">Novo Extintor</div><button class="modal-close" onclick="closeModal('extintorFormModal')">✕</button></div>
+    <div class="field">
+      <label class="label">Cliente</label>
+      <input class="input" id="extClientSearch" placeholder="🔍 Buscar cliente..." oninput="autocompleteClient('extClientSearch','extClientDd')" autocomplete="off" />
+      <div id="extClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+    </div>
+    <div class="field"><label class="label">Nº de Série</label><input class="input" id="extSerie" placeholder="Ex: EXT-2024-001" /></div>
+    <div class="field"><label class="label">Tipo</label>
+      <select class="input" id="extTipo">
+        <option>PQS ABC</option><option>PQS BC</option><option>CO₂</option><option>Água</option><option>Espuma</option><option>Pó D</option>
+      </select>
+    </div>
+    <div class="field"><label class="label">Capacidade</label>
+      <select class="input" id="extCapacidade">
+        <option>1 kg</option><option>2 kg</option><option>4 kg</option><option>6 kg</option><option>8 kg</option><option>10 kg</option><option>12 kg</option><option>4 L</option><option>6 L</option><option>10 L</option>
+      </select>
+    </div>
+    <div class="field"><label class="label">Classe do Fogo</label>
+      <select class="input" id="extClasse"><option>A/B/C</option><option>B/C</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
+    </div>
+    <div class="field"><label class="label">Norma ABNT</label>
+      <select class="input" id="extNorma"><option>NBR 15808</option><option>NBR 15809</option></select>
+    </div>
+    <div class="field"><label class="label">Última Inspeção</label><input class="input" id="extUltimaInsp" type="date" /></div>
+    <div class="field"><label class="label">Próxima Inspeção</label><input class="input" id="extProximaInsp" type="date" /></div>
+    <div class="field"><label class="label">Último Hidrostático</label><input class="input" id="extUltimoHidro" type="date" /></div>
+    <div class="field"><label class="label">Próximo Hidrostático</label><input class="input" id="extProximoHidro" type="date" /></div>
+    <div class="field"><label class="label">Status</label>
+      <select class="input" id="extStatus"><option>Ativo</option><option>Inativo</option><option>Aguardando Oficina</option></select>
+    </div>
+    <button class="btn btn-primary" id="saveExtintorBtn" onclick="saveExtintor()">✓ Cadastrar Extintor</button>
+  </div>
+</div>
+
+<!-- QR CODE MODAL -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="qrModalTitle">QR Code</div><button class="modal-close" onclick="closeModal('qrModal')">✕</button></div>
+    <div id="qrContent" style="text-align:center;padding:10px;"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="downloadQR()" style="flex:1;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">💾 Baixar QR</button>
+      <button onclick="shareQR()" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📲 WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR READER MODAL -->
+<div class="modal-overlay" id="qrReaderModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📷 Ler QR Code</div><button class="modal-close" onclick="closeModal('qrReaderModal')">✕</button></div>
+    <div style="text-align:center;padding:20px;">
+      <div style="font-size:50px;margin-bottom:12px;">📷</div>
+      <div style="color:var(--sub);font-size:13px;margin-bottom:16px;">Aponte a câmera para o QR Code do extintor</div>
+      <input type="file" id="qrImageInput" accept="image/*" capture="environment" style="display:none;" onchange="readQRFromImage(this)" />
+      <button onclick="document.getElementById('qrImageInput').click()" style="background:var(--primary);color:#fff;border:none;border-radius:12px;padding:14px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:12px;">📷 Abrir Câmera</button>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:8px;">— ou busque pelo número de série —</div>
+      <input class="input" id="qrSerieSearch" placeholder="Ex: EXT-2024-001" oninput="searchBySerie()" />
+      <div id="qrSearchResult" style="margin-top:12px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NBR 12962 INSPEÇÃO MODAL -->
+<div class="modal-overlay" id="nbrFormModal">
+  <div class="modal" style="max-height:95vh;">
+    <div class="modal-header"><div class="modal-title" id="nbrFormTitle">Inspeção NBR 12962</div><button class="modal-close" onclick="closeModal('nbrFormModal')">✕</button></div>
+    
+    <div class="field">
+      <label class="label">Extintor (Nº Série)</label>
+      <input class="input" id="nbrExtSearch" placeholder="🔍 Buscar número de série..." oninput="searchExtintorNBR()" autocomplete="off" />
+      <div id="nbrExtDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+      <div id="nbrExtSelected" style="display:none;background:#22c55e18;border:1px solid #22c55e44;border-radius:10px;padding:10px;margin-top:6px;font-size:12px;"></div>
+    </div>
+    <div class="field"><label class="label">Técnico</label><input class="input" id="nbrTecnico" placeholder="Nome do técnico" /></div>
+    <div class="field"><label class="label">Data da Inspeção</label><input class="input" id="nbrData" type="date" /></div>
+
+    <div style="color:var(--primary);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📋 Checklist NBR 12962</div>
+    
+    <div id="nbrChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
+    
+    <div class="field" style="margin-top:16px;"><label class="label">Observações</label><textarea class="input" id="nbrObs" placeholder="Observações adicionais..."></textarea></div>
+    <div class="field">
+      <label class="label">Resultado</label>
+      <div style="display:flex;gap:8px;">
+        <button id="nbrAprovado" onclick="setNbrResult('Aprovado')" style="flex:1;background:#22c55e22;color:var(--success);border:1px solid var(--success);border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">✅ Aprovado</button>
+        <button id="nbrReprovado" onclick="setNbrResult('Reprovado')" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">❌ Reprovado</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveNbrInspecao()">✓ Salvar Inspeção</button>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // SUPABASE
@@ -506,7 +631,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, reports: loadReports, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, inspections: loadInspections, home: loadHomeData };
+  const map = { clients: loadClients, orders: loadOrders, reports: loadReports, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, inspections: loadInspections, home: loadHomeData, extintores: loadExtintores, nbr: loadNbrInspecoes };
   if (map[s]) map[s]();
 }
 
@@ -1471,8 +1596,425 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 });
 
 // ============================================================
-// AUTOCOMPLETE GLOBAL
+// EXTINTORES
 // ============================================================
+let allExtintores = [], extintorFilter = 'Todos', editingExtintorId = null;
+
+async function loadExtintores() {
+  document.getElementById('extintoresList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+  allExtintores = await dbGet('extintores', { order: 'created_at', asc: false });
+  document.getElementById('extintorCount').textContent = allExtintores.length + ' cadastrados';
+  renderExtintores(allExtintores);
+}
+
+function renderExtintores(list) {
+  const today = new Date();
+  const in30 = new Date(); in30.setDate(today.getDate() + 30);
+  if (!list.length) { document.getElementById('extintoresList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum extintor cadastrado.</div>'; return; }
+  document.getElementById('extintoresList').innerHTML = list.map(e => {
+    const proxInsp = e.proxima_inspecao ? new Date(e.proxima_inspecao) : null;
+    const proxHidro = e.proximo_hidrostatico ? new Date(e.proximo_hidrostatico) : null;
+    const inspVencida = proxInsp && proxInsp < today;
+    const inspVencendo = proxInsp && proxInsp >= today && proxInsp <= in30;
+    const hidroVencido = proxHidro && proxHidro < today;
+    const borderClass = inspVencida || hidroVencido ? 'danger-border' : inspVencendo ? 'warning-border' : 'success-border';
+    return `
+    <div class="card ${borderClass}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:800;font-size:14px;color:var(--primary);">${e.numero_serie || '—'}</div>
+          <div style="font-weight:600;font-size:13px;">${e.tipo || '—'} · ${e.capacidade || '—'}</div>
+          <div style="color:var(--sub);font-size:11px;">👤 ${e.client_name || '—'}</div>
+        </div>
+        <span class="badge badge-${e.status === 'Ativo' ? 'success' : e.status === 'Aguardando Oficina' ? 'warning' : 'danger'}">${e.status || 'Ativo'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div style="background:${inspVencida ? '#ef444418' : inspVencendo ? '#f59e0b18' : '#22c55e18'};border-radius:8px;padding:8px;">
+          <div style="font-size:10px;color:var(--sub);font-weight:700;">PRÓX. INSPEÇÃO</div>
+          <div style="font-size:12px;font-weight:700;color:${inspVencida ? 'var(--danger)' : inspVencendo ? 'var(--warning)' : 'var(--success)'};">${e.proxima_inspecao || '—'}</div>
+        </div>
+        <div style="background:${hidroVencido ? '#ef444418' : '#22c55e18'};border-radius:8px;padding:8px;">
+          <div style="font-size:10px;color:var(--sub);font-weight:700;">PRÓX. HIDROSTÁTICO</div>
+          <div style="font-size:12px;font-weight:700;color:${hidroVencido ? 'var(--danger)' : 'var(--success)'};">${e.proximo_hidrostatico || '—'}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="showQrCode(${e.id},'${(e.numero_serie||'').replace(/'/g,"\\'")}','${e.client_name||''}')" style="flex:1;background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📱 QR</button>
+        <button onclick="openNbrFormForExtintor(${e.id},'${(e.numero_serie||'').replace(/'/g,"\\'")}','${e.client_name||''}')" style="flex:1;background:#e8210a18;color:var(--primary);border:1px solid #e8210a44;border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📋 Inspecionar</button>
+        <button onclick="editExtintor(${e.id})" style="background:none;border:none;cursor:pointer;font-size:18px;">✏️</button>
+        <button onclick="deleteExtintor(${e.id})" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--danger);">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterExtintores() {
+  const q = document.getElementById('extintorSearch').value.toLowerCase();
+  let list = allExtintores.filter(e => e.numero_serie?.toLowerCase().includes(q) || e.client_name?.toLowerCase().includes(q));
+  if (extintorFilter !== 'Todos') {
+    const today = new Date(); const in30 = new Date(); in30.setDate(today.getDate() + 30);
+    list = list.filter(e => {
+      const p = e.proxima_inspecao ? new Date(e.proxima_inspecao) : null;
+      if (extintorFilter === 'Ativo') return e.status === 'Ativo';
+      if (extintorFilter === 'Vencendo') return p && p >= today && p <= in30;
+      if (extintorFilter === 'Vencido') return p && p < today;
+      return true;
+    });
+  }
+  renderExtintores(list);
+}
+
+function setExtintorFilter(f, el) {
+  extintorFilter = f;
+  document.querySelectorAll('#screen-extintores .filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  filterExtintores();
+}
+
+function openExtintorForm() {
+  editingExtintorId = null;
+  ['extSerie','extUltimaInsp','extProximaInsp','extUltimoHidro','extProximoHidro'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('extClientSearch').value = '';
+  document.getElementById('extClientDd').style.display = 'none';
+  document.getElementById('extintorFormTitle').textContent = 'Novo Extintor';
+  document.getElementById('saveExtintorBtn').textContent = '✓ Cadastrar Extintor';
+  // Auto set próxima inspeção para 12 meses
+  const next = new Date(); next.setFullYear(next.getFullYear() + 1);
+  document.getElementById('extProximaInsp').value = next.toISOString().split('T')[0];
+  const hidro = new Date(); hidro.setFullYear(hidro.getFullYear() + 5);
+  document.getElementById('extProximoHidro').value = hidro.toISOString().split('T')[0];
+  if (!allClients.length) loadClients();
+  openModal('extintorFormModal');
+}
+
+async function editExtintor(id) {
+  const e = allExtintores.find(x => x.id === id);
+  if (!e) return;
+  editingExtintorId = id;
+  document.getElementById('extClientSearch').value = e.client_name || '';
+  document.getElementById('extSerie').value = e.numero_serie || '';
+  document.getElementById('extTipo').value = e.tipo || 'PQS ABC';
+  document.getElementById('extCapacidade').value = e.capacidade || '4 kg';
+  document.getElementById('extClasse').value = e.classe_fogo || 'A/B/C';
+  document.getElementById('extNorma').value = e.norma_abnt || 'NBR 15808';
+  document.getElementById('extUltimaInsp').value = e.ultima_inspecao || '';
+  document.getElementById('extProximaInsp').value = e.proxima_inspecao || '';
+  document.getElementById('extUltimoHidro').value = e.ultimo_hidrostatico || '';
+  document.getElementById('extProximoHidro').value = e.proximo_hidrostatico || '';
+  document.getElementById('extStatus').value = e.status || 'Ativo';
+  document.getElementById('extintorFormTitle').textContent = '✏️ Editar Extintor';
+  document.getElementById('saveExtintorBtn').textContent = '✓ Salvar Alterações';
+  openModal('extintorFormModal');
+}
+
+async function saveExtintor() {
+  const serie = document.getElementById('extSerie').value.trim();
+  const clientName = document.getElementById('extClientSearch').value.trim();
+  if (!serie) { showToast('⚠️ Informe o número de série', 'error'); return; }
+  const btn = document.getElementById('saveExtintorBtn');
+  btn.textContent = '⏳ Salvando...'; btn.disabled = true;
+  const data = {
+    client_name: clientName,
+    numero_serie: serie,
+    tipo: document.getElementById('extTipo').value,
+    capacidade: document.getElementById('extCapacidade').value,
+    classe_fogo: document.getElementById('extClasse').value,
+    norma_abnt: document.getElementById('extNorma').value,
+    ultima_inspecao: document.getElementById('extUltimaInsp').value || null,
+    proxima_inspecao: document.getElementById('extProximaInsp').value || null,
+    ultimo_hidrostatico: document.getElementById('extUltimoHidro').value || null,
+    proximo_hidrostatico: document.getElementById('extProximoHidro').value || null,
+    status: document.getElementById('extStatus').value
+  };
+  let result;
+  if (editingExtintorId) { result = await dbUpdate('extintores', editingExtintorId, data); editingExtintorId = null; }
+  else result = await dbInsert('extintores', data);
+  btn.textContent = '✓ Cadastrar Extintor'; btn.disabled = false;
+  if (result !== false && result !== null) { closeModal('extintorFormModal'); showToast('✅ Extintor salvo!', 'success'); loadExtintores(); }
+  else showToast('❌ Erro ao salvar', 'error');
+}
+
+async function deleteExtintor(id) {
+  if (!confirm('Excluir este extintor?')) return;
+  await dbDelete('extintores', id);
+  showToast('🗑️ Extintor removido', 'success');
+  loadExtintores();
+}
+
+// QR Code generation
+function showQrCode(id, serie, client) {
+  document.getElementById('qrModalTitle').textContent = `QR - ${serie}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`CJ-FIRE|${id}|${serie}|${client}`)}`;
+  document.getElementById('qrContent').innerHTML = `
+    <img id="qrImg" src="${qrUrl}" style="border-radius:12px;width:220px;height:220px;" />
+    <div style="margin-top:12px;">
+      <div style="color:var(--text);font-weight:700;font-size:14px;">${serie}</div>
+      <div style="color:var(--sub);font-size:12px;">${client}</div>
+      <div style="color:var(--sub);font-size:11px;margin-top:4px;">CJ FireSecure Ltda · (34) 99706-0025</div>
+    </div>`;
+  openModal('qrModal');
+}
+
+function downloadQR() {
+  const img = document.getElementById('qrImg');
+  if (!img) return;
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = 'qr-extintor.png';
+  a.click();
+  showToast('✅ QR baixado!', 'success');
+}
+
+function shareQR() {
+  const img = document.getElementById('qrImg');
+  if (navigator.share) {
+    navigator.share({ title: 'QR Code Extintor - CJ FireSecure', text: 'QR Code do extintor CJ FireSecure 🔥', url: img?.src });
+  } else {
+    window.open(`https://wa.me/?text=QR+Code+do+extintor+CJ+FireSecure+🔥`, '_blank');
+  }
+}
+
+function openQrReader() { openModal('qrReaderModal'); document.getElementById('qrSearchResult').innerHTML = ''; document.getElementById('qrSerieSearch').value = ''; }
+
+function readQRFromImage(input) {
+  showToast('📷 Imagem capturada! Buscando...', 'success');
+  closeModal('qrReaderModal');
+}
+
+function searchBySerie() {
+  const q = document.getElementById('qrSerieSearch').value.toLowerCase();
+  if (!q) { document.getElementById('qrSearchResult').innerHTML = ''; return; }
+  const found = allExtintores.filter(e => e.numero_serie?.toLowerCase().includes(q));
+  if (!found.length) { document.getElementById('qrSearchResult').innerHTML = '<div style="color:var(--sub);text-align:center;font-size:13px;">Não encontrado</div>'; return; }
+  document.getElementById('qrSearchResult').innerHTML = found.map(e => `
+    <div class="card" style="cursor:pointer;text-align:left;" onclick="closeModal('qrReaderModal');navigate('extintores');">
+      <div style="font-weight:700;color:var(--primary);">${e.numero_serie}</div>
+      <div style="font-size:12px;color:var(--sub);">${e.tipo} · ${e.capacidade} · ${e.client_name || '—'}</div>
+      <div style="font-size:11px;color:var(--sub);">Próx. Inspeção: ${e.proxima_inspecao || '—'}</div>
+    </div>`).join('');
+}
+
+// ============================================================
+// NBR 12962 INSPEÇÃO
+// ============================================================
+const NBR_CHECKLIST = [
+  { id: 'c01', cat: 'Identificação', item: 'Placa de identificação legível e fixada' },
+  { id: 'c02', cat: 'Identificação', item: 'Número de série visível' },
+  { id: 'c03', cat: 'Identificação', item: 'Classe de fogo indicada corretamente' },
+  { id: 'c04', cat: 'Identificação', item: 'Capacidade indicada corretamente' },
+  { id: 'c05', cat: 'Estado físico', item: 'Cilindro sem amassados, corrosão ou danos visíveis' },
+  { id: 'c06', cat: 'Estado físico', item: 'Pintura em bom estado' },
+  { id: 'c07', cat: 'Estado físico', item: 'Bico/difusor sem obstrução' },
+  { id: 'c08', cat: 'Estado físico', item: 'Mangueira sem rachaduras ou ressecamento' },
+  { id: 'c09', cat: 'Vedação', item: 'Lacre intacto e em bom estado' },
+  { id: 'c10', cat: 'Vedação', item: 'Pino de segurança presente e sem deformações' },
+  { id: 'c11', cat: 'Pressurização', item: 'Manômetro na faixa verde (pressurizado)' },
+  { id: 'c12', cat: 'Pressurização', item: 'Sem vazamento visível ou sonoro' },
+  { id: 'c13', cat: 'Carga', item: 'Peso/carga dentro do prazo de validade' },
+  { id: 'c14', cat: 'Carga', item: 'Data da última recarga visível' },
+  { id: 'c15', cat: 'Localização', item: 'Sinalização de localização visível e em bom estado' },
+  { id: 'c16', cat: 'Localização', item: 'Acesso desobstruído (raio mínimo 1m)' },
+  { id: 'c17', cat: 'Localização', item: 'Altura de instalação correta (válvula a 1,6m do piso)' },
+  { id: 'c18', cat: 'Suporte', item: 'Suporte/gancho em bom estado e fixado firmemente' },
+  { id: 'c19', cat: 'Suporte', item: 'Extintor não está apoiado diretamente no solo' },
+  { id: 'c20', cat: 'Hidrostático', item: 'Dentro do prazo para ensaio hidrostático (5 anos)' },
+];
+
+let nbrResult = 'Aprovado';
+let selectedNbrExtintor = null;
+let allNbrInspecoes = [];
+
+function buildNbrChecklist() {
+  const cats = [...new Set(NBR_CHECKLIST.map(c => c.cat))];
+  document.getElementById('nbrChecklist').innerHTML = cats.map(cat => {
+    const items = NBR_CHECKLIST.filter(c => c.cat === cat);
+    return `<div style="margin-bottom:12px;">
+      <div style="color:var(--secondary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${cat}</div>
+      ${items.map(item => `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="font-size:12px;color:var(--text);flex:1;">${item.item}</div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button id="nbr_ok_${item.id}" onclick="setCheckItem('${item.id}','ok')" style="width:34px;height:34px;border-radius:8px;background:#22c55e22;color:var(--success);border:1px solid #22c55e44;font-size:14px;cursor:pointer;">✅</button>
+            <button id="nbr_no_${item.id}" onclick="setCheckItem('${item.id}','no')" style="width:34px;height:34px;border-radius:8px;background:var(--card);color:var(--sub);border:1px solid var(--border);font-size:14px;cursor:pointer;">❌</button>
+            <button id="nbr_na_${item.id}" onclick="setCheckItem('${item.id}','na')" style="width:34px;height:34px;border-radius:8px;background:var(--card);color:var(--sub);border:1px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;">N/A</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+const nbrCheckValues = {};
+function setCheckItem(id, val) {
+  nbrCheckValues[id] = val;
+  ['ok','no','na'].forEach(v => {
+    const btn = document.getElementById(`nbr_${v}_${id}`);
+    if (!btn) return;
+    btn.style.background = v === val ? (v === 'ok' ? '#22c55e44' : v === 'no' ? '#ef444444' : '#f0a50044') : 'var(--card)';
+    btn.style.borderColor = v === val ? (v === 'ok' ? 'var(--success)' : v === 'no' ? 'var(--danger)' : 'var(--secondary)') : 'var(--border)';
+  });
+  // Auto resultado
+  const nos = Object.values(nbrCheckValues).filter(v => v === 'no').length;
+  if (nos > 0) setNbrResult('Reprovado'); else setNbrResult('Aprovado');
+}
+
+function setNbrResult(result) {
+  nbrResult = result;
+  document.getElementById('nbrAprovado').style.background = result === 'Aprovado' ? '#22c55e22' : 'var(--card)';
+  document.getElementById('nbrAprovado').style.color = result === 'Aprovado' ? 'var(--success)' : 'var(--sub)';
+  document.getElementById('nbrAprovado').style.borderColor = result === 'Aprovado' ? 'var(--success)' : 'var(--border)';
+  document.getElementById('nbrReprovado').style.background = result === 'Reprovado' ? '#ef444422' : 'var(--card)';
+  document.getElementById('nbrReprovado').style.color = result === 'Reprovado' ? 'var(--danger)' : 'var(--sub)';
+  document.getElementById('nbrReprovado').style.borderColor = result === 'Reprovado' ? 'var(--danger)' : 'var(--border)';
+}
+
+function searchExtintorNBR() {
+  const q = document.getElementById('nbrExtSearch').value.toLowerCase();
+  const dd = document.getElementById('nbrExtDd');
+  if (!q) { dd.style.display = 'none'; return; }
+  const matches = allExtintores.filter(e => e.numero_serie?.toLowerCase().includes(q) || e.client_name?.toLowerCase().includes(q)).slice(0, 5);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matches.map(e => `
+    <div onclick="selectNbrExtintor(${e.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
+      <div style="color:var(--primary);font-weight:700;font-size:13px;">${e.numero_serie}</div>
+      <div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.capacidade} · ${e.client_name || '—'}</div>
+    </div>`).join('');
+}
+
+function selectNbrExtintor(id) {
+  selectedNbrExtintor = allExtintores.find(e => e.id === id);
+  if (!selectedNbrExtintor) return;
+  document.getElementById('nbrExtSearch').value = selectedNbrExtintor.numero_serie;
+  document.getElementById('nbrExtDd').style.display = 'none';
+  document.getElementById('nbrExtSelected').style.display = 'block';
+  document.getElementById('nbrExtSelected').innerHTML = `<span style="color:var(--success);font-weight:700;">✓ ${selectedNbrExtintor.numero_serie}</span> · ${selectedNbrExtintor.tipo} · ${selectedNbrExtintor.client_name || '—'}`;
+}
+
+function openNbrForm() {
+  selectedNbrExtintor = null;
+  nbrResult = 'Aprovado';
+  Object.keys(nbrCheckValues).forEach(k => delete nbrCheckValues[k]);
+  document.getElementById('nbrExtSearch').value = '';
+  document.getElementById('nbrExtSelected').style.display = 'none';
+  document.getElementById('nbrExtDd').style.display = 'none';
+  document.getElementById('nbrTecnico').value = '';
+  document.getElementById('nbrObs').value = '';
+  document.getElementById('nbrData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nbrFormTitle').textContent = 'Inspeção NBR 12962';
+  buildNbrChecklist();
+  setNbrResult('Aprovado');
+  if (!allExtintores.length) loadExtintores();
+  openModal('nbrFormModal');
+}
+
+function openNbrFormForExtintor(id, serie, client) {
+  openNbrForm();
+  setTimeout(() => { selectNbrExtintor(id); }, 100);
+}
+
+async function saveNbrInspecao() {
+  if (!selectedNbrExtintor) { showToast('⚠️ Selecione o extintor', 'error'); return; }
+  const checklist = { ...nbrCheckValues };
+  const result = await dbInsert('inspecoes_nbr', {
+    extintor_id: selectedNbrExtintor.id,
+    client_name: selectedNbrExtintor.client_name,
+    tecnico: document.getElementById('nbrTecnico').value,
+    data_inspecao: document.getElementById('nbrData').value,
+    checklist: JSON.stringify(checklist),
+    resultado: nbrResult,
+    obs: document.getElementById('nbrObs').value
+  });
+  if (result) {
+    // Atualiza data de inspeção do extintor
+    const proxima = new Date();
+    proxima.setFullYear(proxima.getFullYear() + (selectedNbrExtintor.tipo === 'CO₂' ? 0 : 1));
+    if (selectedNbrExtintor.tipo === 'CO₂') proxima.setMonth(proxima.getMonth() + 6);
+    await dbUpdate('extintores', selectedNbrExtintor.id, {
+      ultima_inspecao: document.getElementById('nbrData').value,
+      proxima_inspecao: proxima.toISOString().split('T')[0]
+    });
+    closeModal('nbrFormModal');
+    showToast('✅ Inspeção NBR registrada!', 'success');
+    loadNbrInspecoes();
+    loadExtintores();
+  } else showToast('❌ Erro ao salvar', 'error');
+}
+
+async function loadNbrInspecoes() {
+  allNbrInspecoes = await dbGet('inspecoes_nbr', { order: 'created_at', asc: false });
+  if (!allNbrInspecoes.length) { document.getElementById('nbrList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma inspeção NBR ainda.<br><br><button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="openNbrForm()">+ Iniciar Inspeção</button></div>'; return; }
+  document.getElementById('nbrList').innerHTML = allNbrInspecoes.map(r => {
+    const checklist = JSON.parse(r.checklist || '{}');
+    const total = Object.keys(checklist).length;
+    const ok = Object.values(checklist).filter(v => v === 'ok').length;
+    const no = Object.values(checklist).filter(v => v === 'no').length;
+    return `
+    <div class="card ${r.resultado === 'Aprovado' ? 'success-border' : 'danger-border'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;font-size:14px;">📋 Inspeção NBR 12962</div>
+          <div style="color:var(--sub);font-size:11px;">🧯 ${r.extintor_id || '—'} · 👤 ${r.client_name || '—'}</div>
+          <div style="color:var(--sub);font-size:11px;">👷 ${r.tecnico || '—'} · 📅 ${r.data_inspecao || ''}</div>
+        </div>
+        <span class="badge badge-${r.resultado === 'Aprovado' ? 'success' : 'danger'}">${r.resultado || '—'}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div style="flex:1;background:#22c55e18;border-radius:8px;padding:8px;text-align:center;">
+          <div style="color:var(--success);font-weight:800;font-size:16px;">${ok}</div>
+          <div style="color:var(--sub);font-size:10px;">OK</div>
+        </div>
+        <div style="flex:1;background:#ef444418;border-radius:8px;padding:8px;text-align:center;">
+          <div style="color:var(--danger);font-weight:800;font-size:16px;">${no}</div>
+          <div style="color:var(--sub);font-size:10px;">Falhas</div>
+        </div>
+        <div style="flex:1;background:var(--card);border-radius:8px;padding:8px;text-align:center;">
+          <div style="color:var(--sub);font-weight:800;font-size:16px;">${total}</div>
+          <div style="color:var(--sub);font-size:10px;">Itens</div>
+        </div>
+      </div>
+      ${r.obs ? `<div style="color:var(--sub);font-size:11px;margin-bottom:8px;">📝 ${r.obs}</div>` : ''}
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewNbrPDF(${r.id})">📄 Laudo PDF</button>
+        <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteNbrInspecao(${r.id})">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteNbrInspecao(id) { if (!confirm('Excluir?')) return; await dbDelete('inspecoes_nbr', id); showToast('🗑️ Removida', 'success'); loadNbrInspecoes(); }
+
+async function viewNbrPDF(id) {
+  const r = allNbrInspecoes.find(x => x.id === id);
+  if (!r) return;
+  const checklist = JSON.parse(r.checklist || '{}');
+  const date = new Date().toLocaleDateString('pt-BR');
+  document.getElementById('pdfContent').innerHTML = `
+    <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;">
+        <div><div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025</div></div>
+        <div style="text-align:right;"><div style="font-size:13px;font-weight:800;color:#e8210a;">LAUDO DE INSPEÇÃO</div><div style="font-size:10px;color:#666;">NBR 12962 · ${r.data_inspecao || date}</div></div>
+      </div>
+    </div>
+    <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><div style="font-size:10px;font-weight:700;color:#333;">EXTINTOR</div><div style="font-size:12px;font-weight:700;">${r.extintor_id}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:#333;">CLIENTE</div><div style="font-size:12px;font-weight:700;">${r.client_name || '—'}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:#333;">TÉCNICO</div><div style="font-size:12px;">${r.tecnico || '—'}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:#333;">RESULTADO</div><div style="font-size:13px;font-weight:800;color:${r.resultado === 'Aprovado' ? '#22c55e' : '#ef4444'};">${r.resultado === 'Aprovado' ? '✅ APROVADO' : '❌ REPROVADO'}</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10px;">
+      <thead><tr style="background:#e8210a;color:#fff;"><th style="padding:5px 8px;text-align:left;">Item de Verificação</th><th style="padding:5px;text-align:center;">Resultado</th></tr></thead>
+      <tbody>${NBR_CHECKLIST.map((item, i) => {
+        const v = checklist[item.id];
+        const icon = v === 'ok' ? '✅' : v === 'no' ? '❌' : '—';
+        return `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:5px 8px;">${item.item}</td><td style="padding:5px;text-align:center;">${icon}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    ${r.obs ? `<div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:12px;"><div style="font-size:10px;font-weight:700;color:#f59e0b;">OBSERVAÇÕES</div><div style="font-size:11px;">${r.obs}</div></div>` : ''}
+    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;">CJ FireSecure Ltda · Segurança contra incêndio · NBR 12962 · (34) 99706-0025</div>`;
+  openModal('pdfModal');
+}
+
+
 function autocompleteClient(inputId, dropdownId) {
   const q = document.getElementById(inputId).value.toLowerCase();
   const dd = document.getElementById(dropdownId);
