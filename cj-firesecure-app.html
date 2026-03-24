@@ -97,20 +97,42 @@ textarea.input{resize:none;height:70px}
     <div class="hero">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <span style="font-size:28px;"><img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" style="width:40px;height:40px;border-radius:10px;object-fit:cover;vertical-align:middle;" /><span style="display:none;">🦅</span></span>
-        <div>
+        <div style="flex:1;">
           <div style="color:#e8210a;font-weight:900;font-size:14px;letter-spacing:1px;">CJ FIRE APP</div>
           <div style="color:var(--sub);font-size:10px;">CJ FireSecure Ltda</div>
         </div>
+        <button onclick="exportBackup()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">💾 Backup</button>
       </div>
       <div style="font-size:18px;font-weight:700;">Olá, <span id="homeUserName">Gestor</span> 👋</div>
       <div style="color:var(--sub);font-size:12px;margin-top:3px;" id="homeDate"></div>
     </div>
+
+    <!-- Stats principais -->
     <div class="stats-grid">
       <div class="stat-card"><div style="font-size:22px;">👥</div><div style="font-size:26px;font-weight:800;color:var(--primary);margin-top:4px;" id="statClients">—</div><div style="color:var(--sub);font-size:11px;">Clientes</div></div>
       <div class="stat-card"><div style="font-size:22px;">📋</div><div style="font-size:26px;font-weight:800;color:var(--secondary);margin-top:4px;" id="statOrders">—</div><div style="color:var(--sub);font-size:11px;">Pedidos</div></div>
       <div class="stat-card"><div style="font-size:22px;">💰</div><div style="font-size:22px;font-weight:800;color:var(--success);margin-top:4px;" id="statBilling">—</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
       <div class="stat-card"><div style="font-size:22px;">📦</div><div style="font-size:26px;font-weight:800;color:var(--danger);margin-top:4px;" id="statStock">—</div><div style="color:var(--sub);font-size:11px;">Itens em Falta</div></div>
     </div>
+
+    <!-- Relatório financeiro do mês -->
+    <div style="background:linear-gradient(135deg,#1a0a04,#2d1008);border:1px solid #e8210a33;border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+      <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Financeiro do Mês</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="text-align:center;"><div style="color:var(--success);font-weight:800;font-size:15px;" id="monthRevenue">R$ 0</div><div style="color:var(--sub);font-size:10px;">Recebido</div></div>
+        <div style="text-align:center;"><div style="color:var(--secondary);font-weight:800;font-size:15px;" id="monthPending">R$ 0</div><div style="color:var(--sub);font-size:10px;">Pendente</div></div>
+        <div style="text-align:center;"><div style="color:var(--primary);font-weight:800;font-size:15px;" id="monthOrders">0</div><div style="color:var(--sub);font-size:10px;">Pedidos</div></div>
+      </div>
+    </div>
+
+    <!-- Alerta extintores vencendo -->
+    <div id="homeExtintorAlert" style="display:none;background:#f59e0b18;border:1px solid #f59e0b44;border-radius:12px;padding:12px 14px;margin-bottom:14px;cursor:pointer;" onclick="navigate('extintores')">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">⚠️</span>
+        <div><div style="color:var(--warning);font-weight:700;font-size:13px;" id="homeExtintorAlertText">Extintores vencendo</div><div style="color:var(--sub);font-size:11px;">Toque para ver</div></div>
+      </div>
+    </div>
+
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Acesso Rápido</div>
     <div class="quick-grid">
       <div class="quick-btn" onclick="navigate('clients')"><span class="icon">👥</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Clientes</span></div>
@@ -145,10 +167,22 @@ textarea.input{resize:none;height:70px}
       </div>
     </div>
     <input class="input" id="orderSearch" placeholder="🔍 Buscar pedido..." oninput="filterOrders()" style="margin-bottom:10px;" />
-    <div class="filter-tabs">
+    <div class="filter-tabs" style="margin-bottom:8px;">
       <div class="filter-tab active" onclick="setOrderFilter('Todos',this)">Todos</div>
       <div class="filter-tab" onclick="setOrderFilter('Pedido',this)">Pedido</div>
       <div class="filter-tab" onclick="setOrderFilter('Orçamento',this)">Orçamento</div>
+    </div>
+    <div class="filter-tabs" style="margin-bottom:8px;">
+      <div class="filter-tab active" onclick="setOrderStatusFilter('Todos',this)">Todos</div>
+      <div class="filter-tab" onclick="setOrderStatusFilter('Em Aberto',this)">Em Aberto</div>
+      <div class="filter-tab" onclick="setOrderStatusFilter('Concluído',this)">Concluído</div>
+      <div class="filter-tab" onclick="setOrderStatusFilter('Cancelado',this)">Cancelado</div>
+    </div>
+    <div class="filter-tabs" style="margin-bottom:10px;">
+      <div class="filter-tab active" onclick="setOrderDateFilter('Todos',this)">Todos</div>
+      <div class="filter-tab" onclick="setOrderDateFilter('Hoje',this)">Hoje</div>
+      <div class="filter-tab" onclick="setOrderDateFilter('Semana',this)">Semana</div>
+      <div class="filter-tab" onclick="setOrderDateFilter('Mês',this)">Este Mês</div>
     </div>
     <div id="ordersList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
@@ -188,11 +222,125 @@ textarea.input{resize:none;height:70px}
 
   <!-- NBR 12962 INSPEÇÃO -->
   <div id="screen-nbr" class="screen">
-    <div class="page-header">
-      <div><div class="page-title">Inspeção NBR</div><div style="color:var(--sub);font-size:12px;">Checklist NBR 12962</div></div>
-      <button class="btn btn-primary btn-sm" onclick="openNbrForm()">+ Nova</button>
+    <!-- Header com steps -->
+    <div style="background:#12151f;border-bottom:1px solid var(--border);padding:12px 16px;margin:-16px -16px 16px;position:sticky;top:0;z-index:10;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:14px;font-weight:800;color:var(--primary);">📋 Inspeção NBR 12962</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="color:var(--sub);font-size:11px;" id="nbrStepLabel">Histórico</span>
+          <button onclick="showNbrList()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;" id="nbrHistBtn">📋 Histórico</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;" id="nbrStepBar"></div>
     </div>
-    <div id="nbrList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+
+    <!-- LISTA -->
+    <div id="nbrListView">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="color:var(--sub);font-size:12px;" id="nbrListCount"></div>
+        <button class="btn btn-primary btn-sm" onclick="startNbrInspection()">+ Nova Inspeção</button>
+      </div>
+      <div id="nbrList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+    </div>
+
+    <!-- PASSO 1: CLIENTE -->
+    <div id="nbrStep1" style="display:none;">
+      <div style="font-size:15px;font-weight:800;margin-bottom:4px;">👤 Selecionar Cliente</div>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:14px;">Os extintores carregam automaticamente</div>
+      <div class="field">
+        <label class="label">Cliente</label>
+        <input class="input" id="nbrClientSearch" placeholder="🔍 Buscar cliente..." oninput="searchNbrClient()" autocomplete="off" />
+        <div id="nbrClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:180px;overflow-y:auto;margin-top:4px;"></div>
+        <div id="nbrClientSelected" style="display:none;background:#22c55e18;border:1px solid #22c55e44;border-radius:12px;padding:12px 14px;margin-top:8px;">
+          <div style="color:var(--success);font-size:11px;font-weight:700;">✓ Cliente selecionado</div>
+          <div style="font-weight:700;font-size:14px;margin-top:2px;" id="nbrClientNameDisplay"></div>
+          <div id="nbrExtintoresPreview" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+      </div>
+      <div class="field"><label class="label">Técnico Responsável</label><input class="input" id="nbrTecnico" placeholder="Nome do técnico" /></div>
+      <div class="field"><label class="label">Data da Inspeção</label><input class="input" id="nbrData" type="date" /></div>
+      <button class="btn btn-primary" id="nbrBtnStep1" onclick="goNbrStep(2)" disabled>Próximo →</button>
+    </div>
+
+    <!-- PASSO 2: EXTINTORES -->
+    <div id="nbrStep2" style="display:none;">
+      <div style="font-size:15px;font-weight:800;margin-bottom:4px;">🧯 Extintores</div>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:14px;">Confirme, remova ou adicione</div>
+      <div id="nbrExtintoresList"></div>
+      <div id="nbrAddExtArea" style="display:none;background:var(--card);border:1px solid #f0a50044;border-radius:14px;padding:14px;margin-bottom:10px;">
+        <div style="color:var(--secondary);font-weight:700;font-size:13px;margin-bottom:10px;">➕ Novo Extintor</div>
+        <div class="field"><label class="label">Nº Série</label><input class="input" id="nbrNewSerie" placeholder="EXT-001" /></div>
+        <div class="field"><label class="label">Tipo</label>
+          <select class="input" id="nbrNewTipo">
+            <optgroup label="Pó Químico"><option>PQS ABC (Pó ABC)</option><option>PQS BC (Pó BC)</option></optgroup>
+            <optgroup label="Gás"><option>CO₂ (Gás Carbônico)</option></optgroup>
+            <optgroup label="Líquido"><option>Água</option><option>Espuma Mecânica</option></optgroup>
+            <optgroup label="Especiais"><option>Classe D (Metais)</option><option>Classe K (Cozinha/Gordura)</option></optgroup>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="field"><label class="label">Capacidade</label>
+            <select class="input" id="nbrNewCap">
+              <optgroup label="Pó/CO₂ (kg)"><option>1 kg</option><option>2 kg</option><option>4 kg</option><option>6 kg</option><option>8 kg</option><option>10 kg</option><option>12 kg</option></optgroup>
+              <optgroup label="Água/Espuma (L)"><option>2,5 L</option><option>4 L</option><option>6 L</option><option>10 L</option></optgroup>
+              <optgroup label="Sobre Rodas (kg)"><option>20 kg</option><option>30 kg</option><option>50 kg</option></optgroup>
+              <optgroup label="Sobre Rodas (L)"><option>50 L</option><option>75 L</option></optgroup>
+            </select>
+          </div>
+          <div class="field"><label class="label">Classe do Fogo</label>
+            <select class="input" id="nbrNewClasse"><option>A/B/C</option><option>B/C</option><option>A/B</option><option>A</option><option>B</option><option>C</option><option>D</option><option>K</option></select>
+          </div>
+        </div>
+        <button onclick="addNbrExtintor()" class="btn btn-primary">✓ Adicionar ao Laudo</button>
+        <button onclick="document.getElementById('nbrAddExtArea').style.display='none'" style="margin-top:8px;background:none;border:none;color:var(--sub);width:100%;cursor:pointer;padding:6px;font-size:12px;">Cancelar</button>
+      </div>
+      <button onclick="document.getElementById('nbrAddExtArea').style.display='block'" style="width:100%;background:var(--card);border:1px dashed var(--border);border-radius:12px;padding:12px;color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:14px;">➕ Adicionar extintor não cadastrado</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);" onclick="goNbrStep(1)">← Voltar</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="goNbrStep(3)">Próximo →</button>
+      </div>
+    </div>
+
+    <!-- PASSO 3: FOTOS + CHECKLIST -->
+    <div id="nbrStep3" style="display:none;">
+      <div style="font-size:15px;font-weight:800;margin-bottom:4px;">📸 Fotos + Checklist</div>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:10px;">Foto e checklist por extintor</div>
+      <div id="nbrExtSelector" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:4px;"></div>
+      <div id="nbrCurrentExt"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);" onclick="goNbrStep(2)">← Voltar</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="goNbrStep(4)">Resumo →</button>
+      </div>
+    </div>
+
+    <!-- PASSO 4: RESUMO -->
+    <div id="nbrStep4" style="display:none;">
+      <div style="font-size:15px;font-weight:800;margin-bottom:4px;">📊 Resumo Geral</div>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:14px;">Resultado consolidado da inspeção</div>
+      <div id="nbrSummary"></div>
+      <div class="field" style="margin-top:12px;"><label class="label">Observações Gerais</label><textarea class="input" id="nbrObsGeral" placeholder="Observações para o cliente..." style="height:70px;resize:none;"></textarea></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);" onclick="goNbrStep(3)">← Voltar</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="goNbrStep(5)">Assinatura →</button>
+      </div>
+    </div>
+
+    <!-- PASSO 5: ASSINATURA -->
+    <div id="nbrStep5" style="display:none;">
+      <div style="font-size:15px;font-weight:800;margin-bottom:4px;">✍️ Assinatura + Finalizar</div>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:14px;">Peça ao cliente para assinar na tela</div>
+      <div class="field">
+        <label class="label">Assinatura do Cliente</label>
+        <canvas id="nbrSigCanvas" style="width:100%;height:160px;background:#fff;border-radius:12px;border:2px solid var(--border);touch-action:none;" width="600" height="160"></canvas>
+        <button onclick="clearNbrSig()" style="background:none;border:none;color:var(--sub);font-size:12px;margin-top:4px;cursor:pointer;">🗑️ Limpar</button>
+      </div>
+      <div id="nbrFinalCard" class="card" style="text-align:center;margin:14px 0;"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary" onclick="saveAndPdfNbr()">💾 Salvar + Gerar PDF</button>
+        <button onclick="shareNbrWhatsApp()" style="background:#25D36618;color:#25D366;border:1px solid #25D36644;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📲 WhatsApp</button>
+        <button class="btn" style="background:var(--card);color:var(--sub);border:1px solid var(--border);" onclick="goNbrStep(4)">← Voltar</button>
+      </div>
+    </div>
   </div>
 
   <!-- ESTOQUE -->
@@ -249,7 +397,7 @@ textarea.input{resize:none;height:70px}
       <div style="position:relative;"><input class="input" id="clientCnpj" placeholder="00.000.000/0001-00" oninput="handleCnpjInput(this,'client')" maxlength="18" /><span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:16px;" id="clientCnpjIcon">🔍</span></div>
       <div style="font-size:11px;margin-top:4px;" id="clientCnpjHint"></div>
     </div>
-    <div class="field"><label class="label">Nome / Razão Social</label><input class="input" id="clientName" placeholder="Preenchido pelo CNPJ" /></div>
+    <div class="field"><label class="label">Nome / Razão Social</label><input class="input" id="clientName" placeholder="Preenchido pelo CNPJ" oninput="checkClientDuplicate(this.value)" /><div id="clientDuplicateWarn" style="display:none;color:var(--warning);font-size:11px;margin-top:4px;"></div></div>
     <div class="field"><label class="label">Nome Fantasia</label><input class="input" id="clientFantasia" placeholder="Nome comercial" /></div>
     <div class="field"><label class="label">Responsável</label><input class="input" id="clientContact" placeholder="Nome do contato" /></div>
     <div class="field"><label class="label">Telefone / WhatsApp</label><input class="input" id="clientPhone" placeholder="Preenchido pelo CNPJ" /></div>
@@ -381,18 +529,48 @@ textarea.input{resize:none;height:70px}
       <div id="extClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
     </div>
     <div class="field"><label class="label">Nº de Série</label><input class="input" id="extSerie" placeholder="Ex: EXT-2024-001" /></div>
-    <div class="field"><label class="label">Tipo</label>
+    <div class="field"><label class="label">Tipo / Agente</label>
       <select class="input" id="extTipo">
-        <option>PQS ABC</option><option>PQS BC</option><option>CO₂</option><option>Água</option><option>Espuma</option><option>Pó D</option>
+        <optgroup label="Pó Químico">
+          <option>PQS ABC (Pó ABC)</option>
+          <option>PQS BC (Pó BC)</option>
+        </optgroup>
+        <optgroup label="Gás">
+          <option>CO₂ (Gás Carbônico)</option>
+        </optgroup>
+        <optgroup label="Líquido">
+          <option>Água</option>
+          <option>Espuma Mecânica</option>
+        </optgroup>
+        <optgroup label="Especiais">
+          <option>Classe D (Metais)</option>
+          <option>Classe K (Cozinha/Gordura)</option>
+        </optgroup>
       </select>
     </div>
     <div class="field"><label class="label">Capacidade</label>
       <select class="input" id="extCapacidade">
-        <option>1 kg</option><option>2 kg</option><option>4 kg</option><option>6 kg</option><option>8 kg</option><option>10 kg</option><option>12 kg</option><option>4 L</option><option>6 L</option><option>10 L</option>
+        <optgroup label="Portáteis — Pó/CO₂ (kg)">
+          <option>1 kg</option><option>2 kg</option><option>4 kg</option>
+          <option>6 kg</option><option>8 kg</option><option>10 kg</option><option>12 kg</option>
+        </optgroup>
+        <optgroup label="Portáteis — Água/Espuma (L)">
+          <option>2,5 L</option><option>4 L</option><option>6 L</option><option>10 L</option>
+        </optgroup>
+        <optgroup label="Sobre Rodas — Pó (kg)">
+          <option>20 kg</option><option>30 kg</option><option>50 kg</option>
+        </optgroup>
+        <optgroup label="Sobre Rodas — Líquido (L)">
+          <option>50 L</option><option>75 L</option>
+        </optgroup>
       </select>
     </div>
     <div class="field"><label class="label">Classe do Fogo</label>
-      <select class="input" id="extClasse"><option>A/B/C</option><option>B/C</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
+      <select class="input" id="extClasse">
+        <option>A/B/C</option><option>B/C</option><option>A/B</option>
+        <option>A</option><option>B</option><option>C</option>
+        <option>D</option><option>K</option>
+      </select>
     </div>
     <div class="field"><label class="label">Norma ABNT</label>
       <select class="input" id="extNorma"><option>NBR 15808</option><option>NBR 15809</option></select>
@@ -405,6 +583,35 @@ textarea.input{resize:none;height:70px}
       <select class="input" id="extStatus"><option>Ativo</option><option>Inativo</option><option>Aguardando Oficina</option></select>
     </div>
     <button class="btn btn-primary" id="saveExtintorBtn" onclick="saveExtintor()">✓ Cadastrar Extintor</button>
+  </div>
+</div>
+
+<!-- HISTÓRICO DO CLIENTE MODAL -->
+<div class="modal-overlay" id="clientHistoryModal">
+  <div class="modal" style="max-height:95vh;">
+    <div class="modal-header"><div class="modal-title" id="clientHistoryTitle">Histórico</div><button class="modal-close" onclick="closeModal('clientHistoryModal')">✕</button></div>
+    <div id="clientHistoryContent" style="display:flex;flex-direction:column;gap:10px;"></div>
+  </div>
+</div>
+
+<!-- ASSINATURA DIGITAL MODAL -->
+<div class="modal-overlay" id="signatureModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✍️ Assinatura Digital</div><button class="modal-close" onclick="closeModal('signatureModal')">✕</button></div>
+    <div style="color:var(--sub);font-size:12px;margin-bottom:10px;">Peça ao cliente para assinar na tela:</div>
+    <canvas id="signatureCanvas" style="width:100%;height:200px;background:#fff;border-radius:12px;border:2px solid var(--border);touch-action:none;" width="500" height="200"></canvas>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="clearSignature()" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">🗑️ Limpar</button>
+      <button onclick="saveSignature()" style="flex:2;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">✓ Confirmar Assinatura</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS PEDIDO MODAL -->
+<div class="modal-overlay" id="orderStatusModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Alterar Status</div><button class="modal-close" onclick="closeModal('orderStatusModal')">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px;" id="orderStatusContent"></div>
   </div>
 </div>
 
@@ -436,50 +643,6 @@ textarea.input{resize:none;height:70px}
   </div>
 </div>
 
-<!-- NBR 12962 INSPEÇÃO MODAL -->
-<div class="modal-overlay" id="nbrFormModal">
-  <div class="modal" style="max-height:95vh;">
-    <div class="modal-header"><div class="modal-title" id="nbrFormTitle">Inspeção NBR 12962</div><button class="modal-close" onclick="closeModal('nbrFormModal')">✕</button></div>
-    
-    <!-- Buscar extintor por QR ou série -->
-    <div class="field">
-      <label class="label">Extintor</label>
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <button onclick="openQrForNbr()" style="flex:1;background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">📷 Ler QR Code</button>
-        <input type="file" id="nbrQrInput" accept="image/*" capture="environment" style="display:none;" onchange="processNbrQr(this)" />
-      </div>
-      <input class="input" id="nbrExtSearch" placeholder="🔍 Ou busque pelo nº de série..." oninput="searchExtintorNBR()" autocomplete="off" />
-      <div id="nbrExtDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
-      <div id="nbrExtSelected" style="display:none;background:#22c55e18;border:1px solid #22c55e44;border-radius:10px;padding:10px;margin-top:6px;font-size:12px;"></div>
-    </div>
-
-    <!-- Foto do extintor -->
-    <div class="field">
-      <label class="label">📸 Foto do Extintor</label>
-      <label style="display:flex;align-items:center;gap:12px;background:var(--card);border:2px dashed var(--border);border-radius:12px;padding:14px;cursor:pointer;">
-        <input type="file" id="nbrExtPhoto" accept="image/*" capture="environment" style="display:none;" onchange="previewNbrPhoto(this)" />
-        <div id="nbrExtPhotoPreview" style="font-size:32px;">📷</div>
-        <div><div style="color:var(--text);font-size:13px;font-weight:600;">Foto do extintor</div><div style="color:var(--sub);font-size:11px;">Primeira inspeção ou novo cliente</div></div>
-      </label>
-    </div>
-
-    <div class="field"><label class="label">Técnico</label><input class="input" id="nbrTecnico" placeholder="Nome do técnico" /></div>
-    <div class="field"><label class="label">Data da Inspeção</label><input class="input" id="nbrData" type="date" /></div>
-
-    <div style="color:var(--primary);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📋 Checklist NBR 12962</div>
-    <div id="nbrChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
-    
-    <div class="field" style="margin-top:16px;"><label class="label">Observações</label><textarea class="input" id="nbrObs" placeholder="Observações adicionais..."></textarea></div>
-    <div class="field">
-      <label class="label">Resultado</label>
-      <div style="display:flex;gap:8px;">
-        <button id="nbrAprovado" onclick="setNbrResult('Aprovado')" style="flex:1;background:#22c55e22;color:var(--success);border:1px solid var(--success);border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">✅ Aprovado</button>
-        <button id="nbrReprovado" onclick="setNbrResult('Reprovado')" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">❌ Reprovado</button>
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="saveNbrInspecao()">✓ Salvar Inspeção</button>
-  </div>
-</div>
 
 <script>
 // ============================================================
@@ -579,7 +742,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: loadNbrInspecoes };
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList };
   if (map[s]) map[s]();
 }
 
@@ -595,21 +758,55 @@ function setDate() {
 
 async function loadHomeData() {
   try {
-    const [clients, orders, billing, stock] = await Promise.all([
+    const [clients, orders, billing, stock, extintores] = await Promise.all([
       dbGet('clients', { order: 'created_at', asc: false, limit: 3 }),
       dbGet('orders', {}),
       dbGet('billing', {}),
-      dbGet('stock', {})
+      dbGet('stock', {}),
+      dbGet('extintores', {})
     ]);
+
+    // Stats
     document.getElementById('statClients').textContent = clients.length;
     document.getElementById('statOrders').textContent = orders.length;
-    const total = billing.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-    document.getElementById('statBilling').textContent = 'R$' + total.toFixed(0);
+    const totalReceber = billing.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    document.getElementById('statBilling').textContent = 'R$' + totalReceber.toFixed(0);
     const low = stock.filter(s => parseInt(s.qty) <= parseInt(s.min_qty || 0)).length;
     document.getElementById('statStock').textContent = low;
+
+    // Financeiro do mês
+    const now = new Date();
+    const monthOrders = orders.filter(o => {
+      if (!o.created_at) return false;
+      const d = new Date(o.created_at);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && o.type === 'Pedido';
+    });
+    const monthBilling = billing.filter(b => {
+      if (!b.created_at) return false;
+      const d = new Date(b.created_at);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const recebido = monthBilling.filter(b => b.status === 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    const pendente = monthBilling.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    document.getElementById('monthRevenue').textContent = 'R$' + recebido.toFixed(0);
+    document.getElementById('monthPending').textContent = 'R$' + pendente.toFixed(0);
+    document.getElementById('monthOrders').textContent = monthOrders.length;
+
+    // Alertas de extintores vencendo
+    const in30 = new Date(); in30.setDate(in30.getDate() + 30);
+    const vencendo = extintores.filter(e => {
+      const p = e.proxima_inspecao ? new Date(e.proxima_inspecao) : null;
+      return p && p <= in30;
+    });
+    if (vencendo.length > 0) {
+      document.getElementById('homeExtintorAlert').style.display = 'block';
+      document.getElementById('homeExtintorAlertText').textContent = `${vencendo.length} extintor(es) com inspeção vencendo em 30 dias`;
+    }
+
+    // Últimos clientes
     document.getElementById('homeRecentClients').innerHTML = clients.length === 0
       ? '<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum cliente ainda.</div>'
-      : clients.map(c => `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:700;font-size:13px;">${c.name}</div><div style="color:var(--sub);font-size:11px;">📅 ${c.next_visit || '—'}</div></div><span class="badge badge-${c.status === 'Em dia' ? 'success' : c.status === 'Vencendo' ? 'warning' : 'danger'}">${c.status || 'Em dia'}</span></div></div>`).join('');
+      : clients.map(c => `<div class="card" onclick="openClientHistory(${c.id},'${c.name.replace(/'/g,"\\'")}')"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:700;font-size:13px;">${c.name}</div><div style="color:var(--sub);font-size:11px;">📅 ${c.next_visit || '—'}</div></div><div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-${c.status === 'Em dia' ? 'success' : c.status === 'Vencendo' ? 'warning' : 'danger'}">${c.status || 'Em dia'}</span><span style="color:var(--sub);font-size:16px;">›</span></div></div></div>`).join('');
   } catch(e) { console.error(e); }
 }
 
@@ -637,11 +834,24 @@ function renderClients(list) {
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="color:var(--sub);font-size:11px;">📅 <span style="color:var(--text);font-weight:600;">${c.next_visit || '—'}</span></div>
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="openClientHistory(${c.id},'${c.name.replace(/'/g,"\\'")}')">📋 Histórico</button>
           <button class="btn btn-primary btn-sm" onclick="openOrderFormForClient('${c.name.replace(/'/g,"\\'")}','${c.cnpj||''}')">+ Pedido</button>
           <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteClient(${c.id})">🗑️</button>
         </div>
       </div>
     </div>`).join('');
+}
+
+function checkClientDuplicate(name) {
+  const warn = document.getElementById('clientDuplicateWarn');
+  if (!name || name.length < 3) { warn.style.display = 'none'; return; }
+  const existing = allClients.find(c => c.name?.toLowerCase().includes(name.toLowerCase()));
+  if (existing) {
+    warn.style.display = 'block';
+    warn.innerHTML = `⚠️ Possível duplicata: <strong>${existing.name}</strong> já cadastrado!`;
+  } else {
+    warn.style.display = 'none';
+  }
 }
 
 function filterClients() {
@@ -659,6 +869,16 @@ function openClientForm() {
 async function saveClient() {
   const name = document.getElementById('clientName').value.trim();
   if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
+
+  // Verifica duplicidade
+  const existing = allClients.find(c =>
+    c.name?.toLowerCase().trim() === name.toLowerCase().trim() ||
+    (document.getElementById('clientCnpj').value && c.cnpj === document.getElementById('clientCnpj').value)
+  );
+  if (existing) {
+    showToast(`⚠️ Cliente "${existing.name}" já cadastrado!`, 'error');
+    return;
+  }
   const btn = document.getElementById('saveClientBtn');
   btn.textContent = '⏳ Salvando...';
   btn.disabled = true;
@@ -692,7 +912,7 @@ async function deleteClient(id) {
 // ============================================================
 // ORDERS
 // ============================================================
-let allOrders = [], orderFilter = 'Todos', currentOrderType = 'Pedido', orderItems = [], selectedOrderClient = null, allProductsForOrder = [];
+let allOrders = [], orderFilter = 'Todos', orderStatusFilter = 'Todos', orderDateFilter = 'Todos', currentOrderType = 'Pedido', orderItems = [], selectedOrderClient = null, allProductsForOrder = [];
 
 async function loadOrders() {
   document.getElementById('ordersList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
@@ -708,13 +928,39 @@ async function loadOrders() {
 
 function renderOrders() {
   const q = (document.getElementById('orderSearch')?.value || '').toLowerCase();
-  const list = allOrders.filter(o => (orderFilter === 'Todos' || o.type === orderFilter) && (!q || o.client?.toLowerCase().includes(q)));
+  const now = new Date();
+  let list = allOrders.filter(o => {
+    const matchType = orderFilter === 'Todos' || o.type === orderFilter;
+    const matchStatus = orderStatusFilter === 'Todos' || (o.order_status || 'Em Aberto') === orderStatusFilter;
+    const matchSearch = !q || o.client?.toLowerCase().includes(q);
+    let matchDate = true;
+    if (orderDateFilter !== 'Todos' && o.created_at) {
+      const d = new Date(o.created_at);
+      if (orderDateFilter === 'Hoje') matchDate = d.toDateString() === now.toDateString();
+      else if (orderDateFilter === 'Semana') { const week = new Date(); week.setDate(now.getDate() - 7); matchDate = d >= week; }
+      else if (orderDateFilter === 'Mês') matchDate = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+    return matchType && matchStatus && matchSearch && matchDate;
+  });
+
   if (list.length === 0) { document.getElementById('ordersList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum pedido encontrado.</div>'; return; }
-  document.getElementById('ordersList').innerHTML = list.map(o => `
-    <div class="card">
+
+  // Numeração sequencial APP-001
+  const totalOrders = allOrders.length;
+  document.getElementById('ordersList').innerHTML = list.map((o, idx) => {
+    const orderNum = 'APP-' + String(o.id).padStart(3, '0');
+    const status = o.order_status || 'Em Aberto';
+    const statusColor = status === 'Concluído' ? 'var(--success)' : status === 'Cancelado' ? 'var(--danger)' : 'var(--secondary)';
+    const date = o.created_at ? new Date(o.created_at).toLocaleDateString('pt-BR') : '—';
+    return `
+    <div class="card ${status === 'Cancelado' ? 'danger-border' : status === 'Concluído' ? 'success-border' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="color:var(--sub);font-size:12px;font-weight:700;">APP ${String(o.id).padStart(3,'0')}</span>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:var(--sub);font-size:12px;font-weight:700;">${orderNum}</span>
+          <span style="color:${statusColor};font-size:11px;font-weight:700;background:${statusColor}18;padding:2px 8px;border-radius:20px;">${status}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button onclick="changeOrderStatus(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;">🔄</button>
           <button onclick="editOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--secondary);">✏️</button>
           <button onclick="viewOrderPDF(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--sub);">📄</button>
           <button onclick="deleteOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--danger);">🗑️</button>
@@ -723,17 +969,52 @@ function renderOrders() {
       <div style="font-weight:700;font-size:13px;">${o.client}</div>
       ${o.cnpj ? `<div style="color:var(--sub);font-size:11px;">CNPJ: ${o.cnpj}</div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
-        <div style="color:var(--sub);font-size:11px;">${o.payment || 'À vista'}</div>
+        <div><div style="color:var(--sub);font-size:11px;">${o.payment || 'À vista'}</div><div style="color:var(--sub);font-size:10px;">📅 ${date}</div></div>
         <div style="text-align:right;">
           <div style="font-weight:800;font-size:16px;">R$ ${parseFloat(o.value || 0).toFixed(2).replace('.', ',')}</div>
           <span style="color:${o.type === 'Pedido' ? 'var(--success)' : 'var(--secondary)'};font-weight:800;font-size:13px;">${o.type}</span>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function filterOrders() { renderOrders(); }
-function setOrderFilter(f, el) { orderFilter = f; document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderOrders(); }
+function setOrderFilter(f, el) {
+  orderFilter = f;
+  el.closest('.filter-tabs').querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderOrders();
+}
+function setOrderStatusFilter(f, el) {
+  orderStatusFilter = f;
+  el.closest('.filter-tabs').querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderOrders();
+}
+function setOrderDateFilter(f, el) {
+  orderDateFilter = f;
+  el.closest('.filter-tabs').querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderOrders();
+}
+
+async function changeOrderStatus(id) {
+  const o = allOrders.find(x => x.id === id);
+  if (!o) return;
+  const statuses = ['Em Aberto', 'Concluído', 'Cancelado'];
+  document.getElementById('orderStatusContent').innerHTML = statuses.map(s => `
+    <button onclick="setOrderStatusDB(${id},'${s}')" style="background:${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--card)'};color:${(o.order_status||'Em Aberto')===s?'#fff':'var(--text)'};border:1px solid ${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--border)'};border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">${s}</button>
+  `).join('');
+  openModal('orderStatusModal');
+}
+
+async function setOrderStatusDB(id, status) {
+  await dbUpdate('orders', id, { order_status: status });
+  closeModal('orderStatusModal');
+  showToast(`✅ Status: ${status}`, 'success');
+  loadOrders();
+}
 
 async function deleteOrder(id) {
   if (!confirm('Excluir este pedido?')) return;
@@ -762,7 +1043,7 @@ function searchOrderClient() {
   dd.innerHTML = matches.map(c => `<div onclick="selectOrderClient(${c.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${c.name}${c.cnpj ? '<br><span style="color:var(--sub);font-size:11px;">' + c.cnpj + '</span>' : ''}</div>`).join('');
 }
 
-function selectOrderClient(id) {
+async function selectOrderClient(id) {
   selectedOrderClient = allClients.find(c => c.id === id);
   if (!selectedOrderClient) return;
   document.getElementById('orderClientSearch').value = '';
@@ -770,6 +1051,39 @@ function selectOrderClient(id) {
   document.getElementById('orderClientSelected').style.display = 'block';
   document.getElementById('orderClientName').textContent = selectedOrderClient.name;
   document.getElementById('orderClientCnpj').textContent = selectedOrderClient.cnpj || '';
+
+  // Carrega extintores do cliente automaticamente
+  showToast('⏳ Carregando extintores do cliente...', 'success');
+  const extintores = await dbGet('extintores', { order: 'created_at', asc: false });
+  const clientExtintores = extintores.filter(e =>
+    e.client_name?.toLowerCase() === selectedOrderClient.name?.toLowerCase()
+  );
+
+  if (clientExtintores.length > 0) {
+    // Busca preço de manutenção na tabela de produtos
+    const products = await dbGet('products', {});
+    const manutencao = products.find(p =>
+      p.name?.toLowerCase().includes('manutenção') ||
+      p.name?.toLowerCase().includes('manutencao') ||
+      p.name?.toLowerCase().includes('recarga')
+    );
+    const precoUnit = manutencao ? parseFloat(manutencao.price) : 0;
+
+    // Adiciona extintores como itens do pedido
+    orderItems = clientExtintores.map(e => ({
+      id: `ext_${e.id}`,
+      name: `Manutenção ${e.tipo} ${e.capacidade} (${e.numero_serie})`,
+      price: precoUnit,
+      unit: 'serv.',
+      qty: 1,
+      extintor_id: e.id
+    }));
+
+    renderOrderItems();
+    showToast(`✅ ${clientExtintores.length} extintor(es) carregado(s)!`, 'success');
+  } else {
+    showToast('ℹ️ Nenhum extintor vinculado a este cliente', 'success');
+  }
 }
 
 let editingOrderId = null;
@@ -1406,7 +1720,7 @@ function renderExtintores(list) {
       </div>
       <div style="display:flex;gap:6px;">
         <button onclick="showQrCode(${e.id},'${(e.numero_serie||'').replace(/'/g,"\\'")}','${e.client_name||''}')" style="flex:1;background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📱 QR</button>
-        <button onclick="openNbrFormForExtintor(${e.id},'${(e.numero_serie||'').replace(/'/g,"\\'")}','${e.client_name||''}')" style="flex:1;background:#e8210a18;color:var(--primary);border:1px solid #e8210a44;border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📋 Inspecionar</button>
+        <button onclick="startNbrForExtintor(${e.id})" style="flex:1;background:#e8210a18;color:var(--primary);border:1px solid #e8210a44;border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📋 Inspecionar</button>
         <button onclick="editExtintor(${e.id})" style="background:none;border:none;cursor:pointer;font-size:18px;">✏️</button>
         <button onclick="deleteExtintor(${e.id})" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--danger);">🗑️</button>
       </div>
@@ -1560,252 +1874,573 @@ function searchBySerie() {
     </div>`).join('');
 }
 
+function startNbrForExtintor(extId) {
+  const ext = allExtintores.find(e => e.id === extId);
+  const clientName = ext?.client_name || '';
+  navigate('nbr');
+  setTimeout(() => {
+    startNbrInspection();
+    setTimeout(async () => {
+      if (!allClients.length) await loadClients();
+      const client = allClients.find(c => c.name?.toLowerCase() === clientName?.toLowerCase());
+      if (client) await selectNbrClient(client.id);
+    }, 300);
+  }, 100);
+}
 // ============================================================
-// NBR 12962 INSPEÇÃO
-// ============================================================
-const NBR_CHECKLIST = [
-  { id: 'c01', cat: 'Identificação', item: 'Placa de identificação legível e fixada' },
-  { id: 'c02', cat: 'Identificação', item: 'Número de série visível' },
-  { id: 'c03', cat: 'Identificação', item: 'Classe de fogo indicada corretamente' },
-  { id: 'c04', cat: 'Identificação', item: 'Capacidade indicada corretamente' },
-  { id: 'c05', cat: 'Estado físico', item: 'Cilindro sem amassados, corrosão ou danos visíveis' },
-  { id: 'c06', cat: 'Estado físico', item: 'Pintura em bom estado' },
-  { id: 'c07', cat: 'Estado físico', item: 'Bico/difusor sem obstrução' },
-  { id: 'c08', cat: 'Estado físico', item: 'Mangueira sem rachaduras ou ressecamento' },
-  { id: 'c09', cat: 'Vedação', item: 'Lacre intacto e em bom estado' },
-  { id: 'c10', cat: 'Vedação', item: 'Pino de segurança presente e sem deformações' },
-  { id: 'c11', cat: 'Pressurização', item: 'Manômetro na faixa verde (pressurizado)' },
-  { id: 'c12', cat: 'Pressurização', item: 'Sem vazamento visível ou sonoro' },
-  { id: 'c13', cat: 'Carga', item: 'Peso/carga dentro do prazo de validade' },
-  { id: 'c14', cat: 'Carga', item: 'Data da última recarga visível' },
-  { id: 'c15', cat: 'Localização', item: 'Sinalização de localização visível e em bom estado' },
-  { id: 'c16', cat: 'Localização', item: 'Acesso desobstruído (raio mínimo 1m)' },
-  { id: 'c17', cat: 'Localização', item: 'Altura de instalação correta (válvula a 1,6m do piso)' },
-  { id: 'c18', cat: 'Suporte', item: 'Suporte/gancho em bom estado e fixado firmemente' },
-  { id: 'c19', cat: 'Suporte', item: 'Extintor não está apoiado diretamente no solo' },
-  { id: 'c20', cat: 'Hidrostático', item: 'Dentro do prazo para ensaio hidrostático (5 anos)' },
+const NBR_ITEMS = [
+  { id:'c01', cat:'Identificação', item:'Placa de identificação legível e fixada' },
+  { id:'c02', cat:'Identificação', item:'Número de série visível' },
+  { id:'c03', cat:'Identificação', item:'Classe de fogo indicada corretamente' },
+  { id:'c04', cat:'Identificação', item:'Capacidade indicada corretamente' },
+  { id:'c05', cat:'Estado físico', item:'Cilindro sem amassados, corrosão ou danos visíveis' },
+  { id:'c06', cat:'Estado físico', item:'Pintura em bom estado' },
+  { id:'c07', cat:'Estado físico', item:'Bico/difusor sem obstrução' },
+  { id:'c08', cat:'Estado físico', item:'Mangueira sem rachaduras ou ressecamento' },
+  { id:'c09', cat:'Vedação', item:'Lacre intacto e em bom estado' },
+  { id:'c10', cat:'Vedação', item:'Pino de segurança presente e sem deformações' },
+  { id:'c11', cat:'Pressurização', item:'Manômetro na faixa verde (pressurizado)' },
+  { id:'c12', cat:'Pressurização', item:'Sem vazamento visível ou sonoro' },
+  { id:'c13', cat:'Carga', item:'Peso/carga dentro do prazo de validade' },
+  { id:'c14', cat:'Carga', item:'Data da última recarga visível' },
+  { id:'c15', cat:'Localização', item:'Sinalização de localização visível e em bom estado' },
+  { id:'c16', cat:'Localização', item:'Acesso desobstruído (raio mínimo 1m)' },
+  { id:'c17', cat:'Localização', item:'Altura de instalação correta (válvula a 1,6m do piso)' },
+  { id:'c18', cat:'Suporte', item:'Suporte/gancho em bom estado e fixado firmemente' },
+  { id:'c19', cat:'Suporte', item:'Extintor não está apoiado diretamente no solo' },
+  { id:'c20', cat:'Hidrostático', item:'Dentro do prazo para ensaio hidrostático (5 anos)' },
 ];
 
-let nbrResult = 'Aprovado';
-let selectedNbrExtintor = null;
+let nbrCurrentStep = 0;
+let nbrSelectedClient = null;
+let nbrExtintores = []; // extintores da inspeção atual
+let nbrCurrentExtIdx = 0;
+let nbrSigCtx = null, nbrDrawing = false;
 let allNbrInspecoes = [];
 
-function buildNbrChecklist() {
-  const cats = [...new Set(NBR_CHECKLIST.map(c => c.cat))];
-  document.getElementById('nbrChecklist').innerHTML = cats.map(cat => {
-    const items = NBR_CHECKLIST.filter(c => c.cat === cat);
-    return `<div style="margin-bottom:12px;">
-      <div style="color:var(--secondary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${cat}</div>
-      ${items.map(item => `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <div style="font-size:12px;color:var(--text);flex:1;">${item.item}</div>
-          <div style="display:flex;gap:6px;flex-shrink:0;">
-            <button id="nbr_ok_${item.id}" onclick="setCheckItem('${item.id}','ok')" style="width:34px;height:34px;border-radius:8px;background:#22c55e22;color:var(--success);border:1px solid #22c55e44;font-size:14px;cursor:pointer;">✅</button>
-            <button id="nbr_no_${item.id}" onclick="setCheckItem('${item.id}','no')" style="width:34px;height:34px;border-radius:8px;background:var(--card);color:var(--sub);border:1px solid var(--border);font-size:14px;cursor:pointer;">❌</button>
-            <button id="nbr_na_${item.id}" onclick="setCheckItem('${item.id}','na')" style="width:34px;height:34px;border-radius:8px;background:var(--card);color:var(--sub);border:1px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;">N/A</button>
-          </div>
-        </div>`).join('')}
-    </div>`;
-  }).join('');
-}
-
-const nbrCheckValues = {};
-function setCheckItem(id, val) {
-  nbrCheckValues[id] = val;
-  ['ok','no','na'].forEach(v => {
-    const btn = document.getElementById(`nbr_${v}_${id}`);
-    if (!btn) return;
-    btn.style.background = v === val ? (v === 'ok' ? '#22c55e44' : v === 'no' ? '#ef444444' : '#f0a50044') : 'var(--card)';
-    btn.style.borderColor = v === val ? (v === 'ok' ? 'var(--success)' : v === 'no' ? 'var(--danger)' : 'var(--secondary)') : 'var(--border)';
+// --- NAVEGAÇÃO ---
+function showNbrList() {
+  nbrCurrentStep = 0;
+  ['nbrListView','nbrStep1','nbrStep2','nbrStep3','nbrStep4','nbrStep5'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === 'nbrListView' ? 'block' : 'none';
   });
-  // Auto resultado
-  const nos = Object.values(nbrCheckValues).filter(v => v === 'no').length;
-  if (nos > 0) setNbrResult('Reprovado'); else setNbrResult('Aprovado');
+  document.getElementById('nbrStepLabel').textContent = 'Histórico';
+  document.getElementById('nbrStepBar').innerHTML = '';
+  loadNbrInspecoes();
 }
 
-function setNbrResult(result) {
-  nbrResult = result;
-  document.getElementById('nbrAprovado').style.background = result === 'Aprovado' ? '#22c55e22' : 'var(--card)';
-  document.getElementById('nbrAprovado').style.color = result === 'Aprovado' ? 'var(--success)' : 'var(--sub)';
-  document.getElementById('nbrAprovado').style.borderColor = result === 'Aprovado' ? 'var(--success)' : 'var(--border)';
-  document.getElementById('nbrReprovado').style.background = result === 'Reprovado' ? '#ef444422' : 'var(--card)';
-  document.getElementById('nbrReprovado').style.color = result === 'Reprovado' ? 'var(--danger)' : 'var(--sub)';
-  document.getElementById('nbrReprovado').style.borderColor = result === 'Reprovado' ? 'var(--danger)' : 'var(--border)';
+function startNbrInspection() {
+  nbrSelectedClient = null;
+  nbrExtintores = [];
+  nbrCurrentExtIdx = 0;
+  document.getElementById('nbrClientSearch').value = '';
+  document.getElementById('nbrClientSelected').style.display = 'none';
+  document.getElementById('nbrClientDd').style.display = 'none';
+  document.getElementById('nbrTecnico').value = '';
+  document.getElementById('nbrData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nbrBtnStep1').disabled = true;
+  document.getElementById('nbrObsGeral') && (document.getElementById('nbrObsGeral').value = '');
+  if (!allClients.length) loadClients();
+  if (!allExtintores.length) loadExtintores();
+  goNbrStep(1);
 }
 
-function searchExtintorNBR() {
-  const q = document.getElementById('nbrExtSearch').value.toLowerCase();
-  const dd = document.getElementById('nbrExtDd');
-  if (!q) { dd.style.display = 'none'; return; }
-  const matches = allExtintores.filter(e => e.numero_serie?.toLowerCase().includes(q) || e.client_name?.toLowerCase().includes(q)).slice(0, 5);
+function goNbrStep(n) {
+  nbrCurrentStep = n;
+  ['nbrListView','nbrStep1','nbrStep2','nbrStep3','nbrStep4','nbrStep5'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (i === n) ? 'block' : 'none';
+  });
+  const labels = ['', '1/5 — Cliente', '2/5 — Extintores', '3/5 — Fotos + Checklist', '4/5 — Resumo', '5/5 — Assinatura'];
+  document.getElementById('nbrStepLabel').textContent = labels[n] || '';
+  // Step bar
+  document.getElementById('nbrStepBar').innerHTML = n > 0 ? [1,2,3,4,5].map(i =>
+    `<div style="flex:1;height:4px;border-radius:4px;background:${i<n?'var(--success)':i===n?'var(--primary)':'var(--border)'}"></div>`
+  ).join('') : '';
+  if (n === 2) renderNbrExtintoresList();
+  if (n === 3) renderNbrStep3();
+  if (n === 4) renderNbrSummary();
+  if (n === 5) { renderNbrFinalCard(); initNbrSig(); }
+  window.scrollTo(0, 0);
+}
+
+// --- PASSO 1: CLIENTE ---
+function searchNbrClient() {
+  const q = document.getElementById('nbrClientSearch').value.toLowerCase();
+  const dd = document.getElementById('nbrClientDd');
+  if (!q || q.length < 1) { dd.style.display = 'none'; return; }
+  const matches = allClients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 6);
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
-  dd.innerHTML = matches.map(e => `
-    <div onclick="selectNbrExtintor(${e.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
-      <div style="color:var(--primary);font-weight:700;font-size:13px;">${e.numero_serie}</div>
-      <div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.capacidade} · ${e.client_name || '—'}</div>
+  dd.innerHTML = matches.map(c => `
+    <div onclick="selectNbrClient(${c.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">
+      <div style="font-weight:600;">${c.name}</div>
+      <div style="color:var(--sub);font-size:11px;">${c.city||''}</div>
     </div>`).join('');
 }
 
-function selectNbrExtintor(id) {
-  selectedNbrExtintor = allExtintores.find(e => e.id === id);
-  if (!selectedNbrExtintor) return;
-  document.getElementById('nbrExtSearch').value = selectedNbrExtintor.numero_serie;
-  document.getElementById('nbrExtDd').style.display = 'none';
-  document.getElementById('nbrExtSelected').style.display = 'block';
-  document.getElementById('nbrExtSelected').innerHTML = `<span style="color:var(--success);font-weight:700;">✓ ${selectedNbrExtintor.numero_serie}</span> · ${selectedNbrExtintor.tipo} · ${selectedNbrExtintor.client_name || '—'}`;
+async function selectNbrClient(id) {
+  nbrSelectedClient = allClients.find(c => c.id === id);
+  if (!nbrSelectedClient) return;
+  document.getElementById('nbrClientSearch').value = '';
+  document.getElementById('nbrClientDd').style.display = 'none';
+  document.getElementById('nbrClientSelected').style.display = 'block';
+  document.getElementById('nbrClientNameDisplay').textContent = nbrSelectedClient.name;
+
+  // Carrega extintores do cliente
+  if (!allExtintores.length) await loadExtintores();
+  const clientExts = allExtintores.filter(e =>
+    e.client_name?.toLowerCase() === nbrSelectedClient.name?.toLowerCase()
+  );
+  nbrExtintores = clientExts.map(e => ({
+    id: e.id, serie: e.numero_serie, tipo: e.tipo, cap: e.capacidade,
+    classe: e.classe_fogo, proxInsp: e.proxima_inspecao,
+    foto: null, checks: {}, resultado: null, isNew: false
+  }));
+
+  const preview = document.getElementById('nbrExtintoresPreview');
+  if (nbrExtintores.length > 0) {
+    preview.innerHTML = nbrExtintores.map(e =>
+      `<span style="background:#ffffff10;color:var(--sub);border-radius:6px;padding:3px 8px;font-size:10px;display:inline-block;margin:2px;">🧯 ${e.serie}</span>`
+    ).join('');
+    showToast(`✅ ${nbrExtintores.length} extintor(es) carregado(s)!`, 'success');
+  } else {
+    preview.innerHTML = '<span style="color:var(--sub);font-size:11px;">Nenhum extintor cadastrado — adicione no próximo passo</span>';
+  }
+  document.getElementById('nbrBtnStep1').disabled = false;
 }
 
-function openNbrForm() {
-  selectedNbrExtintor = null;
-  nbrResult = 'Aprovado';
-  Object.keys(nbrCheckValues).forEach(k => delete nbrCheckValues[k]);
-  document.getElementById('nbrExtSearch').value = '';
-  document.getElementById('nbrExtSelected').style.display = 'none';
-  document.getElementById('nbrExtDd').style.display = 'none';
-  document.getElementById('nbrTecnico').value = '';
-  document.getElementById('nbrObs').value = '';
-  document.getElementById('nbrData').value = new Date().toISOString().split('T')[0];
-  document.getElementById('nbrFormTitle').textContent = 'Inspeção NBR 12962';
-  document.getElementById('nbrExtPhotoPreview').innerHTML = '📷';
-  document.getElementById('nbrExtPhoto').value = '';
-  buildNbrChecklist();
-  setNbrResult('Aprovado');
-  if (!allExtintores.length) loadExtintores();
-  openModal('nbrFormModal');
+// --- PASSO 2: EXTINTORES ---
+function renderNbrExtintoresList() {
+  const list = document.getElementById('nbrExtintoresList');
+  if (!nbrExtintores.length) {
+    list.innerHTML = '<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum extintor. Adicione abaixo!</div>';
+    return;
+  }
+  list.innerHTML = nbrExtintores.map((e, i) => `
+    <div style="background:var(--card);border:1px solid ${e.resultado==='ok'?'#22c55e44':e.resultado==='no'?'#ef444444':'var(--border)'};border-radius:14px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;color:var(--primary);font-size:14px;">🧯 ${e.serie}</div>
+          <div style="color:var(--sub);font-size:12px;">${e.tipo} · ${e.cap} · Classe ${e.classe}</div>
+          ${e.isNew ? '<span style="background:#f0a50022;color:var(--secondary);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;">Novo</span>' : ''}
+        </div>
+        <button onclick="removeNbrExtintor(${i})" style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;">✕</button>
+      </div>
+    </div>`).join('');
 }
 
-function openQrForNbr() {
-  document.getElementById('nbrQrInput').click();
+function addNbrExtintor() {
+  const serie = document.getElementById('nbrNewSerie').value.trim();
+  if (!serie) { showToast('⚠️ Informe o número de série', 'error'); return; }
+  nbrExtintores.push({
+    id: null, serie,
+    tipo: document.getElementById('nbrNewTipo').value,
+    cap: document.getElementById('nbrNewCap').value,
+    classe: document.getElementById('nbrNewClasse').value,
+    foto: null, checks: {}, resultado: null, isNew: true
+  });
+  document.getElementById('nbrAddExtArea').style.display = 'none';
+  document.getElementById('nbrNewSerie').value = '';
+  renderNbrExtintoresList();
+  showToast('✅ Extintor adicionado!', 'success');
 }
 
-function processNbrQr(input) {
-  // Quando capturar a imagem tenta decodificar o QR
-  // Como não temos biblioteca de QR no browser, usamos busca manual por série
-  showToast('📷 Foto capturada! Busque pelo número de série abaixo.', 'success');
-  // Foca no campo de busca
-  setTimeout(() => document.getElementById('nbrExtSearch').focus(), 500);
+function removeNbrExtintor(i) { nbrExtintores.splice(i, 1); renderNbrExtintoresList(); }
+
+// --- PASSO 3: FOTOS + CHECKLIST ---
+function renderNbrStep3() {
+  renderNbrExtSelector();
+  renderNbrCurrentExt(0);
 }
 
-function previewNbrPhoto(input) {
+function renderNbrExtSelector() {
+  document.getElementById('nbrExtSelector').innerHTML = nbrExtintores.map((e, i) => `
+    <button onclick="renderNbrCurrentExt(${i})" style="
+      background:${i===nbrCurrentExtIdx?'var(--primary)':'var(--card)'};
+      color:${i===nbrCurrentExtIdx?'#fff':'var(--sub)'};
+      border:1px solid ${i===nbrCurrentExtIdx?'var(--primary)':'var(--border)'};
+      border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+      ${e.resultado==='ok'?'✅':e.resultado==='no'?'❌':'⏳'} ${e.serie}
+    </button>`).join('');
+}
+
+function renderNbrCurrentExt(idx) {
+  nbrCurrentExtIdx = idx;
+  renderNbrExtSelector();
+  const e = nbrExtintores[idx];
+  const cats = [...new Set(NBR_ITEMS.map(c => c.cat))];
+  document.getElementById('nbrCurrentExt').innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--primary)44;border-radius:14px;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div><div style="font-weight:800;font-size:15px;color:var(--primary);">🧯 ${e.serie}</div><div style="color:var(--sub);font-size:12px;">${e.tipo} · ${e.cap}</div></div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="setNbrExtResult(${idx},'ok')" style="background:${e.resultado==='ok'?'#22c55e':'var(--card)'};color:${e.resultado==='ok'?'#fff':'var(--sub)'};border:1px solid ${e.resultado==='ok'?'#22c55e':'var(--border)'};border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">✅ Aprovado</button>
+          <button onclick="setNbrExtResult(${idx},'no')" style="background:${e.resultado==='no'?'#ef4444':'var(--card)'};color:${e.resultado==='no'?'#fff':'var(--sub)'};border:1px solid ${e.resultado==='no'?'#ef4444':'var(--border)'};border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">❌ Reprovado</button>
+        </div>
+      </div>
+
+      <!-- Foto -->
+      <div class="field">
+        <label class="label">📸 Foto do Extintor</label>
+        <label style="display:flex;align-items:center;gap:12px;background:#ef444418;border:2px dashed #ef444466;border-radius:12px;padding:14px;cursor:pointer;">
+          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleNbrPhoto(this,${idx})" />
+          <div id="nbrPhotoPreview${idx}" style="font-size:32px;">${e.foto ? `<img src="${e.foto}" style="max-height:70px;border-radius:8px;"/>` : '📷'}</div>
+          <div><div style="color:var(--text);font-size:13px;font-weight:600;">${e.foto ? '✓ Foto registrada' : 'Fotografar extintor'}</div><div style="color:var(--sub);font-size:11px;">Estado atual</div></div>
+        </label>
+      </div>
+
+      <!-- Checklist por categoria -->
+      ${cats.map(cat => {
+        const items = NBR_ITEMS.filter(c => c.cat === cat);
+        return `
+          <div style="color:var(--secondary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">${cat}</div>
+          ${items.map(item => `
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <div style="font-size:11px;color:var(--text);flex:1;">${item.item}</div>
+              <div style="display:flex;gap:4px;flex-shrink:0;">
+                <button onclick="setNbrCheck(${idx},'${item.id}','ok')" style="width:30px;height:30px;border-radius:7px;border:1px solid ${e.checks[item.id]==='ok'?'#22c55e':'var(--border)'};background:${e.checks[item.id]==='ok'?'#22c55e22':'var(--card)'};font-size:12px;cursor:pointer;">✅</button>
+                <button onclick="setNbrCheck(${idx},'${item.id}','no')" style="width:30px;height:30px;border-radius:7px;border:1px solid ${e.checks[item.id]==='no'?'#ef4444':'var(--border)'};background:${e.checks[item.id]==='no'?'#ef444422':'var(--card)'};font-size:12px;cursor:pointer;">❌</button>
+                <button onclick="setNbrCheck(${idx},'${item.id}','na')" style="width:30px;height:30px;border-radius:7px;border:1px solid ${e.checks[item.id]==='na'?'#f0a500':'var(--border)'};background:${e.checks[item.id]==='na'?'#f0a50022':'var(--card)'};font-size:10px;font-weight:700;cursor:pointer;color:${e.checks[item.id]==='na'?'var(--secondary)':'var(--sub)'};">N/A</button>
+              </div>
+            </div>`).join('')}`;
+      }).join('')}
+
+      <!-- Nav entre extintores -->
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        ${idx > 0 ? `<button onclick="renderNbrCurrentExt(${idx-1})" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">← Anterior</button>` : ''}
+        ${idx < nbrExtintores.length - 1 ? `<button onclick="renderNbrCurrentExt(${idx+1})" style="flex:1;background:var(--primary);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">Próximo →</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function handleNbrPhoto(input, idx) {
   if (input.files && input.files[0]) {
     const reader = new FileReader();
-    reader.onload = e => {
-      document.getElementById('nbrExtPhotoPreview').innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;" />`;
-    };
+    reader.onload = e => { nbrExtintores[idx].foto = e.target.result; renderNbrCurrentExt(idx); };
     reader.readAsDataURL(input.files[0]);
   }
 }
 
-function openNbrFormForExtintor(id, serie, client) {
-  openNbrForm();
-  setTimeout(() => { selectNbrExtintor(id); }, 100);
+function setNbrCheck(extIdx, checkId, val) {
+  nbrExtintores[extIdx].checks[checkId] = val;
+  const nos = Object.values(nbrExtintores[extIdx].checks).filter(v => v === 'no').length;
+  if (nos > 0) nbrExtintores[extIdx].resultado = 'no';
+  else if (Object.keys(nbrExtintores[extIdx].checks).length > 0) nbrExtintores[extIdx].resultado = 'ok';
+  renderNbrCurrentExt(extIdx);
 }
 
-async function saveNbrInspecao() {
-  if (!selectedNbrExtintor) { showToast('⚠️ Selecione o extintor', 'error'); return; }
-  const checklist = { ...nbrCheckValues };
-  const hasPhoto = document.getElementById('nbrExtPhoto').files?.length > 0;
+function setNbrExtResult(idx, val) { nbrExtintores[idx].resultado = val; renderNbrCurrentExt(idx); }
+
+// --- PASSO 4: RESUMO ---
+function renderNbrSummary() {
+  const ap = nbrExtintores.filter(e => e.resultado === 'ok').length;
+  const rep = nbrExtintores.filter(e => e.resultado === 'no').length;
+  const pend = nbrExtintores.filter(e => !e.resultado).length;
+  document.getElementById('nbrSummary').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+      <div class="stat-card success-border" style="text-align:center;padding:12px;"><div style="font-size:22px;font-weight:800;color:var(--success);">${ap}</div><div style="color:var(--sub);font-size:11px;">Aprovados</div></div>
+      <div class="stat-card danger-border" style="text-align:center;padding:12px;"><div style="font-size:22px;font-weight:800;color:var(--danger);">${rep}</div><div style="color:var(--sub);font-size:11px;">Reprovados</div></div>
+      <div class="stat-card" style="text-align:center;padding:12px;"><div style="font-size:22px;font-weight:800;color:var(--secondary);">${nbrExtintores.length}</div><div style="color:var(--sub);font-size:11px;">Total</div></div>
+    </div>
+    ${nbrExtintores.map(e => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div><div style="font-weight:600;font-size:13px;">🧯 ${e.serie}</div><div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.cap}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${e.foto ? '<span style="font-size:16px;">📸</span>' : ''}
+          <span class="badge badge-${e.resultado==='ok'?'success':e.resultado==='no'?'danger':'warning'}">${e.resultado==='ok'?'✅ Aprovado':e.resultado==='no'?'❌ Reprovado':'⏳ Pendente'}</span>
+        </div>
+      </div>`).join('')}
+    <div class="card" style="margin-top:14px;text-align:center;background:${rep===0?'#22c55e18':'#ef444418'};border-color:${rep===0?'#22c55e44':'#ef444444'};">
+      <div style="font-size:28px;">${rep===0?'✅':'⚠️'}</div>
+      <div style="font-weight:800;font-size:15px;color:${rep===0?'var(--success)':'var(--danger)'};margin-top:6px;">${rep===0?'TODOS APROVADOS':''+rep+' EXTINTOR(ES) REPROVADO(S)'}</div>
+      <div style="color:var(--sub);font-size:12px;margin-top:4px;">${nbrSelectedClient?.name}</div>
+    </div>`;
+}
+
+// --- PASSO 5: ASSINATURA ---
+function initNbrSig() {
+  const canvas = document.getElementById('nbrSigCanvas');
+  if (!canvas) return;
+  nbrSigCtx = canvas.getContext('2d');
+  nbrSigCtx.strokeStyle = '#e8210a'; nbrSigCtx.lineWidth = 2.5; nbrSigCtx.lineCap = 'round';
+  canvas.onmousedown = e => { nbrDrawing=true; nbrSigCtx.beginPath(); nbrSigCtx.moveTo(e.offsetX, e.offsetY); };
+  canvas.onmousemove = e => { if(!nbrDrawing)return; nbrSigCtx.lineTo(e.offsetX, e.offsetY); nbrSigCtx.stroke(); };
+  canvas.onmouseup = () => nbrDrawing=false;
+  canvas.ontouchstart = e => { e.preventDefault(); nbrDrawing=true; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); nbrSigCtx.beginPath(); nbrSigCtx.moveTo(t.clientX-r.left, t.clientY-r.top); };
+  canvas.ontouchmove = e => { e.preventDefault(); if(!nbrDrawing)return; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); nbrSigCtx.lineTo(t.clientX-r.left, t.clientY-r.top); nbrSigCtx.stroke(); };
+  canvas.ontouchend = () => nbrDrawing=false;
+}
+function clearNbrSig() { nbrSigCtx?.clearRect(0, 0, 600, 160); }
+
+function renderNbrFinalCard() {
+  const ap = nbrExtintores.filter(e => e.resultado === 'ok').length;
+  const rep = nbrExtintores.filter(e => e.resultado === 'no').length;
+  document.getElementById('nbrFinalCard').innerHTML = `
+    <div style="font-size:32px;">${rep===0?'✅':'⚠️'}</div>
+    <div style="font-weight:800;font-size:15px;color:${rep===0?'var(--success)':'var(--danger)'};margin-top:6px;">${rep===0?'Inspeção Aprovada':''+rep+' extintor(es) reprovado(s)'}</div>
+    <div style="color:var(--sub);font-size:12px;margin-top:4px;">${ap} aprovados · ${rep} reprovados · ${nbrExtintores.length} total</div>`;
+}
+
+async function saveAndPdfNbr() {
+  if (!nbrSelectedClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
+  showToast('⏳ Salvando...', 'success');
+  const sig = document.getElementById('nbrSigCanvas').toDataURL('image/png');
+  const ap = nbrExtintores.filter(e => e.resultado === 'ok').length;
+  const rep = nbrExtintores.filter(e => e.resultado === 'no').length;
+
+  // Salva inspeção geral
   const result = await dbInsert('inspecoes_nbr', {
-    extintor_id: selectedNbrExtintor.numero_serie || selectedNbrExtintor.id,
-    client_name: selectedNbrExtintor.client_name,
+    extintor_id: nbrExtintores.map(e => e.serie).join(', '),
+    client_name: nbrSelectedClient.name,
     tecnico: document.getElementById('nbrTecnico').value,
     data_inspecao: document.getElementById('nbrData').value,
-    checklist: JSON.stringify(checklist),
-    resultado: nbrResult,
-    obs: document.getElementById('nbrObs').value,
-    has_photo: hasPhoto
+    checklist: JSON.stringify(nbrExtintores.map(e => ({ serie: e.serie, resultado: e.resultado, checks: e.checks }))),
+    resultado: rep === 0 ? 'Aprovado' : 'Reprovado',
+    obs: document.getElementById('nbrObsGeral').value,
+    has_photo: nbrExtintores.some(e => e.foto !== null)
   });
+
+  // Atualiza datas de inspeção dos extintores cadastrados
+  for (const e of nbrExtintores) {
+    if (!e.isNew && e.id) {
+      const proxima = new Date();
+      if (e.tipo?.includes('CO₂')) proxima.setMonth(proxima.getMonth() + 6);
+      else proxima.setFullYear(proxima.getFullYear() + 1);
+      await dbUpdate('extintores', e.id, {
+        ultima_inspecao: document.getElementById('nbrData').value,
+        proxima_inspecao: proxima.toISOString().split('T')[0]
+      });
+    }
+    // Salva extintores novos no cadastro
+    if (e.isNew) {
+      await dbInsert('extintores', {
+        client_name: nbrSelectedClient.name, numero_serie: e.serie,
+        tipo: e.tipo, capacidade: e.cap, classe_fogo: e.classe,
+        ultima_inspecao: document.getElementById('nbrData').value,
+        proxima_inspecao: (() => { const d=new Date(); d.setFullYear(d.getFullYear()+1); return d.toISOString().split('T')[0]; })(),
+        status: 'Ativo'
+      });
+    }
+  }
+
   if (result) {
-    // Atualiza data de inspeção do extintor
-    const proxima = new Date();
-    proxima.setFullYear(proxima.getFullYear() + (selectedNbrExtintor.tipo === 'CO₂' ? 0 : 1));
-    if (selectedNbrExtintor.tipo === 'CO₂') proxima.setMonth(proxima.getMonth() + 6);
-    await dbUpdate('extintores', selectedNbrExtintor.id, {
-      ultima_inspecao: document.getElementById('nbrData').value,
-      proxima_inspecao: proxima.toISOString().split('T')[0]
-    });
-    closeModal('nbrFormModal');
-    showToast('✅ Inspeção NBR registrada!', 'success');
-    loadNbrInspecoes();
-    loadExtintores();
+    showToast('✅ Inspeção salva!', 'success');
+    buildNbrPDF(sig);
   } else showToast('❌ Erro ao salvar', 'error');
 }
 
-async function loadNbrInspecoes() {
-  allNbrInspecoes = await dbGet('inspecoes_nbr', { order: 'created_at', asc: false });
-  if (!allNbrInspecoes.length) { document.getElementById('nbrList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma inspeção NBR ainda.<br><br><button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="openNbrForm()">+ Iniciar Inspeção</button></div>'; return; }
-  document.getElementById('nbrList').innerHTML = allNbrInspecoes.map(r => {
-    const checklist = JSON.parse(r.checklist || '{}');
-    const total = Object.keys(checklist).length;
-    const ok = Object.values(checklist).filter(v => v === 'ok').length;
-    const no = Object.values(checklist).filter(v => v === 'no').length;
-    return `
-    <div class="card ${r.resultado === 'Aprovado' ? 'success-border' : 'danger-border'}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div>
-          <div style="font-weight:700;font-size:14px;">📋 Inspeção NBR 12962</div>
-          <div style="color:var(--sub);font-size:11px;">🧯 ${r.extintor_id || '—'} · 👤 ${r.client_name || '—'}</div>
-          <div style="color:var(--sub);font-size:11px;">👷 ${r.tecnico || '—'} · 📅 ${r.data_inspecao || ''}</div>
-        </div>
-        <span class="badge badge-${r.resultado === 'Aprovado' ? 'success' : 'danger'}">${r.resultado || '—'}</span>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <div style="flex:1;background:#22c55e18;border-radius:8px;padding:8px;text-align:center;">
-          <div style="color:var(--success);font-weight:800;font-size:16px;">${ok}</div>
-          <div style="color:var(--sub);font-size:10px;">OK</div>
-        </div>
-        <div style="flex:1;background:#ef444418;border-radius:8px;padding:8px;text-align:center;">
-          <div style="color:var(--danger);font-weight:800;font-size:16px;">${no}</div>
-          <div style="color:var(--sub);font-size:10px;">Falhas</div>
-        </div>
-        <div style="flex:1;background:var(--card);border-radius:8px;padding:8px;text-align:center;">
-          <div style="color:var(--sub);font-weight:800;font-size:16px;">${total}</div>
-          <div style="color:var(--sub);font-size:10px;">Itens</div>
-        </div>
-      </div>
-      ${r.obs ? `<div style="color:var(--sub);font-size:11px;margin-bottom:8px;">📝 ${r.obs}</div>` : ''}
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewNbrPDF(${r.id})">📄 Laudo PDF</button>
-        <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteNbrInspecao(${r.id})">🗑️</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function deleteNbrInspecao(id) { if (!confirm('Excluir?')) return; await dbDelete('inspecoes_nbr', id); showToast('🗑️ Removida', 'success'); loadNbrInspecoes(); }
-
-async function viewNbrPDF(id) {
-  const r = allNbrInspecoes.find(x => x.id === id);
-  if (!r) return;
-  const checklist = JSON.parse(r.checklist || '{}');
-  const date = new Date().toLocaleDateString('pt-BR');
+function buildNbrPDF(sig) {
+  const date = document.getElementById('nbrData').value || new Date().toLocaleDateString('pt-BR');
+  const ap = nbrExtintores.filter(e => e.resultado === 'ok').length;
+  const rep = nbrExtintores.filter(e => e.resultado === 'no').length;
   document.getElementById('pdfContent').innerHTML = `
     <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;">
         <div><div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025</div></div>
-        <div style="text-align:right;"><div style="font-size:13px;font-weight:800;color:#e8210a;">LAUDO DE INSPEÇÃO</div><div style="font-size:10px;color:#666;">NBR 12962 · ${r.data_inspecao || date}</div></div>
+        <div style="text-align:right;"><div style="font-size:13px;font-weight:800;color:#e8210a;">LAUDO NBR 12962</div><div style="font-size:10px;color:#666;">${date}</div></div>
       </div>
     </div>
-    <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div><div style="font-size:10px;font-weight:700;color:#333;">EXTINTOR</div><div style="font-size:12px;font-weight:700;">${r.extintor_id}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:#333;">CLIENTE</div><div style="font-size:12px;font-weight:700;">${r.client_name || '—'}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:#333;">TÉCNICO</div><div style="font-size:12px;">${r.tecnico || '—'}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:#333;">RESULTADO</div><div style="font-size:13px;font-weight:800;color:${r.resultado === 'Aprovado' ? '#22c55e' : '#ef4444'};">${r.resultado === 'Aprovado' ? '✅ APROVADO' : '❌ REPROVADO'}</div></div>
+    <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:14px;">${nbrSelectedClient?.name}</div>
+      <div style="font-size:11px;color:#666;">Técnico: ${document.getElementById('nbrTecnico').value} · Data: ${date}</div>
+      <div style="font-size:11px;font-weight:700;color:${rep===0?'#22c55e':'#ef4444'};margin-top:4px;">${rep===0?'✅ APROVADO':'⚠️ '+rep+' EXTINTOR(ES) REPROVADO(S)'}</div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10px;">
-      <thead><tr style="background:#e8210a;color:#fff;"><th style="padding:5px 8px;text-align:left;">Item de Verificação</th><th style="padding:5px;text-align:center;">Resultado</th></tr></thead>
-      <tbody>${NBR_CHECKLIST.map((item, i) => {
-        const v = checklist[item.id];
-        const icon = v === 'ok' ? '✅' : v === 'no' ? '❌' : '—';
-        return `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:5px 8px;">${item.item}</td><td style="padding:5px;text-align:center;">${icon}</td></tr>`;
-      }).join('')}</tbody>
-    </table>
-    ${r.obs ? `<div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:12px;"><div style="font-size:10px;font-weight:700;color:#f59e0b;">OBSERVAÇÕES</div><div style="font-size:11px;">${r.obs}</div></div>` : ''}
-    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;">CJ FireSecure Ltda · Segurança contra incêndio · NBR 12962 · (34) 99706-0025</div>`;
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px;text-align:center;">
+      <div style="background:#e8f5e9;border-radius:8px;padding:8px;"><div style="font-size:18px;font-weight:800;color:#22c55e;">${ap}</div><div style="font-size:10px;">Aprovados</div></div>
+      <div style="background:#ffebee;border-radius:8px;padding:8px;"><div style="font-size:18px;font-weight:800;color:#ef4444;">${rep}</div><div style="font-size:10px;">Reprovados</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:8px;"><div style="font-size:18px;font-weight:800;">${nbrExtintores.length}</div><div style="font-size:10px;">Total</div></div>
+    </div>
+    ${nbrExtintores.map(e => `
+      <div style="border:1px solid #eee;border-radius:8px;padding:10px;margin-bottom:8px;page-break-inside:avoid;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div><div style="font-weight:700;color:#e8210a;">🧯 ${e.serie}</div><div style="font-size:10px;color:#666;">${e.tipo} · ${e.cap} · Classe ${e.classe}</div></div>
+          <div style="font-weight:800;color:${e.resultado==='ok'?'#22c55e':'#ef4444'};">${e.resultado==='ok'?'✅ APROVADO':'❌ REPROVADO'}</div>
+        </div>
+        ${e.foto ? `<img src="${e.foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:6px;" />` : ''}
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          <thead><tr style="background:#e8210a;color:#fff;"><th style="padding:4px 6px;text-align:left;">Item NBR 12962</th><th style="padding:4px;text-align:center;width:40px;">Resultado</th></tr></thead>
+          <tbody>${NBR_ITEMS.map((item, i) => `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:4px 6px;">${item.item}</td><td style="padding:4px;text-align:center;">${e.checks[item.id]==='ok'?'✅':e.checks[item.id]==='no'?'❌':'—'}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`).join('')}
+    ${document.getElementById('nbrObsGeral').value ? `<div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:12px;"><div style="font-size:10px;font-weight:700;color:#f59e0b;">OBSERVAÇÕES</div><div style="font-size:11px;">${document.getElementById('nbrObsGeral').value}</div></div>` : ''}
+    <div style="border-top:1px solid #eee;padding-top:10px;margin-top:10px;">
+      <div style="font-size:10px;color:#666;margin-bottom:6px;">ASSINATURA DO RESPONSÁVEL — ${nbrSelectedClient?.name}</div>
+      <img src="${sig}" style="max-width:200px;border:1px solid #eee;border-radius:6px;" />
+    </div>
+    <div style="border-top:1px solid #ddd;padding-top:8px;text-align:center;color:#999;font-size:10px;margin-top:12px;">CJ FireSecure Ltda · NBR 12962 · (34) 99706-0025</div>`;
   openModal('pdfModal');
 }
 
+function shareNbrWhatsApp() {
+  buildNbrPDF(document.getElementById('nbrSigCanvas')?.toDataURL('image/png') || '');
+  setTimeout(() => sharePDF(), 500);
+}
+
+async function loadNbrInspecoes() {
+  allNbrInspecoes = await dbGet('inspecoes_nbr', { order: 'created_at', asc: false });
+  document.getElementById('nbrListCount').textContent = allNbrInspecoes.length + ' inspeções realizadas';
+  if (!allNbrInspecoes.length) {
+    document.getElementById('nbrList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma inspeção ainda.<br><br><button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="startNbrInspection()">+ Iniciar Inspeção</button></div>';
+    return;
+  }
+  document.getElementById('nbrList').innerHTML = allNbrInspecoes.map(r => `
+    <div class="card ${r.resultado==='Aprovado'?'success-border':'danger-border'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;font-size:14px;">📋 ${r.client_name || '—'}</div>
+          <div style="color:var(--sub);font-size:11px;">👷 ${r.tecnico||'—'} · 📅 ${r.data_inspecao||''}</div>
+          <div style="color:var(--sub);font-size:11px;">🧯 ${r.extintor_id||'—'}</div>
+        </div>
+        <span class="badge badge-${r.resultado==='Aprovado'?'success':'danger'}">${r.resultado||'—'}</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewNbrPDF(${r.id})">📄 PDF</button>
+        <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteNbrInspecao(${r.id})">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+async function deleteNbrInspecao(id) {
+  if (!confirm('Excluir inspeção?')) return;
+  await dbDelete('inspecoes_nbr', id);
+  showToast('🗑️ Removida', 'success');
+  loadNbrInspecoes();
+}
+
+async function viewNbrPDF(id) {
+  const r = allNbrInspecoes.find(x => x.id === id);
+  if (!r) return;
+  let exts = [];
+  try { exts = JSON.parse(r.checklist || '[]'); } catch {}
+  // Reconstrói estrutura para o PDF
+  const tempExts = exts.map(e => ({
+    serie: e.serie || r.extintor_id,
+    tipo: '—', cap: '—', classe: '—',
+    foto: null, checks: e.checks || {}, resultado: e.resultado
+  }));
+  const savedExts = nbrExtintores;
+  nbrExtintores = tempExts;
+  const savedClient = nbrSelectedClient;
+  nbrSelectedClient = { name: r.client_name };
+  buildNbrPDF('');
+  nbrExtintores = savedExts;
+  nbrSelectedClient = savedClient;
+  // Update obs
+  document.getElementById('nbrObsGeral') && (document.getElementById('nbrObsGeral').value = r.obs || '');
+}
+
+// ============================================================
+// HISTÓRICO DO CLIENTE
+// ============================================================
+async function openClientHistory(clientId, clientName) {
+  document.getElementById('clientHistoryTitle').textContent = `📋 ${clientName}`;
+  document.getElementById('clientHistoryContent').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+  openModal('clientHistoryModal');
+  const [orders, extintores, inspecoes] = await Promise.all([
+    dbGet('orders', { order: 'created_at', asc: false }),
+    dbGet('extintores', {}),
+    dbGet('inspecoes_nbr', { order: 'created_at', asc: false })
+  ]);
+  const clientOrders = orders.filter(o => o.client?.toLowerCase() === clientName?.toLowerCase());
+  const clientExtintores = extintores.filter(e => e.client_name?.toLowerCase() === clientName?.toLowerCase());
+  const clientInspecoes = inspecoes.filter(i => i.client_name?.toLowerCase() === clientName?.toLowerCase());
+  const totalGasto = clientOrders.filter(o => o.type === 'Pedido').reduce((a, o) => a + parseFloat(o.value || 0), 0);
+  document.getElementById('clientHistoryContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;">
+      <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:16px;color:var(--primary);">${clientOrders.length}</div><div style="color:var(--sub);font-size:10px;">Pedidos</div></div>
+      <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:14px;color:var(--secondary);">R$${totalGasto.toFixed(0)}</div><div style="color:var(--sub);font-size:10px;">Total</div></div>
+      <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:16px;color:var(--success);">${clientExtintores.length}</div><div style="color:var(--sub);font-size:10px;">Extintores</div></div>
+    </div>
+    ${clientOrders.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">📋 Pedidos</div>${clientOrders.map(o=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;"><div><div style="font-weight:700;font-size:12px;">APP-${String(o.id).padStart(3,'0')} · ${o.type}</div><div style="color:var(--sub);font-size:10px;">${o.created_at?new Date(o.created_at).toLocaleDateString('pt-BR'):'—'}</div></div><div style="font-weight:800;color:var(--secondary);">R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')}</div></div></div>`).join('')}` : ''}
+    ${clientExtintores.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">🧯 Extintores</div>${clientExtintores.map(e=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:700;font-size:12px;">${e.numero_serie} · ${e.tipo} ${e.capacidade}</div><div style="color:var(--sub);font-size:10px;">Próx: ${e.proxima_inspecao||'—'}</div></div><span class="badge badge-${e.status==='Ativo'?'success':'warning'}">${e.status||'Ativo'}</span></div></div>`).join('')}` : ''}
+    ${clientInspecoes.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">📋 Inspeções</div>${clientInspecoes.map(i=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;"><div><div style="font-weight:700;font-size:12px;">${i.data_inspecao||'—'}</div><div style="color:var(--sub);font-size:10px;">${i.extintor_id||'—'}</div></div><span class="badge badge-${i.resultado==='Aprovado'?'success':'danger'}">${i.resultado||'—'}</span></div></div>`).join('')}` : ''}
+    ${clientOrders.length===0&&clientExtintores.length===0?'<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum histórico ainda.</div>':''}
+    <button onclick="openOrderFormForClient('${clientName.replace(/'/g,"\\'")}','');closeModal('clientHistoryModal');" class="btn btn-primary" style="margin-top:12px;">+ Novo Pedido</button>
+  `;
+}
+
+// ============================================================
+// ASSINATURA DIGITAL
+// ============================================================
+let signatureData = null, isDrawing = false, signatureCtx = null;
+
+function initSignature() {
+  const canvas = document.getElementById('signatureCanvas');
+  signatureCtx = canvas.getContext('2d');
+  signatureCtx.strokeStyle = '#e8210a'; signatureCtx.lineWidth = 2.5; signatureCtx.lineCap = 'round';
+  canvas.addEventListener('mousedown', e => { isDrawing=true; signatureCtx.beginPath(); signatureCtx.moveTo(e.offsetX, e.offsetY); });
+  canvas.addEventListener('mousemove', e => { if(!isDrawing)return; signatureCtx.lineTo(e.offsetX, e.offsetY); signatureCtx.stroke(); });
+  canvas.addEventListener('mouseup', () => isDrawing=false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing=true; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); signatureCtx.beginPath(); signatureCtx.moveTo(t.clientX-r.left,t.clientY-r.top); }, {passive:false});
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!isDrawing)return; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); signatureCtx.lineTo(t.clientX-r.left,t.clientY-r.top); signatureCtx.stroke(); }, {passive:false});
+  canvas.addEventListener('touchend', () => isDrawing=false);
+}
+
+function clearSignature() { const c=document.getElementById('signatureCanvas'); signatureCtx?.clearRect(0,0,c.width,c.height); signatureData=null; }
+
+function saveSignature() {
+  signatureData = document.getElementById('signatureCanvas').toDataURL('image/png');
+  closeModal('signatureModal');
+  showToast('✅ Assinatura registrada!', 'success');
+  const p = document.getElementById('nbrSignaturePreview');
+  if (p) p.innerHTML = `<img src="${signatureData}" style="max-width:120px;border-radius:8px;border:1px solid var(--border);" />`;
+}
+
+function openSignature() { openModal('signatureModal'); setTimeout(initSignature, 100); }
+
+// ============================================================
+// BACKUP
+// ============================================================
+async function exportBackup() {
+  showToast('⏳ Gerando backup...', 'success');
+  try {
+    const [clients, orders, billing, stock, products, suppliers, extintores, inspecoes] = await Promise.all([
+      dbGet('clients',{}), dbGet('orders',{}), dbGet('billing',{}), dbGet('stock',{}),
+      dbGet('products',{}), dbGet('suppliers',{}), dbGet('extintores',{}), dbGet('inspecoes_nbr',{})
+    ]);
+    const backup = { data: new Date().toISOString(), empresa: 'CJ FireSecure Ltda', clientes: clients, pedidos: orders, cobrancas: billing, estoque: stock, produtos: products, fornecedores: suppliers, extintores, inspecoes_nbr: inspecoes };
+    const jsonBlob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(jsonBlob);
+    a.download = `CJFire_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    // CSV Clientes
+    setTimeout(() => {
+      const csv = ['Nome,CNPJ,Telefone,Cidade,Próxima Visita,Status', ...clients.map(c=>`"${c.name}","${c.cnpj||''}","${c.phone||''}","${c.city||''}","${c.next_visit||''}","${c.status||''}"`)].join('\n');
+      const b = document.createElement('a');
+      b.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+      b.download = `CJFire_Clientes_${new Date().toISOString().split('T')[0]}.csv`;
+      b.click();
+    }, 600);
+    showToast('✅ Backup gerado! 2 arquivos baixados', 'success');
+  } catch(e) { showToast('❌ Erro ao gerar backup', 'error'); }
+}
+
+// ============================================================
+// NOTIFICAÇÕES PUSH
+// ============================================================
+async function requestPushPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    const p = await Notification.requestPermission();
+    if (p === 'granted') showToast('🔔 Notificações ativadas!', 'success');
+  }
+}
+
+function sendPushNotification(title, body) {
+  if (Notification.permission === 'granted') new Notification(title, { body, icon: '/favicon.ico' });
+}
+
+async function checkAndSendAlerts() {
+  const [extintores, billing] = await Promise.all([dbGet('extintores',{}), dbGet('billing',{})]);
+  const today = new Date(); const in7 = new Date(); in7.setDate(today.getDate()+7);
+  const urgente = extintores.filter(e => { const p=e.proxima_inspecao?new Date(e.proxima_inspecao):null; return p&&p<=in7&&p>=today; });
+  if (urgente.length > 0) sendPushNotification('⚠️ CJ FireSecure', `${urgente.length} extintor(es) vencem em 7 dias!`);
+  const cobVenc = billing.filter(b => { if(b.status==='Pago')return false; const d=b.due_date?new Date(b.due_date):null; return d&&d<=in7&&d>=today; });
+  if (cobVenc.length > 0) sendPushNotification('💰 CJ FireSecure', `${cobVenc.length} cobrança(s) vencem em 7 dias!`);
+}
 
 function autocompleteClient(inputId, dropdownId) {
   const q = document.getElementById(inputId).value.toLowerCase();
@@ -1846,7 +2481,6 @@ window.addEventListener('load', () => {
   const user = params.get('user');
 
   if (!user) {
-    // Mostra tela de seleção
     document.getElementById('selectScreen').style.display = 'flex';
     document.getElementById('mainApp').style.display = 'none';
     return;
@@ -1858,6 +2492,13 @@ window.addEventListener('load', () => {
   document.getElementById('homeUserName').textContent = userName;
   loadHomeData();
   setDate();
+
+  // Solicita permissão de notificações push
+  setTimeout(() => requestPushPermission(), 2000);
+
+  // Verifica alertas a cada 30 minutos
+  checkAndSendAlerts();
+  setInterval(checkAndSendAlerts, 30 * 60 * 1000);
 });
 </script>
 </body>
