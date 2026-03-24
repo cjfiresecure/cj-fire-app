@@ -1354,14 +1354,15 @@ async function saveOrder() {
         await adjustStock(orderItems, true);
       }
 
-      // Cobrança automática
-      const dueDate = new Date();
-      const payment = document.getElementById('orderPayment').value;
+      // Cobrança automática com valor correto (com desconto)
+      const dueDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
       if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
       else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
+      else if (payment === 'Parcelado') dueDate.setMonth(dueDate.getMonth() + 1);
+
       await dbInsert('billing', {
         client: selectedOrderClient.name,
-        service: `${currentOrderType} - ${orderItems.map(i => i.name).join(', ')}`,
+        service: `${currentOrderType} - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desconto: R$ ${discount.toFixed(2).replace('.',',')})` : ''}`,
         value: total,
         due_date: dueDate.toISOString().split('T')[0],
         status: 'Pendente'
