@@ -429,15 +429,63 @@ textarea.input{resize:none;height:70px}
         <div id="orderClientCnpj" style="color:var(--sub);font-size:11px;"></div>
       </div>
     </div>
-    <div class="field"><label class="label">Pagamento</label><select class="input" id="orderPayment"><option>À vista</option><option>30 dias</option><option>60 dias</option><option>Parcelado</option></select></div>
+    <div class="field">
+      <label class="label">Pagamento</label>
+      <select class="input" id="orderPayment" onchange="handlePaymentChange()">
+        <option>À vista</option>
+        <option>30 dias</option>
+        <option>60 dias</option>
+        <option>Parcelado</option>
+      </select>
+    </div>
+
+    <!-- Data do combinado -->
+    <div class="field">
+      <label class="label">📅 Data do Combinado</label>
+      <input class="input" id="orderDate" type="date" />
+    </div>
+
+    <!-- Parcelamento (aparece só quando Parcelado) -->
+    <div id="installmentArea" style="display:none;background:var(--card);border:1px solid #f0a50044;border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="color:var(--secondary);font-size:12px;font-weight:800;margin-bottom:10px;">🔄 Parcelamento</div>
+      <div class="field">
+        <label class="label">Número de Parcelas</label>
+        <select class="input" id="orderInstallments" onchange="calcInstallments()">
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+          <option value="4">4x</option>
+          <option value="5">5x</option>
+          <option value="6">6x</option>
+          <option value="10">10x</option>
+          <option value="12">12x</option>
+        </select>
+      </div>
+      <div id="installmentPreview" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
     <div class="field"><label class="label">Produtos / Serviços</label>
       <div id="orderProductsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
       <button onclick="openAddProductToOrder()" style="width:100%;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:10px;color:var(--sub);font-size:13px;cursor:pointer;">+ Adicionar produto</button>
     </div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-      <span style="color:var(--sub);font-size:13px;">Total</span>
-      <span id="orderTotal" style="color:var(--secondary);font-weight:800;font-size:20px;">R$ 0,00</span>
+
+    <!-- Total com desconto -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="color:var(--sub);font-size:13px;">Subtotal</span>
+        <span id="orderSubtotal" style="color:var(--sub);font-size:14px;font-weight:700;">R$ 0,00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="color:var(--sub);font-size:13px;">Desconto (R$)</span>
+        <input id="orderDiscount" type="number" step="0.01" min="0" placeholder="0,00"
+          style="width:120px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;text-align:right;outline:none;"
+          oninput="updateOrderTotal()" />
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px;">
+        <span style="color:var(--sub);font-size:13px;font-weight:700;">Total Final</span>
+        <span id="orderTotal" style="color:var(--secondary);font-weight:800;font-size:20px;">R$ 0,00</span>
+      </div>
     </div>
+
     <div class="field"><label class="label">Observações</label><textarea class="input" id="orderObs" placeholder="Informações adicionais..."></textarea></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-primary" onclick="saveOrder()" style="flex:2;">✓ Confirmar</button>
@@ -1096,6 +1144,11 @@ function openOrderForm() {
   document.getElementById('orderClientDropdown').style.display = 'none';
   document.getElementById('orderObs').value = '';
   document.getElementById('orderTotal').textContent = 'R$ 0,00';
+  document.getElementById('orderSubtotal').textContent = 'R$ 0,00';
+  document.getElementById('orderDiscount').value = '';
+  document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('orderPayment').value = 'À vista';
+  document.getElementById('installmentArea').style.display = 'none';
   document.getElementById('orderProductsList').innerHTML = '';
   document.querySelector('#orderFormModal .modal-title').textContent = 'Novo Pedido';
   document.querySelector('#orderFormModal .btn-primary').textContent = '✓ Confirmar';
@@ -1147,7 +1200,43 @@ function renderOrderItems() {
 
 function changeQty(i, d) { orderItems[i].qty = Math.max(1, orderItems[i].qty + d); renderOrderItems(); }
 function removeOrderItem(i) { orderItems.splice(i, 1); renderOrderItems(); }
-function updateOrderTotal() { document.getElementById('orderTotal').textContent = 'R$ ' + orderItems.reduce((a, item) => a + item.price * item.qty, 0).toFixed(2).replace('.', ','); }
+function updateOrderTotal() {
+  const subtotal = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
+  const discount = parseFloat(document.getElementById('orderDiscount')?.value || 0) || 0;
+  const total = Math.max(0, subtotal - discount);
+  if (document.getElementById('orderSubtotal')) document.getElementById('orderSubtotal').textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
+  document.getElementById('orderTotal').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+  calcInstallments();
+}
+
+function handlePaymentChange() {
+  const payment = document.getElementById('orderPayment').value;
+  const area = document.getElementById('installmentArea');
+  area.style.display = payment === 'Parcelado' ? 'block' : 'none';
+  if (payment === 'Parcelado') calcInstallments();
+}
+
+function calcInstallments() {
+  const payment = document.getElementById('orderPayment')?.value;
+  if (payment !== 'Parcelado') return;
+  const subtotal = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
+  const discount = parseFloat(document.getElementById('orderDiscount')?.value || 0) || 0;
+  const total = Math.max(0, subtotal - discount);
+  const n = parseInt(document.getElementById('orderInstallments')?.value || 2);
+  const parcel = total / n;
+  const baseDate = document.getElementById('orderDate')?.value ? new Date(document.getElementById('orderDate').value + 'T12:00:00') : new Date();
+  const preview = document.getElementById('installmentPreview');
+  if (!preview) return;
+  preview.innerHTML = Array.from({ length: n }, (_, i) => {
+    const d = new Date(baseDate);
+    d.setMonth(d.getMonth() + i + 1);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:8px;padding:8px 12px;">
+      <div style="color:var(--sub);font-size:12px;font-weight:700;">${i + 1}ª parcela</div>
+      <div style="color:var(--text);font-size:12px;">📅 ${d.toLocaleDateString('pt-BR')}</div>
+      <div style="color:var(--secondary);font-weight:800;font-size:13px;">R$ ${parcel.toFixed(2).replace('.', ',')}</div>
+    </div>`;
+  }).join('');
+}
 
 async function openAddProductToOrder() {
   if (!allProductsForOrder.length) allProductsForOrder = await dbGet('products', { order: 'name' });
@@ -1188,10 +1277,18 @@ async function adjustStock(items, deduct) {
 async function saveOrder() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
   if (!orderItems.length) { showToast('⚠️ Adicione pelo menos 1 produto', 'error'); return; }
-  const total = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
+  const subtotal = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
+  const discount = parseFloat(document.getElementById('orderDiscount').value || 0) || 0;
+  const total = Math.max(0, subtotal - discount);
+  const payment = document.getElementById('orderPayment').value;
+  const orderDate = document.getElementById('orderDate').value;
+  const installments = payment === 'Parcelado' ? parseInt(document.getElementById('orderInstallments').value) : 1;
   const orderData = {
     client: selectedOrderClient.name, cnpj: selectedOrderClient.cnpj || '',
-    type: currentOrderType, value: total, payment: document.getElementById('orderPayment').value,
+    type: currentOrderType, value: total, payment,
+    order_date: orderDate,
+    discount: discount || 0,
+    installments: installments,
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
 
@@ -1252,43 +1349,81 @@ async function saveOrder() {
   }
 }
 
-function buildPDF(client, type, items, payment, obs) {
-  const date = new Date().toLocaleDateString('pt-BR');
-  const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-  const num = Math.floor(Math.random() * 900) + 100;
+function buildPDF(client, type, items, payment, obs, extra = {}) {
+  const date = extra.order_date ? new Date(extra.order_date + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  const subtotal = items.reduce((a, i) => a + i.price * i.qty, 0);
+  const discount = parseFloat(extra.discount || 0);
+  const total = Math.max(0, subtotal - discount);
+  const installments = parseInt(extra.installments || 1);
+  const num = 'APP-' + String(extra.id || Math.floor(Math.random() * 900) + 100).padStart(3, '0');
+
+  // Gera parcelas se parcelado
+  let installmentRows = '';
+  if (payment === 'Parcelado' && installments > 1) {
+    const baseDate = extra.order_date ? new Date(extra.order_date + 'T12:00:00') : new Date();
+    const parcel = total / installments;
+    installmentRows = `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:#e8210a;margin-bottom:6px;">PARCELAS</div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="background:#f5f5f5;"><th style="padding:5px 8px;text-align:left;font-size:10px;">Parcela</th><th style="padding:5px;text-align:center;font-size:10px;">Vencimento</th><th style="padding:5px;text-align:right;font-size:10px;">Valor</th></tr></thead>
+          <tbody>${Array.from({ length: installments }, (_, i) => {
+            const d = new Date(baseDate); d.setMonth(d.getMonth() + i + 1);
+            return `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:5px 8px;font-size:10px;">${i+1}ª parcela</td><td style="padding:5px;text-align:center;font-size:10px;">${d.toLocaleDateString('pt-BR')}</td><td style="padding:5px;text-align:right;font-size:10px;font-weight:700;">R$ ${parcel.toFixed(2).replace('.',',')}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
   document.getElementById('pdfContent').innerHTML = `
     <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div><div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30</div><div style="font-size:10px;color:#666;">Tel: (34) 99706-0025</div><div style="font-size:10px;color:#666;">cjextintores28@gmail.com</div></div>
-        <div style="text-align:right;"><div style="font-size:14px;font-weight:800;color:${type==='Pedido'?'#22c55e':'#f0a500'};">${type.toUpperCase()}</div><div style="font-size:11px;color:#666;">Nº ${num}</div><div style="font-size:11px;color:#666;">${date}</div></div>
+        <div style="text-align:right;"><div style="font-size:14px;font-weight:800;color:${type==='Pedido'?'#22c55e':'#f0a500'};">${type.toUpperCase()}</div><div style="font-size:11px;color:#666;">${num}</div><div style="font-size:11px;color:#666;">${date}</div></div>
       </div>
     </div>
     <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;">
       <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">CLIENTE</div>
       <div style="font-size:13px;font-weight:700;">${client.name}</div>
       ${client.cnpj ? `<div style="font-size:11px;color:#666;">CNPJ: ${client.cnpj}</div>` : ''}
-      <div style="font-size:11px;color:#666;">Pagamento: ${payment}</div>
+      <div style="font-size:11px;color:#666;">Pagamento: ${payment}${installments > 1 ? ' — ' + installments + 'x de R$ ' + (total/installments).toFixed(2).replace('.',',') : ''}</div>
+      <div style="font-size:11px;color:#666;">Data combinada: ${date}</div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
       <thead><tr style="background:#e8210a;color:#fff;"><th style="padding:6px 8px;text-align:left;font-size:11px;">Produto/Serviço</th><th style="padding:6px;text-align:center;font-size:11px;">Qtd</th><th style="padding:6px;text-align:right;font-size:11px;">Unit.</th><th style="padding:6px;text-align:right;font-size:11px;">Total</th></tr></thead>
       <tbody>${items.map((item, i) => `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:6px 8px;font-size:11px;">${item.name}</td><td style="padding:6px;text-align:center;font-size:11px;">${item.qty}</td><td style="padding:6px;text-align:right;font-size:11px;">R$ ${parseFloat(item.price).toFixed(2).replace('.',',')}</td><td style="padding:6px;text-align:right;font-size:11px;font-weight:700;">R$ ${(item.price*item.qty).toFixed(2).replace('.',',')}</td></tr>`).join('')}</tbody>
     </table>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><div style="background:#e8210a;color:#fff;border-radius:8px;padding:10px 16px;text-align:right;"><div style="font-size:11px;">TOTAL</div><div style="font-size:18px;font-weight:800;">R$ ${total.toFixed(2).replace('.',',')}</div></div></div>
-    ${obs ? `<div style="background:#fff8e1;border-radius:8px;padding:10px;"><div style="font-size:11px;font-weight:700;color:#f59e0b;">OBSERVAÇÕES</div><div style="font-size:11px;">${obs}</div></div>` : ''}
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px 16px;text-align:right;min-width:160px;">
+        <div style="display:flex;justify-content:space-between;gap:20px;font-size:11px;color:#666;margin-bottom:4px;"><span>Subtotal</span><span>R$ ${subtotal.toFixed(2).replace('.',',')}</span></div>
+        ${discount > 0 ? `<div style="display:flex;justify-content:space-between;gap:20px;font-size:11px;color:#ef4444;margin-bottom:4px;"><span>Desconto</span><span>- R$ ${discount.toFixed(2).replace('.',',')}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;gap:20px;border-top:1px solid #ddd;padding-top:6px;margin-top:4px;"><span style="font-size:12px;font-weight:700;">TOTAL</span><span style="font-size:16px;font-weight:800;color:#e8210a;">R$ ${total.toFixed(2).replace('.',',')}</span></div>
+      </div>
+    </div>
+    ${installmentRows}
+    ${obs ? `<div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#f59e0b;">OBSERVAÇÕES</div><div style="font-size:11px;">${obs}</div></div>` : ''}
     <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;margin-top:12px;">CJ FireSecure Ltda · Segurança contra incêndio · (34) 99706-0025</div>`;
   openModal('pdfModal');
 }
 
 function generateOrderPDF() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
-  buildPDF(selectedOrderClient, currentOrderType, orderItems, document.getElementById('orderPayment').value, document.getElementById('orderObs').value);
+  const discount = parseFloat(document.getElementById('orderDiscount').value || 0) || 0;
+  const installments = parseInt(document.getElementById('orderInstallments')?.value || 1);
+  buildPDF(selectedOrderClient, currentOrderType, orderItems,
+    document.getElementById('orderPayment').value,
+    document.getElementById('orderObs').value,
+    { discount, installments, order_date: document.getElementById('orderDate').value }
+  );
 }
 
 function viewOrderPDF(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
-  buildPDF({ name: o.client, cnpj: o.cnpj }, o.type, items, o.payment, o.obs);
+  buildPDF({ name: o.client, cnpj: o.cnpj }, o.type, items, o.payment, o.obs,
+    { discount: o.discount || 0, installments: o.installments || 1, order_date: o.order_date, id: o.id }
+  );
 }
 
 function printPDF() {
