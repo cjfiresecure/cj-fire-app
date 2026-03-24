@@ -524,7 +524,9 @@ textarea.input{resize:none;height:70px}
 <div class="modal-overlay" id="pdfModal">
   <div class="modal" style="max-height:95vh;">
     <div class="modal-header"><div class="modal-title">📄 Pedido/Orçamento</div><button class="modal-close" onclick="closeModal('pdfModal')">✕</button></div>
-    <div id="pdfContent" style="background:#fff;border-radius:12px;padding:16px;color:#000;font-family:Arial,sans-serif;font-size:12px;"></div>
+    <div id="pdfContent" style="background:#fff;border-radius:12px;padding:16px;color:#000;font-family:Arial,sans-serif;font-size:12px;position:relative;">
+      <div style="position:absolute;inset:0;background-image:url('https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png');background-repeat:no-repeat;background-position:center center;background-size:240px;opacity:0.07;pointer-events:none;border-radius:12px;"></div>
+    </div>
     <div style="display:flex;gap:8px;margin-top:14px;">
       <button onclick="printPDF()" style="flex:1;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">🖨️ Imprimir/PDF</button>
       <button onclick="sharePDF()" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📲 WhatsApp</button>
@@ -1398,10 +1400,13 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
       </div>`;
   }
 
-  document.getElementById('pdfContent').innerHTML = `
+  document.getElementById('pdfContent').innerHTML = `<div style="position:relative;z-index:1;">
     <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div><div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30</div><div style="font-size:10px;color:#666;">Tel: (34) 99706-0025</div><div style="font-size:10px;color:#666;">cjextintores28@gmail.com</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none'" />
+          <div><div style="font-size:15px;font-weight:900;color:#e8210a;">CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30</div><div style="font-size:10px;color:#666;">Tel: (34) 99706-0025</div><div style="font-size:10px;color:#666;">cjextintores28@gmail.com</div></div>
+        </div>
         <div style="text-align:right;"><div style="font-size:14px;font-weight:800;color:${type==='Pedido'?'#22c55e':'#f0a500'};">${type.toUpperCase()}</div><div style="font-size:11px;color:#666;">${num}</div><div style="font-size:11px;color:#666;">${date}</div></div>
       </div>
     </div>
@@ -1425,7 +1430,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
     </div>
     ${installmentRows}
     ${obs ? `<div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#f59e0b;">OBSERVAÇÕES</div><div style="font-size:11px;">${obs}</div></div>` : ''}
-    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;margin-top:12px;">CJ FireSecure Ltda · Segurança contra incêndio · (34) 99706-0025</div>`;
+    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;margin-top:12px;">CJ FireSecure Ltda · Segurança contra incêndio · (34) 99706-0025</div></div>`;
   openModal('pdfModal');
 }
 
@@ -2473,10 +2478,13 @@ function buildNbrPDF(sig) {
   const date = document.getElementById('nbrData').value || new Date().toLocaleDateString('pt-BR');
   const ap = nbrExtintores.filter(e => e.resultado === 'ok').length;
   const rep = nbrExtintores.filter(e => e.resultado === 'no').length;
-  document.getElementById('pdfContent').innerHTML = `
+  document.getElementById('pdfContent').innerHTML = `<div style="position:relative;z-index:1;">
     <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;">
-        <div><div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none'" />
+          <div><div style="font-size:15px;font-weight:900;color:#e8210a;">CJ FIRESECURE LTDA</div><div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025</div></div>
+        </div>
         <div style="text-align:right;"><div style="font-size:13px;font-weight:800;color:#e8210a;">LAUDO NBR 12962</div><div style="font-size:10px;color:#666;">${date}</div></div>
       </div>
     </div>
@@ -2507,7 +2515,7 @@ function buildNbrPDF(sig) {
       <div style="font-size:10px;color:#666;margin-bottom:6px;">ASSINATURA DO RESPONSÁVEL — ${nbrSelectedClient?.name}</div>
       <img src="${sig}" style="max-width:200px;border:1px solid #eee;border-radius:6px;" />
     </div>
-    <div style="border-top:1px solid #ddd;padding-top:8px;text-align:center;color:#999;font-size:10px;margin-top:12px;">CJ FireSecure Ltda · NBR 12962 · (34) 99706-0025</div>`;
+    <div style="border-top:1px solid #ddd;padding-top:8px;text-align:center;color:#999;font-size:10px;margin-top:12px;">CJ FireSecure Ltda · NBR 12962 · (34) 99706-0025</div></div>`;
   openModal('pdfModal');
 }
 
