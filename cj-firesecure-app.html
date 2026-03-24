@@ -6,6 +6,8 @@
 <title>CJ Fire App</title>
 <meta name="theme-color" content="#e8210a" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;--primary:#e8210a;--secondary:#f0a500;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--text:#f1f5f9;--sub:#94a3b8;--muted:#6b7280}
@@ -502,6 +504,23 @@ textarea.input{resize:none;height:70px}
   </div>
 </div>
 
+<!-- MODAL CONFIRMAÇÃO DE EXCLUSÃO -->
+<div class="modal-overlay" id="deleteConfirmModal">
+  <div class="modal" style="max-width:340px;margin:auto;border-radius:20px;">
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="font-size:48px;margin-bottom:10px;">🗑️</div>
+      <div style="font-size:16px;font-weight:800;color:var(--danger);margin-bottom:6px;">Confirmar Exclusão</div>
+      <div style="color:var(--sub);font-size:13px;margin-bottom:6px;">Você tem certeza que deseja apagar?</div>
+      <div id="deleteConfirmItem" style="background:#ef444418;border:1px solid #ef444444;border-radius:10px;padding:10px 14px;margin:12px 0;color:var(--text);font-size:13px;font-weight:700;"></div>
+      <div style="color:var(--sub);font-size:11px;">⚠️ Esta ação não pode ser desfeita</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button onclick="closeModal('deleteConfirmModal')" style="flex:1;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">✕ Cancelar</button>
+      <button id="deleteConfirmBtn" style="flex:1;background:var(--danger);color:#fff;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">🗑️ Sim, Apagar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="pdfModal">
   <div class="modal" style="max-height:95vh;">
     <div class="modal-header"><div class="modal-title">📄 Pedido/Orçamento</div><button class="modal-close" onclick="closeModal('pdfModal')">✕</button></div>
@@ -951,10 +970,12 @@ async function saveClient() {
 }
 
 async function deleteClient(id) {
-  if (!confirm('Excluir este cliente?')) return;
-  await dbDelete('clients', id);
-  showToast('🗑️ Removido', 'success');
-  loadClients();
+  const c = allClients.find(x => x.id === id);
+  confirmDelete(`👤 ${c?.name || 'Cliente'}`, async () => {
+    await dbDelete('clients', id);
+    showToast('🗑️ Cliente removido', 'success');
+    loadClients();
+  });
 }
 
 // ============================================================
@@ -1065,10 +1086,12 @@ async function setOrderStatusDB(id, status) {
 }
 
 async function deleteOrder(id) {
-  if (!confirm('Excluir este pedido?')) return;
-  await dbDelete('orders', id);
-  showToast('🗑️ Pedido removido', 'success');
-  loadOrders();
+  const o = allOrders.find(x => x.id === id);
+  confirmDelete(`📋 APP-${String(id).padStart(3,'0')} — ${o?.client || 'Pedido'}`, async () => {
+    await dbDelete('orders', id);
+    showToast('🗑️ Pedido removido', 'success');
+    loadOrders();
+  });
 }
 
 function setOrderType(type) {
@@ -1426,58 +1449,102 @@ function viewOrderPDF(id) {
   );
 }
 
-function printPDF() {
-  const c = document.getElementById('pdfContent').innerHTML;
-  const w = window.open('', '_blank');
-  w.document.write('<html><head><title>CJ FireSecure</title><style>body{font-family:Arial,sans-serif;margin:20px;}</style></head><body>' + c + '</body></html>');
-  w.document.close(); w.print();
+async function printPDF() {
+  showToast('⏳ Gerando PDF...', 'success');
+  try {
+    const content = document.getElementById('pdfContent');
+    const canvas = await html2canvas(content, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    if (pdfHeight <= pageHeight) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    } else {
+      let page = 0;
+      let remaining = pdfHeight;
+      while (remaining > 0) {
+        if (page > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, -page * pageHeight, pdfWidth, pdfHeight);
+        remaining -= pageHeight;
+        page++;
+      }
+    }
+    pdf.save('CJ-FireSecure-Pedido.pdf');
+    showToast('✅ PDF baixado!', 'success');
+  } catch(e) {
+    console.error(e);
+    // Fallback para impressão do navegador
+    const c = document.getElementById('pdfContent').innerHTML;
+    const w = window.open('', '_blank');
+    w.document.write('<html><head><title>CJ FireSecure</title><style>body{font-family:Arial,sans-serif;margin:20px;}</style></head><body>' + c + '</body></html>');
+    w.document.close(); w.print();
+  }
 }
 async function sharePDF() {
-  showToast('⏳ Preparando PDF...', 'success');
+  showToast('⏳ Gerando PDF...', 'success');
   try {
-    // Gera o HTML do PDF
-    const content = document.getElementById('pdfContent').innerHTML;
-    const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-      body{font-family:Arial,sans-serif;margin:20px;font-size:12px;}
-      table{width:100%;border-collapse:collapse;}
-      th{background:#e8210a;color:#fff;padding:6px 8px;text-align:left;}
-      td{padding:6px 8px;border-bottom:1px solid #eee;}
-    </style></head><body>${content}</body></html>`;
+    const content = document.getElementById('pdfContent');
 
-    // Tenta Web Share API (funciona no Android Chrome)
-    if (navigator.share) {
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const file = new File([blob], 'CJ-FireSecure-Pedido.html', { type: 'text/html' });
-      
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: 'CJ FireSecure - Pedido/Orçamento',
-          text: 'Segue o pedido/orçamento da CJ FireSecure 🔥',
-          files: [file]
-        });
-        return;
+    // Gera imagem do conteúdo com html2canvas
+    const canvas = await html2canvas(content, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false
+    });
+
+    // Converte para PDF usando jsPDF
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    // Se maior que A4, divide em páginas
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    if (pdfHeight <= pageHeight) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    } else {
+      let yPos = 0;
+      let remaining = pdfHeight;
+      let page = 0;
+      while (remaining > 0) {
+        if (page > 0) pdf.addPage();
+        const sliceHeight = Math.min(pageHeight, remaining);
+        pdf.addImage(imgData, 'JPEG', 0, -page * pageHeight, pdfWidth, pdfHeight);
+        remaining -= pageHeight;
+        page++;
       }
-      
-      // Tenta só com texto + link
-      await navigator.share({
-        title: 'CJ FireSecure - Pedido/Orçamento',
-        text: 'Segue o pedido/orçamento da CJ FireSecure 🔥\n\nCJ FireSecure Ltda\nTel: (34) 99706-0025'
-      });
-      return;
     }
 
-    // Fallback: baixa o arquivo HTML (abrível no celular)
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'CJ-FireSecure-Pedido.html';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('📥 Arquivo baixado! Compartilhe pelo WhatsApp', 'success');
+    // Gera o blob do PDF
+    const pdfBlob = pdf.output('blob');
+    const pdfFile = new File([pdfBlob], 'CJ-FireSecure-Pedido.pdf', { type: 'application/pdf' });
+
+    // Tenta compartilhar via Web Share API
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      await navigator.share({
+        title: 'CJ FireSecure - Pedido/Orçamento',
+        text: 'Segue o pedido/orçamento da CJ FireSecure 🔥',
+        files: [pdfFile]
+      });
+    } else {
+      // Fallback: baixa o PDF
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'CJ-FireSecure-Pedido.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📥 PDF baixado! Compartilhe pelo WhatsApp', 'success');
+    }
 
   } catch(e) {
-    // Se cancelou ou deu erro, abre WhatsApp com texto
+    console.error('PDF error:', e);
+    // Fallback: abre WhatsApp com texto
     window.open('https://wa.me/?text=Segue+o+pedido/orçamento+da+CJ+FireSecure+🔥%0ATel%3A+(34)+99706-0025', '_blank');
   }
 }
@@ -1548,7 +1615,15 @@ async function saveStock() {
   else showToast('❌ Erro ao salvar', 'error');
 }
 
-async function deleteStock(id) { if (!confirm('Excluir item?')) return; await dbDelete('stock', id); showToast('🗑️ Removido', 'success'); loadStock(); }
+async function deleteStock(id) {
+  const data = await dbGet('stock', {});
+  const item = data.find(x => x.id === id);
+  confirmDelete(`📦 ${item?.name || 'Item de estoque'}`, async () => {
+    await dbDelete('stock', id);
+    showToast('🗑️ Removido', 'success');
+    loadStock();
+  });
+}
 
 // ============================================================
 // BILLING
@@ -1579,7 +1654,15 @@ async function loadBilling() {
 }
 
 async function markPaid(id) { await dbUpdate('billing', id, { status: 'Pago' }); showToast('✅ Marcado como pago!', 'success'); loadBilling(); }
-async function deleteBilling(id) { if (!confirm('Excluir cobrança?')) return; await dbDelete('billing', id); showToast('🗑️ Removida', 'success'); loadBilling(); }
+async function deleteBilling(id) {
+  const data = await dbGet('billing', {});
+  const item = data.find(x => x.id === id);
+  confirmDelete(`💰 ${item?.client || 'Cobrança'} — R$ ${parseFloat(item?.value||0).toFixed(2).replace('.',',')}`, async () => {
+    await dbDelete('billing', id);
+    showToast('🗑️ Cobrança removida', 'success');
+    loadBilling();
+  });
+}
 function chargeWhatsApp(client, value) { window.open(`https://wa.me/?text=Olá ${client}! Você tem uma cobrança pendente de R$ ${parseFloat(value).toFixed(2).replace('.',',')} com a CJ FireSecure. Entre em contato! (34) 99706-0025 🔥`, '_blank'); }
 
 let editingBillingId = null;
@@ -1716,11 +1799,13 @@ async function saveProduct() {
 }
 
 async function deleteProduct(id) {
-  if (!confirm('Excluir produto?')) return;
-  await dbDelete('products', id);
-  allProductsForOrder = [];
-  showToast('🗑️ Produto removido', 'success');
-  loadProducts();
+  const p = allProducts.find(x => x.id === id);
+  confirmDelete(`🧯 ${p?.name || 'Produto'}`, async () => {
+    await dbDelete('products', id);
+    allProductsForOrder = [];
+    showToast('🗑️ Produto removido', 'success');
+    loadProducts();
+  });
 }
 
 // ============================================================
@@ -1761,7 +1846,14 @@ async function saveSupplier() {
   if (result) { closeModal('supplierFormModal'); showToast('✅ Fornecedor cadastrado!', 'success'); loadSuppliers(); }
   else showToast('❌ Erro ao salvar', 'error');
 }
-async function deleteSupplier(id) { if (!confirm('Excluir?')) return; await dbDelete('suppliers', id); showToast('🗑️ Removido', 'success'); loadSuppliers(); }
+async function deleteSupplier(id) {
+  const s = allSuppliers.find(x => x.id === id);
+  confirmDelete(`🏭 ${s?.name || 'Fornecedor'}`, async () => {
+    await dbDelete('suppliers', id);
+    showToast('🗑️ Fornecedor removido', 'success');
+    loadSuppliers();
+  });
+}
 
 // ============================================================
 // ============================================================
@@ -1799,6 +1891,15 @@ async function handleCnpjInput(input, type) {
 // ============================================================
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+function confirmDelete(itemName, onConfirm) {
+  document.getElementById('deleteConfirmItem').textContent = itemName;
+  document.getElementById('deleteConfirmBtn').onclick = () => {
+    closeModal('deleteConfirmModal');
+    onConfirm();
+  };
+  openModal('deleteConfirmModal');
+}
 
 function showToast(msg, type) {
   const t = document.getElementById('toast');
@@ -1950,10 +2051,12 @@ async function saveExtintor() {
 }
 
 async function deleteExtintor(id) {
-  if (!confirm('Excluir este extintor?')) return;
-  await dbDelete('extintores', id);
-  showToast('🗑️ Extintor removido', 'success');
-  loadExtintores();
+  const e = allExtintores.find(x => x.id === id);
+  confirmDelete(`🧯 ${e?.numero_serie || 'Extintor'} — ${e?.client_name || ''}`, async () => {
+    await dbDelete('extintores', id);
+    showToast('🗑️ Extintor removido', 'success');
+    loadExtintores();
+  });
 }
 
 // QR Code generation
@@ -2438,10 +2541,12 @@ async function loadNbrInspecoes() {
 }
 
 async function deleteNbrInspecao(id) {
-  if (!confirm('Excluir inspeção?')) return;
-  await dbDelete('inspecoes_nbr', id);
-  showToast('🗑️ Removida', 'success');
-  loadNbrInspecoes();
+  const r = allNbrInspecoes.find(x => x.id === id);
+  confirmDelete(`📋 Inspeção — ${r?.client_name || ''} · ${r?.data_inspecao || ''}`, async () => {
+    await dbDelete('inspecoes_nbr', id);
+    showToast('🗑️ Inspeção removida', 'success');
+    loadNbrInspecoes();
+  });
 }
 
 async function viewNbrPDF(id) {
