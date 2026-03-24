@@ -115,7 +115,7 @@ textarea.input{resize:none;height:70px}
     <div class="quick-grid">
       <div class="quick-btn" onclick="navigate('clients')"><span class="icon">👥</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Clientes</span></div>
       <div class="quick-btn" onclick="navigate('orders')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Pedidos</span></div>
-      <div class="quick-btn" onclick="navigate('reports')"><span class="icon">📄</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Laudos</span></div>
+      <div class="quick-btn" onclick="navigate('nbr')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Inspeção</span></div>
       <div class="quick-btn" onclick="navigate('billing')"><span class="icon">💰</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Cobranças</span></div>
     </div>
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Últimos Clientes</div>
@@ -153,12 +153,6 @@ textarea.input{resize:none;height:70px}
     <div id="ordersList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
-  <!-- LAUDOS -->
-  <div id="screen-reports" class="screen">
-    <div class="page-header"><div><div class="page-title">Laudos</div><div style="color:var(--sub);font-size:12px;">Fotos antes e depois</div></div><button class="btn btn-primary btn-sm" onclick="openReportForm()">+ Novo</button></div>
-    <div id="reportsList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
-  </div>
-
   <!-- MENU -->
   <div id="screen-menu" class="screen">
     <div class="page-header"><div class="page-title">Menu</div></div>
@@ -168,7 +162,6 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('notifications')"><div style="font-size:28px;">🔔</div><div style="font-weight:700;">Alertas</div><div style="color:var(--sub);font-size:11px;">Vencimentos</div></button>
       <button class="menu-item" onclick="navigate('products')"><div style="font-size:28px;">🧯</div><div style="font-weight:700;">Produtos</div><div style="color:var(--sub);font-size:11px;">Tabela de preços</div></button>
       <button class="menu-item" onclick="navigate('suppliers')"><div style="font-size:28px;">🏭</div><div style="font-weight:700;">Fornecedores</div><div style="color:var(--sub);font-size:11px;">Cadastros</div></button>
-      <button class="menu-item" onclick="navigate('reports')"><div style="font-size:28px;">📄</div><div style="font-weight:700;">Laudos</div><div style="color:var(--sub);font-size:11px;">Fotos antes/depois</div></button>
       <button class="menu-item" onclick="navigate('extintores')" style="border-color:#e8210a44;"><div style="font-size:28px;">🧯</div><div style="font-weight:700;color:var(--primary);">Extintores</div><div style="color:var(--sub);font-size:11px;">QR Code · NBR</div></button>
       <button class="menu-item" onclick="navigate('nbr')" style="border-color:#f0a50044;"><div style="font-size:28px;">📋</div><div style="font-weight:700;color:var(--secondary);">Inspeção NBR</div><div style="color:var(--sub);font-size:11px;">Checklist 12962</div></button>
     </div>
@@ -321,45 +314,6 @@ textarea.input{resize:none;height:70px}
       <button onclick="printPDF()" style="flex:1;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">🖨️ Imprimir/PDF</button>
       <button onclick="sharePDF()" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📲 WhatsApp</button>
     </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="reportFormModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">Novo Laudo</div><button class="modal-close" onclick="closeModal('reportFormModal')">✕</button></div>
-    
-    <!-- Cliente com busca automática -->
-    <div class="field">
-      <label class="label">Cliente</label>
-      <input class="input" id="rClientSearch" placeholder="🔍 Digite para buscar cliente..." oninput="searchReportClient()" autocomplete="off" />
-      <div id="rClientDropdown" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:160px;overflow-y:auto;margin-top:4px;"></div>
-      <input type="hidden" id="rClient" />
-    </div>
-
-    <div class="field"><label class="label">Técnico</label><input class="input" id="rTech" placeholder="Nome do técnico" /></div>
-    <div class="field"><label class="label">Serviços realizados</label><textarea class="input" id="rServices" placeholder="Ex: Recarga Extintor, Inspeção Hidrante..."></textarea></div>
-    <div class="field"><label class="label">Situação antes</label><textarea class="input" id="rObsBefore" placeholder="Ex: Extintor com carga vencida..."></textarea></div>
-
-    <!-- Foto ANTES -->
-    <div class="field">
-      <label class="label">📸 Foto ANTES</label>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <label style="flex:1;background:#ef444418;border:2px dashed #ef444466;border-radius:12px;padding:14px;text-align:center;cursor:pointer;">
-          <input type="file" id="photoBefore" accept="image/*" capture="environment" style="display:none;" onchange="previewPhoto(this,'previewBefore','photoBefore')" />
-          <div id="previewBefore" style="font-size:28px;">📷</div>
-          <div style="color:var(--danger);font-size:11px;font-weight:700;margin-top:4px;">ANTES</div>
-        </label>
-        <!-- Foto DEPOIS -->
-        <label style="flex:1;background:#22c55e18;border:2px dashed #22c55e66;border-radius:12px;padding:14px;text-align:center;cursor:pointer;">
-          <input type="file" id="photoAfter" accept="image/*" capture="environment" style="display:none;" onchange="previewPhoto(this,'previewAfter','photoAfter')" />
-          <div id="previewAfter" style="font-size:28px;">📷</div>
-          <div style="color:var(--success);font-size:11px;font-weight:700;margin-top:4px;">DEPOIS</div>
-        </label>
-      </div>
-    </div>
-
-    <div class="field"><label class="label">Situação depois</label><textarea class="input" id="rObsAfter" placeholder="Ex: Recarga realizada, tudo em conformidade..."></textarea></div>
-    <button class="btn btn-primary" onclick="saveReport()">✓ Salvar Laudo</button>
   </div>
 </div>
 
@@ -625,7 +579,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, reports: loadReports, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: loadNbrInspecoes };
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: loadNbrInspecoes };
   if (map[s]) map[s]();
 }
 
@@ -1077,206 +1031,6 @@ async function sharePDF() {
     // Se cancelou ou deu erro, abre WhatsApp com texto
     window.open('https://wa.me/?text=Segue+o+pedido/orçamento+da+CJ+FireSecure+🔥%0ATel%3A+(34)+99706-0025', '_blank');
   }
-}
-
-// ============================================================
-// REPORTS
-// ============================================================
-async function loadReports() {
-  const data = await dbGet('reports', { order: 'created_at', asc: false });
-  if (!data.length) { document.getElementById('reportsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhum laudo ainda.<br><br><button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="openReportForm()">+ Criar laudo</button></div>'; return; }
-  document.getElementById('reportsList').innerHTML = data.map(r => `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-        <div>
-          <div style="font-weight:700;">${r.title || 'Laudo Técnico'}</div>
-          <div style="color:var(--sub);font-size:11px;">📍 ${r.client} · 👷 ${r.tech || '—'}</div>
-          <div style="color:var(--sub);font-size:11px;">📅 ${r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : ''}</div>
-        </div>
-        <span class="badge badge-success">${r.status || 'Concluído'}</span>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <div style="flex:1;background:#ef444418;border:1px solid #ef444433;border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:20px;">${r.has_photo_before ? '✅' : '🔴'}</div>
-          <div style="color:var(--danger);font-size:10px;font-weight:700;margin-top:4px;">ANTES</div>
-        </div>
-        <div style="display:flex;align-items:center;color:var(--sub);">→</div>
-        <div style="flex:1;background:#22c55e18;border:1px solid #22c55e33;border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:20px;">${r.has_photo_after ? '✅' : '🟢'}</div>
-          <div style="color:var(--success);font-size:10px;font-weight:700;margin-top:4px;">DEPOIS</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewReportPDF(${r.id})">📄 PDF</button>
-        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="shareReportPDF(${r.id})">📲 WhatsApp</button>
-        <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="editReport(${r.id})">✏️</button>
-        <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteReport(${r.id})">🗑️</button>
-      </div>
-    </div>`).join('');
-}
-
-function openReportForm() {
-  editingReportId = null;
-  document.getElementById('rClientSearch').value = '';
-  document.getElementById('rClient').value = '';
-  document.getElementById('rClientDropdown').style.display = 'none';
-  document.getElementById('rTech').value = '';
-  document.getElementById('rServices').value = '';
-  document.getElementById('rObsBefore').value = '';
-  document.getElementById('rObsAfter').value = '';
-  document.getElementById('previewBefore').innerHTML = '📷';
-  document.getElementById('previewAfter').innerHTML = '📷';
-  document.getElementById('photoBefore').value = '';
-  document.getElementById('photoAfter').value = '';
-  document.querySelector('#reportFormModal .modal-title').textContent = 'Novo Laudo';
-  document.querySelector('#reportFormModal .btn-primary').textContent = '✓ Salvar Laudo';
-  openModal('reportFormModal');
-}
-
-function searchReportClient() {
-  const q = document.getElementById('rClientSearch').value.toLowerCase();
-  const dd = document.getElementById('rClientDropdown');
-  if (!q || q.length < 1) { dd.style.display = 'none'; return; }
-  const matches = allClients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 5);
-  if (!matches.length) { dd.style.display = 'none'; return; }
-  dd.style.display = 'block';
-  dd.innerHTML = matches.map(c => `<div onclick="selectReportClient('${c.name.replace(/'/g,"\\'")}',${c.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${c.name}</div>`).join('');
-}
-
-function selectReportClient(name, id) {
-  document.getElementById('rClientSearch').value = name;
-  document.getElementById('rClient').value = name;
-  document.getElementById('rClientDropdown').style.display = 'none';
-}
-
-function previewPhoto(input, previewId, inputId) {
-  if (input.files && input.files[0]) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      document.getElementById(previewId).innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;" />`;
-    };
-    reader.readAsDataURL(input.files[0]);
-  }
-}
-
-async function saveReport() {
-  const client = document.getElementById('rClient').value.trim() || document.getElementById('rClientSearch').value.trim();
-  if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
-  const hasBefore = document.getElementById('photoBefore').files?.length > 0;
-  const hasAfter = document.getElementById('photoAfter').files?.length > 0;
-  const reportData = {
-    title: 'Laudo Técnico',
-    client,
-    tech: document.getElementById('rTech').value,
-    services: document.getElementById('rServices').value,
-    obs_before: document.getElementById('rObsBefore').value,
-    obs_after: document.getElementById('rObsAfter').value,
-    status: 'Concluído'
-  };
-  if (hasBefore) reportData.has_photo_before = true;
-  if (hasAfter) reportData.has_photo_after = true;
-
-  let result;
-  if (editingReportId) {
-    result = await dbUpdate('reports', editingReportId, reportData);
-    editingReportId = null;
-  } else {
-    result = await dbInsert('reports', reportData);
-  }
-
-  if (result !== false && result !== null) {
-    closeModal('reportFormModal');
-    showToast('✅ Laudo salvo!', 'success');
-    loadReports();
-  } else {
-    showToast('❌ Erro ao salvar', 'error');
-  }
-}
-async function deleteReport(id) { if (!confirm('Excluir?')) return; await dbDelete('reports', id); showToast('🗑️ Laudo removido', 'success'); loadReports(); }
-
-let editingReportId = null;
-
-async function editReport(id) {
-  const data = await dbGet('reports', {});
-  const r = data.find(x => x.id === id);
-  if (!r) return;
-  editingReportId = id;
-  document.getElementById('rClientSearch').value = r.client || '';
-  document.getElementById('rClient').value = r.client || '';
-  document.getElementById('rTech').value = r.tech || '';
-  document.getElementById('rServices').value = r.services || '';
-  document.getElementById('rObsBefore').value = r.obs_before || '';
-  document.getElementById('rObsAfter').value = r.obs_after || '';
-  document.getElementById('previewBefore').innerHTML = r.has_photo_before ? '✅' : '📷';
-  document.getElementById('previewAfter').innerHTML = r.has_photo_after ? '✅' : '📷';
-  // Muda título e botão para modo edição
-  document.querySelector('#reportFormModal .modal-title').textContent = '✏️ Editar Laudo';
-  document.querySelector('#reportFormModal .btn-primary').textContent = '✓ Salvar Alterações';
-  openModal('reportFormModal');
-}
-
-function buildReportHTML(r) {
-  const date = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-  return `
-    <div style="border-bottom:2px solid #e8210a;padding-bottom:12px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-          <div style="font-size:15px;font-weight:900;color:#e8210a;">🦅 CJ FIRESECURE LTDA</div>
-          <div style="font-size:10px;color:#666;">CNPJ: 48.794.963/0001-30</div>
-          <div style="font-size:10px;color:#666;">Tel: (34) 99706-0025</div>
-          <div style="font-size:10px;color:#666;">cjextintores28@gmail.com</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:14px;font-weight:800;color:#e8210a;">LAUDO TÉCNICO</div>
-          <div style="font-size:11px;color:#666;">Data: ${date}</div>
-        </div>
-      </div>
-    </div>
-    <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;">
-      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">CLIENTE</div>
-      <div style="font-size:13px;font-weight:700;">${r.client}</div>
-      ${r.tech ? `<div style="font-size:11px;color:#666;">Técnico: ${r.tech}</div>` : ''}
-    </div>
-    ${r.services ? `
-    <div style="margin-bottom:12px;">
-      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">SERVIÇOS REALIZADOS</div>
-      <div style="font-size:12px;background:#fff3e0;border-radius:8px;padding:10px;">${r.services}</div>
-    </div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-      <div style="background:#ffebee;border-radius:8px;padding:10px;">
-        <div style="font-size:11px;font-weight:700;color:#e8210a;margin-bottom:4px;">🔴 SITUAÇÃO ANTES</div>
-        <div style="font-size:11px;">${r.obs_before || 'Não informado'}</div>
-        ${r.has_photo_before ? '<div style="font-size:10px;color:#666;margin-top:4px;">📸 Foto registrada</div>' : ''}
-      </div>
-      <div style="background:#e8f5e9;border-radius:8px;padding:10px;">
-        <div style="font-size:11px;font-weight:700;color:#22c55e;margin-bottom:4px;">🟢 SITUAÇÃO DEPOIS</div>
-        <div style="font-size:11px;">${r.obs_after || 'Não informado'}</div>
-        ${r.has_photo_after ? '<div style="font-size:10px;color:#666;margin-top:4px;">📸 Foto registrada</div>' : ''}
-      </div>
-    </div>
-    <div style="border-top:1px solid #ddd;padding-top:10px;text-align:center;color:#999;font-size:10px;margin-top:12px;">
-      CJ FireSecure Ltda · Segurança contra incêndio · (34) 99706-0025
-    </div>`;
-}
-
-let currentReportData = null;
-
-async function viewReportPDF(id) {
-  const data = await dbGet('reports', {});
-  const r = data.find(x => x.id === id);
-  if (!r) return;
-  currentReportData = r;
-  document.getElementById('pdfContent').innerHTML = buildReportHTML(r);
-  openModal('pdfModal');
-}
-
-async function shareReportPDF(id) {
-  const data = await dbGet('reports', {});
-  const r = data.find(x => x.id === id);
-  if (!r) return;
-  currentReportData = r;
-  document.getElementById('pdfContent').innerHTML = buildReportHTML(r);
-  sharePDF();
 }
 
 // ============================================================
