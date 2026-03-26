@@ -357,6 +357,7 @@ textarea.input{resize:none;height:70px}
     <div class="stats-grid" style="margin-bottom:14px;">
       <div class="stat-card"><div style="font-size:18px;">💰</div><div style="font-size:18px;font-weight:800;color:var(--secondary);margin-top:4px;" id="billingTotal">R$ 0,00</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
       <div class="stat-card danger-border"><div style="font-size:18px;">🚨</div><div style="font-size:18px;font-weight:800;color:var(--danger);margin-top:4px;" id="billingOverdue">R$ 0,00</div><div style="color:var(--sub);font-size:11px;">Vencido</div></div>
+      <div class="stat-card warning-border"><div style="font-size:18px;">⚠️</div><div style="font-size:18px;font-weight:800;color:var(--warning);margin-top:4px;" id="billingWarning">0</div><div style="color:var(--sub);font-size:11px;">Vencendo</div></div>
     </div>
     <div id="billingList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
@@ -580,6 +581,23 @@ textarea.input{resize:none;height:70px}
     <div class="field"><label class="label">Serviço</label><input class="input" id="billingService" placeholder="Ex: Manutenção Extintores" /></div>
     <div class="field"><label class="label">Valor (R$)</label><input class="input" id="billingValue" type="number" step="0.01" placeholder="0,00" /></div>
     <div class="field"><label class="label">Vencimento</label><input class="input" id="billingDue" type="date" /></div>
+    <!-- Multa e Juros -->
+    <div style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:12px;">
+      <div style="color:var(--secondary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">💸 Multa e Juros por Atraso</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field">
+          <label class="label">Multa (%)</label>
+          <input class="input" id="billingMulta" type="number" step="0.1" min="0" max="100" placeholder="Ex: 2" />
+          <div style="color:var(--sub);font-size:10px;margin-top:3px;">Padrão: 2%</div>
+        </div>
+        <div class="field">
+          <label class="label">Juros (% a.m.)</label>
+          <input class="input" id="billingJuros" type="number" step="0.1" min="0" max="100" placeholder="Ex: 1" />
+          <div style="color:var(--sub);font-size:10px;margin-top:3px;">Padrão: 1% a.m.</div>
+        </div>
+      </div>
+      <div style="color:var(--sub);font-size:10px;">Aplicados automaticamente ao vencer</div>
+    </div>
     <button class="btn btn-primary" onclick="saveBilling()">✓ Registrar</button>
   </div>
 </div>
@@ -1725,27 +1743,96 @@ async function deleteStock(id) {
 // ============================================================
 async function loadBilling() {
   const data = await dbGet('billing', { order: 'due_date' });
-  const total = data.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-  const overdue = data.filter(b => b.status === 'Vencido').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-  document.getElementById('billingTotal').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
-  document.getElementById('billingOverdue').textContent = 'R$ ' + overdue.toFixed(2).replace('.', ',');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const in3 = new Date(); in3.setDate(today.getDate() + 3);
+
+  // Atualiza status automaticamente baseado na data
+  for (const b of data) {
+    if (b.status === 'Pago') continue;
+    const due = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
+    if (due && due < today && b.status !== 'Vencido') {
+      await dbUpdate('billing', b.id, { status: 'Vencido' });
+      b.status = 'Vencido';
+    }
+  }
+
+  const pending = data.filter(b => b.status !== 'Pago');
+  const overdue = data.filter(b => b.status === 'Vencido');
+  const warning = data.filter(b => {
+    if (b.status === 'Pago' || b.status === 'Vencido') return false;
+    const due = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
+    return due && due <= in3 && due >= today;
+  });
+
+  const totalPending = pending.reduce((a, b) => a + parseFloat(b.value || 0), 0);
+  const totalOverdue = overdue.reduce((a, b) => a + parseFloat(b.value || 0), 0);
+
+  document.getElementById('billingTotal').textContent = 'R$ ' + totalPending.toFixed(2).replace('.', ',');
+  document.getElementById('billingOverdue').textContent = 'R$ ' + totalOverdue.toFixed(2).replace('.', ',');
+  if (document.getElementById('billingWarning')) document.getElementById('billingWarning').textContent = warning.length;
+
+  // Notificação push se tiver vencido
+  if (overdue.length > 0) sendPushNotification('🚨 CJ FireSecure', `${overdue.length} cobrança(s) vencida(s)! Total: R$ ${totalOverdue.toFixed(2).replace('.',',')}`);
+  if (warning.length > 0) sendPushNotification('⚠️ CJ FireSecure', `${warning.length} cobrança(s) vencendo em 3 dias!`);
+
   if (!data.length) { document.getElementById('billingList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Nenhuma cobrança.</div>'; return; }
-  document.getElementById('billingList').innerHTML = data.map(b => `
-    <div class="card ${b.status === 'Vencido' ? 'danger-border' : ''}">
+
+  document.getElementById('billingList').innerHTML = data.map(b => {
+    const due = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
+    const isOverdue = b.status === 'Vencido';
+    const isWarning = b.status !== 'Pago' && !isOverdue && due && due <= in3 && due >= today;
+    const isPaid = b.status === 'Pago';
+
+    // Calcula dias de atraso
+
+    // Calcula valor atualizado com multa e juros
+    const calc = calcBillingUpdated(b.value, b.due_date, b.multa, b.juros);
+    const hasCharge = calc.daysLate > 0 && !isPaid;
+
+    let daysInfo = '';
+    if (isOverdue && due) {
+      daysInfo = `
+        <div style="background:#ef444422;border-radius:8px;padding:8px 10px;margin-top:8px;">
+          <div style="color:var(--danger);font-size:11px;font-weight:700;">🚨 ${calc.daysLate} dia(s) em atraso</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;">
+            <span style="color:var(--sub);">Multa (${b.multa??2}%)</span><span style="color:var(--danger);">+ R$ ${calc.multa.toFixed(2).replace('.',',')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px;">
+            <span style="color:var(--sub);">Juros (${b.juros??1}% a.m.)</span><span style="color:var(--danger);">+ R$ ${calc.juros.toFixed(2).replace('.',',')}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid #ef444444;margin-top:6px;padding-top:6px;">
+            <span style="color:var(--danger);">Total Atualizado</span><span style="color:var(--danger);">R$ ${calc.total.toFixed(2).replace('.',',')}</span>
+          </div>
+        </div>`;
+    } else if (isWarning && due) {
+      const daysLeft = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      daysInfo = `<div style="color:var(--warning);font-size:11px;font-weight:700;margin-top:4px;">⚠️ Vence em ${daysLeft} dia(s) · Multa: ${b.multa??2}% · Juros: ${b.juros??1}% a.m.</div>`;
+    }
+
+    return `
+    <div class="card ${borderClass}" style="${bgStyle}">
+      ${isOverdue ? '<div style="background:#ef444422;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">🚨</span><span style="color:var(--danger);font-size:12px;font-weight:700;">VENCIDA — Pagamento em atraso</span></div>' : ''}
+      ${isWarning ? '<div style="background:#f59e0b22;border-radius:8px;padding:6px 10px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">⚠️</span><span style="color:var(--warning);font-size:12px;font-weight:700;">Vencimento próximo!</span></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div><div style="font-weight:700;font-size:13px;">${b.client}</div><div style="color:var(--sub);font-size:11px;">${b.service || '—'}</div><div style="color:var(--sub);font-size:11px;">📅 ${b.due_date || '—'}</div></div>
+        <div>
+          <div style="font-weight:700;font-size:13px;">${b.client}</div>
+          <div style="color:var(--sub);font-size:11px;">${b.service || '—'}</div>
+          <div style="color:${isOverdue?'var(--danger)':isWarning?'var(--warning)':'var(--sub)'};font-size:11px;font-weight:${isOverdue||isWarning?700:400};">📅 ${b.due_date ? new Date(b.due_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+        </div>
         <div style="text-align:right;">
-          <div style="font-weight:800;font-size:15px;color:var(--secondary);">R$ ${parseFloat(b.value || 0).toFixed(2).replace('.', ',')}</div>
-          <span class="badge badge-${b.status === 'Pago' ? 'success' : b.status === 'Vencido' ? 'danger' : 'warning'}">${b.status || 'Pendente'}</span>
+          <div style="font-weight:800;font-size:15px;color:${isOverdue?'var(--danger)':isPaid?'var(--success)':'var(--secondary)'};">R$ ${parseFloat(b.value || 0).toFixed(2).replace('.', ',')}</div>
+          <span class="badge badge-${isPaid?'success':isOverdue?'danger':isWarning?'warning':'secondary'}">${b.status || 'Pendente'}</span>
         </div>
       </div>
+      ${daysInfo}
       <div style="display:flex;gap:8px;margin-top:10px;">
-        ${b.status !== 'Pago' ? `<button class="btn btn-sm" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="markPaid(${b.id})">✓ Pago</button>` : ''}
+        ${!isPaid ? `<button class="btn btn-sm" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="markPaid(${b.id})">✓ Pago</button>` : ''}
         <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="editBilling(${b.id})">✏️</button>
-        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="chargeWhatsApp('${b.client.replace(/'/g,"\\'")}',${b.value})">📲 Cobrar</button>
+        <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="chargeWhatsApp('${b.client.replace(/'/g,"\\'")}',${b.value},'${b.due_date||''}',${b.multa??2},${b.juros??1})">📲 Cobrar</button>
         <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteBilling(${b.id})">🗑️</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function markPaid(id) {
@@ -1777,7 +1864,34 @@ async function deleteBilling(id) {
     loadBilling();
   });
 }
-function chargeWhatsApp(client, value) { window.open(`https://wa.me/?text=Olá ${client}! Você tem uma cobrança pendente de R$ ${parseFloat(value).toFixed(2).replace('.',',')} com a CJ FireSecure. Entre em contato! (34) 99706-0025 🔥`, '_blank'); }
+// Calcula valor atualizado com multa e juros
+function calcBillingUpdated(value, dueDate, multa, juros) {
+  const original = parseFloat(value || 0);
+  if (!dueDate) return { original, multa: 0, juros: 0, total: original, daysLate: 0 };
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = new Date(dueDate + 'T12:00:00');
+  const daysLate = Math.max(0, Math.floor((today - due) / (1000 * 60 * 60 * 24)));
+  if (daysLate === 0) return { original, multa: 0, juros: 0, total: original, daysLate: 0 };
+  const multaVal = original * (parseFloat(multa || 2) / 100);
+  const jurosVal = original * (parseFloat(juros || 1) / 100) * (daysLate / 30);
+  const total = original + multaVal + jurosVal;
+  return { original, multa: multaVal, juros: jurosVal, total, daysLate };
+}
+
+function chargeWhatsApp(client, value, dueDate, multa, juros) {
+  const calc = calcBillingUpdated(value, dueDate, multa, juros);
+  let msg = `Olá ${client}! 👋\n\nVocê tem uma cobrança com a *CJ FireSecure*.\n\n`;
+  msg += `💰 Valor original: R$ ${calc.original.toFixed(2).replace('.',',')}\n`;
+  msg += `📅 Vencimento: ${dueDate ? new Date(dueDate+'T12:00:00').toLocaleDateString('pt-BR') : '—'}\n`;
+  if (calc.daysLate > 0) {
+    msg += `\n⚠️ *Em atraso: ${calc.daysLate} dia(s)*\n`;
+    msg += `🚨 Multa (${multa||2}%): R$ ${calc.multa.toFixed(2).replace('.',',')}\n`;
+    msg += `📈 Juros (${juros||1}% a.m.): R$ ${calc.juros.toFixed(2).replace('.',',')}\n`;
+    msg += `\n💵 *Total atualizado: R$ ${calc.total.toFixed(2).replace('.',',')}*\n`;
+  }
+  msg += `\nPor favor, entre em contato para regularizar. Obrigado! 🔥\n*(34) 99706-0025*`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
 
 let editingBillingId = null;
 
@@ -1787,6 +1901,8 @@ function openBillingForm() {
   document.getElementById('billingService').value = '';
   document.getElementById('billingValue').value = '';
   document.getElementById('billingDue').value = '';
+  document.getElementById('billingMulta').value = '2';
+  document.getElementById('billingJuros').value = '1';
   document.querySelector('#billingFormModal .modal-title').textContent = 'Nova Cobrança';
   document.querySelector('#billingFormModal .btn-primary').textContent = '✓ Registrar';
   openModal('billingFormModal');
@@ -1801,6 +1917,8 @@ async function editBilling(id) {
   document.getElementById('billingService').value = b.service || '';
   document.getElementById('billingValue').value = b.value || '';
   document.getElementById('billingDue').value = b.due_date || '';
+  document.getElementById('billingMulta').value = b.multa ?? 2;
+  document.getElementById('billingJuros').value = b.juros ?? 1;
   document.querySelector('#billingFormModal .modal-title').textContent = '✏️ Editar Cobrança';
   document.querySelector('#billingFormModal .btn-primary').textContent = '✓ Salvar Alterações';
   openModal('billingFormModal');
@@ -1809,7 +1927,15 @@ async function editBilling(id) {
 async function saveBilling() {
   const client = document.getElementById('billingClient').value.trim();
   if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
-  const billingData = { client, service: document.getElementById('billingService').value, value: parseFloat(document.getElementById('billingValue').value) || 0, due_date: document.getElementById('billingDue').value, status: 'Pendente' };
+  const billingData = {
+    client,
+    service: document.getElementById('billingService').value,
+    value: parseFloat(document.getElementById('billingValue').value) || 0,
+    due_date: document.getElementById('billingDue').value,
+    multa: parseFloat(document.getElementById('billingMulta').value) || 2,
+    juros: parseFloat(document.getElementById('billingJuros').value) || 1,
+    status: 'Pendente'
+  };
   let result;
   if (editingBillingId) {
     result = await dbUpdate('billing', editingBillingId, billingData);
