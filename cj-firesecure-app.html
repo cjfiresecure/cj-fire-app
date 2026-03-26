@@ -1452,24 +1452,42 @@ async function saveOrder() {
       await adjustStock(oldItems, false);
       showToast('📦 Estoque devolvido!', 'success');
     }
-    // Orçamento → Pedido: baixa estoque + cria cobrança + agenda visita
+    // Orçamento → Pedido: baixa estoque + cria cobrança(s) + agenda visita
     else if (oldType === 'Orçamento' && currentOrderType === 'Pedido') {
       await adjustStock(orderItems, true);
-      const dueDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
-      if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
-      else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
-      else if (payment === 'Parcelado') dueDate.setMonth(dueDate.getMonth() + 1);
-      await dbInsert('billing', {
-        client: selectedOrderClient.name,
-        service: `Pedido - ${orderItems.map(i => i.name).join(', ')}`,
-        value: total, due_date: dueDate.toISOString().split('T')[0],
-        multa: 2, juros: 1, status: 'Pendente'
-      });
+      const baseDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
+      const orderNum = `APP-${String(editingOrderId).padStart(3,'0')}`;
+      const serviceDesc = `Pedido - ${orderItems.map(i => i.name).join(', ')}`;
+
+      if (payment === 'Parcelado' && installments > 1) {
+        const parcelValue = total / installments;
+        for (let i = 0; i < installments; i++) {
+          const dueDate = new Date(baseDate);
+          dueDate.setMonth(dueDate.getMonth() + i + 1);
+          await dbInsert('billing', {
+            client: selectedOrderClient.name,
+            service: `${orderNum} · Parcela ${i+1}/${installments} · ${serviceDesc}`,
+            value: parseFloat(parcelValue.toFixed(2)),
+            due_date: dueDate.toISOString().split('T')[0],
+            multa: 2, juros: 1, status: 'Pendente'
+          });
+        }
+      } else {
+        const dueDate = new Date(baseDate);
+        if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
+        else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
+        await dbInsert('billing', {
+          client: selectedOrderClient.name,
+          service: `${orderNum} · ${serviceDesc}`,
+          value: total, due_date: dueDate.toISOString().split('T')[0],
+          multa: 2, juros: 1, status: 'Pendente'
+        });
+      }
       // Agenda próxima visita
-      const nextVisit = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
+      const nextVisit = new Date(baseDate);
       nextVisit.setFullYear(nextVisit.getFullYear() + 1);
       if (selectedOrderClient.id) await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
-      showToast('✅ Convertido em Pedido · Cobrança, estoque e visita agendados!', 'success');
+      showToast('✅ Convertido em Pedido · Cobrança(s), estoque e visita agendados!', 'success');
     }
     // Pedido → Pedido: ajusta estoque
     else if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
@@ -1491,26 +1509,46 @@ async function saveOrder() {
         // Baixa estoque
         await adjustStock(orderItems, true);
 
-        // Cobrança automática só para Pedido
-        const dueDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
-        if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
-        else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
-        else if (payment === 'Parcelado') dueDate.setMonth(dueDate.getMonth() + 1);
-        await dbInsert('billing', {
-          client: selectedOrderClient.name,
-          service: `Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${surcharge > 0 ? ` (Acrés: R$ ${surcharge.toFixed(2).replace('.',',')})` : ''}`,
-          value: total,
-          due_date: dueDate.toISOString().split('T')[0],
-          multa: 2, juros: 1,
-          status: 'Pendente'
-        });
+        // Cobrança automática — parcelado cria uma cobrança por parcela
+        const baseDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
+        const serviceDesc = `Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${surcharge > 0 ? ` (Acrés: R$ ${surcharge.toFixed(2).replace('.',',')})` : ''}`;
+        const orderNum = `APP-${String(result.id || '').padStart(3,'0')}`;
+
+        if (payment === 'Parcelado' && installments > 1) {
+          // Cria uma cobrança por parcela
+          const parcelValue = total / installments;
+          for (let i = 0; i < installments; i++) {
+            const dueDate = new Date(baseDate);
+            dueDate.setMonth(dueDate.getMonth() + i + 1);
+            await dbInsert('billing', {
+              client: selectedOrderClient.name,
+              service: `${orderNum} · Parcela ${i+1}/${installments} · ${serviceDesc}`,
+              value: parseFloat(parcelValue.toFixed(2)),
+              due_date: dueDate.toISOString().split('T')[0],
+              multa: 2, juros: 1, status: 'Pendente'
+            });
+          }
+          showToast(`✅ ${installments} cobranças geradas!`, 'success');
+        } else {
+          // À vista, 30 ou 60 dias — uma cobrança só
+          const dueDate = new Date(baseDate);
+          if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
+          else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
+          await dbInsert('billing', {
+            client: selectedOrderClient.name,
+            service: `${orderNum} · ${serviceDesc}`,
+            value: total,
+            due_date: dueDate.toISOString().split('T')[0],
+            multa: 2, juros: 1, status: 'Pendente'
+          });
+        }
+
         // Agendar próxima visita automaticamente (1 ano)
-        const nextVisit = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
+        const nextVisit = new Date(baseDate);
         nextVisit.setFullYear(nextVisit.getFullYear() + 1);
-        const nextVisitStr = nextVisit.toISOString().split('T')[0];
         if (selectedOrderClient.id) {
-          await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisitStr });
-          showToast(`📅 Próxima visita agendada: ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+          await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
+          showToast(`📅 Próxima visita: ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
         }
 
         closeModal('orderFormModal');
