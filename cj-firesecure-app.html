@@ -447,6 +447,7 @@ textarea.input{resize:none;height:70px}
       <label class="label">Pagamento</label>
       <select class="input" id="orderPayment" onchange="handlePaymentChange()">
         <option>À vista</option>
+        <option>15 dias</option>
         <option>30 dias</option>
         <option>60 dias</option>
         <option>Parcelado</option>
@@ -1369,12 +1370,16 @@ function calcInstallments() {
   if (payment !== 'Parcelado') return;
   const subtotal = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
   const discount = parseFloat(document.getElementById('orderDiscount')?.value || 0) || 0;
-  const total = Math.max(0, subtotal - discount);
+  const surcharge = parseFloat(document.getElementById('orderSurcharge')?.value || 0) || 0;
+  const total = Math.max(0, subtotal - discount + surcharge);
   const n = parseInt(document.getElementById('orderInstallments')?.value || 2);
   const parcel = total / n;
-  const baseDate = document.getElementById('orderDate')?.value ? new Date(document.getElementById('orderDate').value + 'T12:00:00') : new Date();
+  const baseDate = document.getElementById('orderDate')?.value
+    ? new Date(document.getElementById('orderDate').value + 'T12:00:00')
+    : new Date();
   const preview = document.getElementById('installmentPreview');
   if (!preview) return;
+  if (total === 0) { preview.innerHTML = '<div style="color:var(--sub);font-size:12px;text-align:center;padding:8px;">Adicione produtos para ver as parcelas</div>'; return; }
   preview.innerHTML = Array.from({ length: n }, (_, i) => {
     const d = new Date(baseDate);
     d.setMonth(d.getMonth() + i + 1);
@@ -1474,7 +1479,8 @@ async function saveOrder() {
         }
       } else {
         const dueDate = new Date(baseDate);
-        if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
+        if (payment === '15 dias') dueDate.setDate(dueDate.getDate() + 15);
+        else if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
         else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
         await dbInsert('billing', {
           client: selectedOrderClient.name,
@@ -1532,7 +1538,8 @@ async function saveOrder() {
         } else {
           // À vista, 30 ou 60 dias — uma cobrança só
           const dueDate = new Date(baseDate);
-          if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
+          if (payment === '15 dias') dueDate.setDate(dueDate.getDate() + 15);
+          else if (payment === '30 dias') dueDate.setDate(dueDate.getDate() + 30);
           else if (payment === '60 dias') dueDate.setDate(dueDate.getDate() + 60);
           await dbInsert('billing', {
             client: selectedOrderClient.name,
