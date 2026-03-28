@@ -161,7 +161,11 @@ textarea.input{resize:none;height:70px}
   <div id="screen-clients" class="screen">
     <div class="page-header">
       <div><div class="page-title">Clientes</div><div style="color:var(--sub);font-size:12px;" id="clientCount">Carregando...</div></div>
-      <button class="btn btn-primary btn-sm" onclick="openClientForm()">+ Novo</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openImportModal('clients')">📥 Importar</button>
+        <button class="btn btn-sm" style="background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="exportData('clients')">📤 Exportar</button>
+        <button class="btn btn-primary btn-sm" onclick="openClientForm()">+ Novo</button>
+      </div>
     </div>
     <input class="input" id="clientSearch" placeholder="🔍 Buscar cliente..." oninput="filterClients()" style="margin-bottom:12px;" />
     <div id="clientsList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
@@ -381,7 +385,14 @@ textarea.input{resize:none;height:70px}
 
   <!-- PRODUTOS -->
   <div id="screen-products" class="screen">
-    <div class="page-header"><div><div class="page-title">Produtos</div><div style="color:var(--sub);font-size:12px;">Toque no valor para editar</div></div><button class="btn btn-primary btn-sm" onclick="openProductForm()">+ Novo</button></div>
+    <div class="page-header">
+      <div><div class="page-title">Produtos</div><div style="color:var(--sub);font-size:12px;">Toque no valor para editar</div></div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openImportModal('products')">📥 Importar</button>
+        <button class="btn btn-sm" style="background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="exportData('products')">📤 Exportar</button>
+        <button class="btn btn-primary btn-sm" onclick="openProductForm()">+ Novo</button>
+      </div>
+    </div>
     <input class="input" id="productSearch" placeholder="🔍 Buscar produto..." oninput="filterProducts()" style="margin-bottom:12px;" />
     <div id="productsList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
@@ -538,6 +549,54 @@ textarea.input{resize:none;height:70px}
     <div class="modal-header"><div class="modal-title">Selecionar Produto</div><button class="modal-close" onclick="closeModal('addProductModal')">✕</button></div>
     <input class="input" id="addProductSearch" placeholder="🔍 Buscar..." oninput="filterAddProduct()" style="margin-bottom:12px;" />
     <div id="addProductList" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="importModalTitle">📥 Importar</div>
+      <button class="modal-close" onclick="closeModal('importModal')">✕</button>
+    </div>
+
+    <!-- Instruções -->
+    <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:14px;">
+      <div style="color:var(--secondary);font-size:12px;font-weight:700;margin-bottom:6px;">📋 Como importar:</div>
+      <div style="color:var(--sub);font-size:11px;line-height:1.6;">
+        1. Baixe o arquivo modelo abaixo<br>
+        2. Preencha com seus dados<br>
+        3. Salve como CSV e importe aqui
+      </div>
+    </div>
+
+    <!-- Download modelo -->
+    <button onclick="downloadTemplate()" style="width:100%;background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">
+      📄 Baixar Arquivo Modelo (CSV)
+    </button>
+
+    <!-- Upload arquivo -->
+    <div class="field">
+      <label class="label">Selecionar Arquivo CSV</label>
+      <label style="display:flex;align-items:center;gap:12px;background:var(--bg);border:2px dashed var(--border);border-radius:12px;padding:16px;cursor:pointer;">
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" onchange="previewImport(this)" />
+        <span style="font-size:28px;">📂</span>
+        <div>
+          <div style="font-weight:600;font-size:13px;" id="importFileName">Toque para selecionar</div>
+          <div style="color:var(--sub);font-size:11px;">CSV ou Excel (.xlsx)</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Preview -->
+    <div id="importPreview" style="display:none;margin-bottom:12px;">
+      <div style="color:var(--sub);font-size:11px;font-weight:700;margin-bottom:8px;" id="importPreviewCount"></div>
+      <div id="importPreviewList" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <button onclick="confirmImport()" id="importConfirmBtn" style="display:none;" class="btn btn-primary">
+      ✓ Importar Dados
+    </button>
   </div>
 </div>
 
@@ -3025,6 +3084,190 @@ function autocompleteSupplier(inputId, dropdownId) {
   dd.innerHTML = matches.map(s => `
     <div onclick="document.getElementById('${inputId}').value='${s.name.replace(/'/g,"\\'")}';document.getElementById('${dropdownId}').style.display='none'" 
          style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${s.name}</div>`).join('');
+}
+
+// ============================================================
+// IMPORTAR / EXPORTAR
+// ============================================================
+let importType = 'clients';
+let importData = [];
+
+function openImportModal(type) {
+  importType = type;
+  importData = [];
+  document.getElementById('importModalTitle').textContent = type === 'clients' ? '📥 Importar Clientes' : '📥 Importar Produtos';
+  document.getElementById('importFile').value = '';
+  document.getElementById('importFileName').textContent = 'Toque para selecionar';
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importConfirmBtn').style.display = 'none';
+  openModal('importModal');
+}
+
+function downloadTemplate() {
+  let csv = '';
+  if (importType === 'clients') {
+    csv = 'Nome,CNPJ,Nome Fantasia,Responsável,Telefone,Email,Cidade,Endereço,Equipamentos,Próxima Visita (AAAA-MM-DD),Tipo\n';
+    csv += 'Farmácia Central Ltda,12.345.678/0001-99,Farmácia Central,João Silva,(34) 99999-0000,email@email.com,Fronteira - MG,Rua das Flores 123,5,2026-06-01,Comercial\n';
+    csv += 'Escola Municipal XPTO,,,,,(34) 98888-0000,farmacia@email.com,Iturama - MG,Av. Principal 456,10,2026-07-15,Público\n';
+  } else {
+    csv = 'Nome,Categoria,Preço,Unidade\n';
+    csv += 'Recarga PQS ABC 4kg,Extintores,150.00,serv.\n';
+    csv += 'Manutenção CO₂ 6kg,Extintores,120.00,serv.\n';
+    csv += 'Sinalização Emergência,Sinalização,45.00,un\n';
+  }
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `modelo_${importType}_cj_fire.csv`;
+  a.click();
+  showToast('📄 Modelo baixado!', 'success');
+}
+
+function previewImport(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  document.getElementById('importFileName').textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    parseImportCSV(text);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function parseImportCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) { showToast('⚠️ Arquivo vazio ou inválido', 'error'); return; }
+
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  importData = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+    if (!cols[0]) continue;
+
+    if (importType === 'clients') {
+      importData.push({
+        name: cols[0] || '',
+        cnpj: cols[1] || '',
+        fantasia: cols[2] || '',
+        contact: cols[3] || '',
+        phone: cols[4] || '',
+        email: cols[5] || '',
+        city: cols[6] || '',
+        address: cols[7] || '',
+        equipments: parseInt(cols[8]) || 0,
+        next_visit: cols[9] || '',
+        type: cols[10] || 'Comercial',
+        status: 'Em dia'
+      });
+    } else {
+      importData.push({
+        name: cols[0] || '',
+        category: cols[1] || '',
+        price: parseFloat(cols[2]) || 0,
+        unit: cols[3] || 'un'
+      });
+    }
+  }
+
+  if (!importData.length) { showToast('⚠️ Nenhum dado válido encontrado', 'error'); return; }
+
+  // Verifica duplicatas para o preview
+  const existing = await dbGet(importType === 'clients' ? 'clients' : 'products', {});
+  let duplicates = 0;
+  importData.forEach(item => {
+    item._duplicate = importType === 'clients'
+      ? existing.some(e => e.name?.toLowerCase().trim() === item.name?.toLowerCase().trim() || (item.cnpj && e.cnpj === item.cnpj))
+      : existing.some(e => e.name?.toLowerCase().trim() === item.name?.toLowerCase().trim());
+    if (item._duplicate) duplicates++;
+  });
+
+  const newItems = importData.filter(i => !i._duplicate).length;
+  document.getElementById('importPreviewCount').innerHTML =
+    `<span style="color:var(--success);font-weight:700;">✅ ${newItems} novo(s)</span>` +
+    (duplicates > 0 ? ` · <span style="color:var(--warning);font-weight:700;">⏭️ ${duplicates} já cadastrado(s) — serão ignorados</span>` : '');
+
+  document.getElementById('importPreviewList').innerHTML = importData.slice(0, 6).map(item => `
+    <div style="background:${item._duplicate ? '#f0a50011' : 'var(--card)'};border:1px solid ${item._duplicate ? '#f0a50044' : 'var(--border)'};border-radius:8px;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-weight:700;color:${item._duplicate ? 'var(--sub)' : 'var(--text)'};">${item.name}</div>
+        <div style="color:var(--sub);font-size:11px;">${importType === 'clients' ? (item.city || item.cnpj || '—') : `${item.category} · R$ ${parseFloat(item.price).toFixed(2).replace('.',',')}`}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:${item._duplicate ? 'var(--warning)' : 'var(--success)'};">${item._duplicate ? '⏭️ Existe' : '✅ Novo'}</span>
+    </div>`).join('') +
+    (importData.length > 6 ? `<div style="color:var(--sub);font-size:11px;text-align:center;padding:6px;">...e mais ${importData.length - 6} registro(s)</div>` : '');
+
+  document.getElementById('importPreview').style.display = 'block';
+  document.getElementById('importConfirmBtn').style.display = 'block';
+}
+
+async function confirmImport() {
+  if (!importData.length) return;
+  const btn = document.getElementById('importConfirmBtn');
+  btn.textContent = '⏳ Verificando duplicatas...';
+  btn.disabled = true;
+
+  // Busca registros já existentes
+  const existing = await dbGet(importType === 'clients' ? 'clients' : 'products', {});
+
+  let success = 0, skipped = 0, errors = 0;
+
+  for (const item of importData) {
+    try {
+      // Verifica duplicata
+      let isDuplicate = false;
+      if (importType === 'clients') {
+        isDuplicate = existing.some(e =>
+          e.name?.toLowerCase().trim() === item.name?.toLowerCase().trim() ||
+          (item.cnpj && e.cnpj === item.cnpj)
+        );
+      } else {
+        isDuplicate = existing.some(e =>
+          e.name?.toLowerCase().trim() === item.name?.toLowerCase().trim()
+        );
+      }
+
+      if (isDuplicate) { skipped++; continue; }
+
+      const result = await dbInsert(importType === 'clients' ? 'clients' : 'products', item);
+      if (result) success++; else errors++;
+    } catch { errors++; }
+  }
+
+  btn.textContent = '✓ Importar Dados';
+  btn.disabled = false;
+  closeModal('importModal');
+
+  let msg = `✅ ${success} importado(s)`;
+  if (skipped > 0) msg += ` · ⏭️ ${skipped} já existia(m)`;
+  if (errors > 0) msg += ` · ❌ ${errors} erro(s)`;
+  showToast(msg, 'success');
+
+  if (importType === 'clients') { loadClients(); allClients = []; }
+  else { loadProducts(); allProductsForOrder = []; }
+}
+
+async function exportData(type) {
+  showToast('⏳ Exportando...', 'success');
+  const data = await dbGet(type, { order: type === 'clients' ? 'name' : 'name' });
+
+  let csv = '';
+  if (type === 'clients') {
+    csv = 'Nome,CNPJ,Nome Fantasia,Responsável,Telefone,Email,Cidade,Endereço,Equipamentos,Próxima Visita,Tipo,Status\n';
+    csv += data.map(c => `"${c.name||''}","${c.cnpj||''}","${c.fantasia||''}","${c.contact||''}","${c.phone||''}","${c.email||''}","${c.city||''}","${c.address||''}","${c.equipments||0}","${c.next_visit||''}","${c.type||''}","${c.status||''}"`).join('\n');
+  } else {
+    csv = 'Nome,Categoria,Preço,Unidade\n';
+    csv += data.map(p => `"${p.name||''}","${p.category||''}","${parseFloat(p.price||0).toFixed(2)}","${p.unit||''}"`).join('\n');
+  }
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cj_fire_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  showToast(`✅ ${data.length} registro(s) exportado(s)!`, 'success');
 }
 
 // ============================================================
