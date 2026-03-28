@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;--primary:#e8210a;--secondary:#f0a500;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--text:#f1f5f9;--sub:#94a3b8;--muted:#6b7280}
@@ -3128,53 +3129,137 @@ function previewImport(input) {
   const file = input.files[0];
   document.getElementById('importFileName').textContent = file.name;
 
+  const isXlsx = /\.(xlsx|xls)$/i.test(file.name);
   const reader = new FileReader();
-  reader.onload = e => {
-    const text = e.target.result;
-    parseImportCSV(text);
+  if (isXlsx) {
+    reader.onload = e => parseImportXLSX(e.target.result);
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = e => parseImportCSV(e.target.result);
+    reader.readAsText(file, 'UTF-8');
+  }
+}
+
+// Parser CSV robusto — lida com campos entre aspas que contêm vírgulas
+function parseCSVLine(line, sep) {
+  if (sep === ';') return line.split(';').map(c => c.trim().replace(/^"|"$/g, ''));
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else { inQ = !inQ; }
+    } else if (ch === ',' && !inQ) {
+      result.push(cur.trim()); cur = '';
+    } else { cur += ch; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+// Detecta separador da primeira linha
+function detectSep(text) {
+  const first = text.split('\n')[0] || '';
+  return (first.split(';').length > first.split(',').length) ? ';' : ',';
+}
+
+// Mapeamento flexível de colunas — aceita formato CJ Fire e formato OkFit
+function mapProductRow(headers, cols) {
+  const h = headers.map(x => x.toLowerCase().replace(/[*\s]/g,''));
+  const get = (...keys) => {
+    for (const k of keys) {
+      const i = h.findIndex(x => x.includes(k));
+      if (i >= 0) return String(cols[i] || '').trim();
+    }
+    return '';
   };
-  reader.readAsText(file, 'UTF-8');
+  const priceRaw = get('preco_de_venda','preco','price','valor');
+  const price = parseFloat(priceRaw.replace(/\./g,'').replace(',','.')) || 0;
+  return {
+    name: get('nome','name'),
+    category: get('categoria','category'),
+    price,
+    unit: get('embalagem_de_venda','unidade','unit') || 'un'
+  };
+}
+
+function mapClientRow(headers, cols) {
+  const h = headers.map(x => x.toLowerCase().replace(/[*\s]/g,''));
+  const get = (...keys) => {
+    for (const k of keys) {
+      const i = h.findIndex(x => x.includes(k));
+      if (i >= 0) return String(cols[i] || '').trim();
+    }
+    return '';
+  };
+  const razao   = get('razao_social','name','nome');
+  const fantasia = get('fantasia');
+  const name     = razao || fantasia;
+  const cidade   = get('cidade','city');
+  const estado   = get('estado','state','uf');
+  const city     = cidade && estado ? `${cidade} - ${estado}` : cidade || estado;
+  const rua      = get('endereco','address','endereço');
+  const num      = get('numero_endereco','numero','number');
+  const address  = (rua && num) ? `${rua}, ${num}` : rua;
+  const phone    = get('telefone_cliente','telefone1','telefone_1','phone','telefone');
+  const email    = get('email_contato','emailcontato','email');
+  const cnpjRaw  = get('cnpj_ou_cpf','cnpj','cpf');
+  const digits   = String(cnpjRaw).replace(/\D/g,'');
+  const cnpj     = digits.length === 14
+    ? digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5')
+    : cnpjRaw;
+  return {
+    name, cnpj, fantasia,
+    contact: get('nome_contato','contato','contact','responsavel','responsável'),
+    phone, email, city, address,
+    equipments: 0, next_visit: '', type: 'Comercial', status: 'Em dia'
+  };
+}
+
+async function parseImportXLSX(buffer) {
+  try {
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (rows.length < 2) { showToast('⚠️ Planilha vazia ou inválida', 'error'); return; }
+    const headers = rows[0].map(h => String(h));
+    importData = [];
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i].map(c => (c === null || c === undefined) ? '' : String(c));
+      if (!cols[0]) continue;
+      const row = importType === 'clients' ? mapClientRow(headers, cols) : mapProductRow(headers, cols);
+      if (row.name) importData.push(row);
+    }
+    await finishPreview();
+  } catch(err) {
+    console.error(err);
+    showToast('❌ Erro ao ler arquivo Excel', 'error');
+  }
 }
 
 async function parseImportCSV(text) {
-  const lines = text.split('\n').filter(l => l.trim());
+  const clean = text.replace(/^\uFEFF/, '');
+  const sep   = detectSep(clean);
+  const lines = clean.split('\n').filter(l => l.trim());
   if (lines.length < 2) { showToast('⚠️ Arquivo vazio ou inválido', 'error'); return; }
 
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const headers = parseCSVLine(lines[0], sep);
   importData = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+    const cols = parseCSVLine(lines[i], sep);
     if (!cols[0]) continue;
-
-    if (importType === 'clients') {
-      importData.push({
-        name: cols[0] || '',
-        cnpj: cols[1] || '',
-        fantasia: cols[2] || '',
-        contact: cols[3] || '',
-        phone: cols[4] || '',
-        email: cols[5] || '',
-        city: cols[6] || '',
-        address: cols[7] || '',
-        equipments: parseInt(cols[8]) || 0,
-        next_visit: cols[9] || '',
-        type: cols[10] || 'Comercial',
-        status: 'Em dia'
-      });
-    } else {
-      importData.push({
-        name: cols[0] || '',
-        category: cols[1] || '',
-        price: parseFloat(cols[2]) || 0,
-        unit: cols[3] || 'un'
-      });
-    }
+    const row = importType === 'clients' ? mapClientRow(headers, cols) : mapProductRow(headers, cols);
+    if (row.name) importData.push(row);
   }
 
+  await finishPreview();
+}
+
+async function finishPreview() {
   if (!importData.length) { showToast('⚠️ Nenhum dado válido encontrado', 'error'); return; }
 
-  // Verifica duplicatas para o preview
   const existing = await dbGet(importType === 'clients' ? 'clients' : 'products', {});
   let duplicates = 0;
   importData.forEach(item => {
@@ -3193,7 +3278,7 @@ async function parseImportCSV(text) {
     <div style="background:${item._duplicate ? '#f0a50011' : 'var(--card)'};border:1px solid ${item._duplicate ? '#f0a50044' : 'var(--border)'};border-radius:8px;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
       <div>
         <div style="font-weight:700;color:${item._duplicate ? 'var(--sub)' : 'var(--text)'};">${item.name}</div>
-        <div style="color:var(--sub);font-size:11px;">${importType === 'clients' ? (item.city || item.cnpj || '—') : `${item.category} · R$ ${parseFloat(item.price).toFixed(2).replace('.',',')}`}</div>
+        <div style="color:var(--sub);font-size:11px;">${importType === 'clients' ? (item.city || item.cnpj || '—') : `${item.category} · R$ ${parseFloat(item.price||0).toFixed(2).replace('.',',')}`}</div>
       </div>
       <span style="font-size:11px;font-weight:700;color:${item._duplicate ? 'var(--warning)' : 'var(--success)'};">${item._duplicate ? '⏭️ Existe' : '✅ Novo'}</span>
     </div>`).join('') +
