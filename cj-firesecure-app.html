@@ -1083,10 +1083,14 @@ async function loadHomeData() {
     });
     const recebido = monthBilling.filter(b => b.status === 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
     const pendente = monthBilling.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentYear  = now.getFullYear();
     const monthExpenses = expenses.filter(e => {
       if (e.is_template) return false;
-      const d = e.expense_date ? new Date(e.expense_date) : (e.created_at ? new Date(e.created_at) : null);
-      return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      // Usa campos month/year se disponíveis, fallback para expense_date
+      if (e.month && e.year) return parseInt(e.month) === currentMonth && parseInt(e.year) === currentYear;
+      const d = e.expense_date ? new Date(e.expense_date + 'T12:00:00') : (e.created_at ? new Date(e.created_at) : null);
+      return d && d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
     });
     const totalGastos = monthExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0);
     const resultado = recebido - totalGastos;
