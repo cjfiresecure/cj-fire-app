@@ -3316,8 +3316,11 @@ async function confirmImport() {
 
       if (isDuplicate) { skipped++; continue; }
 
-      const result = await dbInsert(importType === 'clients' ? 'clients' : 'products', item);
-      if (result) success++; else errors++;
+      // Remove campos internos antes de enviar ao Supabase
+      const { _duplicate, ...cleanItem } = item;
+      const result = await dbInsert(importType === 'clients' ? 'clients' : 'products', cleanItem);
+      if (result) success++;
+      else { console.error('Import failed for:', cleanItem); errors++; }
     } catch { errors++; }
   }
 
