@@ -3178,7 +3178,7 @@ function mapProductRow(headers, cols) {
   const price = parseFloat(priceRaw.replace(/\./g,'').replace(',','.')) || 0;
   return {
     name: get('nome','name'),
-    category: get('categoria','category'),
+    category: get('categoria','category') || null,
     price,
     unit: get('embalagem_de_venda','unidade','unit') || 'un'
   };
@@ -3210,10 +3210,11 @@ function mapClientRow(headers, cols) {
     ? digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5')
     : cnpjRaw;
   return {
-    name, cnpj, fantasia,
-    contact: get('nome_contato','contato','contact','responsavel','responsável'),
-    phone, email, city, address,
-    equipments: 0, next_visit: '', type: 'Comercial', status: 'Em dia'
+    name, cnpj: cnpj || null, fantasia: fantasia || null,
+    contact: get('nome_contato','contato','contact','responsavel','responsável') || null,
+    phone: phone || null, email: email || null,
+    city: city || null, address: address || null,
+    equipments: 0, next_visit: null, type: 'Comercial', status: 'Em dia'
   };
 }
 
@@ -3298,6 +3299,7 @@ async function confirmImport() {
   const existing = await dbGet(importType === 'clients' ? 'clients' : 'products', {});
 
   let success = 0, skipped = 0, errors = 0;
+  let firstError = null;
 
   for (const item of importData) {
     try {
@@ -3320,8 +3322,8 @@ async function confirmImport() {
       const { _duplicate, ...cleanItem } = item;
       const result = await dbInsert(importType === 'clients' ? 'clients' : 'products', cleanItem);
       if (result) success++;
-      else { console.error('Import failed for:', cleanItem); errors++; }
-    } catch { errors++; }
+      else { console.error('Import failed for:', cleanItem); if (!firstError) firstError = cleanItem.name; errors++; }
+    } catch(e) { if (!firstError) firstError = e.message; errors++; }
   }
 
   btn.textContent = '✓ Importar Dados';
@@ -3330,7 +3332,7 @@ async function confirmImport() {
 
   let msg = `✅ ${success} importado(s)`;
   if (skipped > 0) msg += ` · ⏭️ ${skipped} já existia(m)`;
-  if (errors > 0) msg += ` · ❌ ${errors} erro(s)`;
+  if (errors > 0) msg += ` · ❌ ${errors} erro(s)${firstError ? `: ${firstError}` : ''}`;
   showToast(msg, 'success');
 
   if (importType === 'clients') { loadClients(); allClients = []; }
