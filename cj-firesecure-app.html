@@ -122,12 +122,13 @@ textarea.input{resize:none;height:70px}
     </div>
 
     <!-- Relatório financeiro do mês -->
-    <div style="background:linear-gradient(135deg,#1a0a04,#2d1008);border:1px solid #e8210a33;border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+    <div style="background:linear-gradient(135deg,#1a0a04,#2d1008);border:1px solid #e8210a33;border-radius:14px;padding:14px 16px;margin-bottom:14px;" onclick="navigate('expenses')" style="cursor:pointer;">
       <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Financeiro do Mês</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-        <div style="text-align:center;"><div style="color:var(--success);font-weight:800;font-size:15px;" id="monthRevenue">R$ 0</div><div style="color:var(--sub);font-size:10px;">Recebido</div></div>
-        <div style="text-align:center;"><div style="color:var(--secondary);font-weight:800;font-size:15px;" id="monthPending">R$ 0</div><div style="color:var(--sub);font-size:10px;">Pendente</div></div>
-        <div style="text-align:center;"><div style="color:var(--primary);font-weight:800;font-size:15px;" id="monthOrders">0</div><div style="color:var(--sub);font-size:10px;">Pedidos</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="color:var(--success);font-weight:800;font-size:15px;" id="monthRevenue">R$ 0</div><div style="color:var(--sub);font-size:10px;">✅ Recebido</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="color:var(--secondary);font-weight:800;font-size:15px;" id="monthPending">R$ 0</div><div style="color:var(--sub);font-size:10px;">⏳ Pendente</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="color:var(--primary);font-weight:800;font-size:15px;" id="monthExpenses">R$ 0</div><div style="color:var(--sub);font-size:10px;">💸 Gastos</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="font-weight:800;font-size:15px;" id="monthResult">R$ 0</div><div style="color:var(--sub);font-size:10px;">📈 Resultado</div></div>
       </div>
     </div>
 
@@ -216,10 +217,46 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('suppliers')"><div style="font-size:28px;">🏭</div><div style="font-weight:700;">Fornecedores</div><div style="color:var(--sub);font-size:11px;">Cadastros</div></button>
       <button class="menu-item" onclick="navigate('extintores')" style="border-color:#e8210a44;"><div style="font-size:28px;">🧯</div><div style="font-weight:700;color:var(--primary);">Extintores</div><div style="color:var(--sub);font-size:11px;">QR Code · NBR</div></button>
       <button class="menu-item" onclick="navigate('nbr')" style="border-color:#f0a50044;"><div style="font-size:28px;">📋</div><div style="font-weight:700;color:var(--secondary);">Inspeção NBR</div><div style="color:var(--sub);font-size:11px;">Checklist 12962</div></button>
+      <button class="menu-item" onclick="navigate('expenses')" style="border-color:#22c55e44;"><div style="font-size:28px;">💸</div><div style="font-weight:700;color:#22c55e;">Gastos</div><div style="color:var(--sub);font-size:11px;">Controle de custos</div></button>
     </div>
   </div>
 
-  <!-- EXTINTORES -->
+  <!-- GASTOS -->
+  <div id="screen-expenses" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Gastos</div><div style="color:var(--sub);font-size:12px;" id="expensesSubtitle">Controle de custos</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openExpenseTemplatesModal()">⚙️ Fixos</button>
+        <button class="btn btn-primary btn-sm" onclick="openExpenseForm()">+ Lançar</button>
+      </div>
+    </div>
+    <!-- Seletor de mês -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:14px;">
+      <button onclick="changeExpenseMonth(-1)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px;">‹</button>
+      <div style="text-align:center;">
+        <div style="font-weight:700;font-size:14px;" id="expenseMonthLabel">—</div>
+        <div style="color:var(--sub);font-size:11px;">Toque nas setas para navegar</div>
+      </div>
+      <button onclick="changeExpenseMonth(1)" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px;">›</button>
+    </div>
+    <!-- Resumo do mês -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;" id="expensesSummary">
+      <div style="background:var(--card);border:1px solid #22c55e44;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">FIXOS</div>
+        <div style="font-size:18px;font-weight:800;color:#22c55e;" id="expTotalFixed">R$ 0,00</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #f0a50044;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">VARIÁVEIS</div>
+        <div style="font-size:18px;font-weight:800;color:var(--secondary);" id="expTotalVar">R$ 0,00</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #e8210a44;border-radius:12px;padding:12px;text-align:center;grid-column:1/-1;">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">TOTAL DE GASTOS</div>
+        <div style="font-size:22px;font-weight:800;color:var(--primary);" id="expTotalAll">R$ 0,00</div>
+      </div>
+    </div>
+    <!-- Lista de lançamentos -->
+    <div id="expensesList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+  </div>
   <div id="screen-extintores" class="screen">
     <div class="page-header">
       <div><div class="page-title">Extintores</div><div style="color:var(--sub);font-size:12px;" id="extintorCount">Carregando...</div></div>
@@ -416,6 +453,61 @@ textarea.input{resize:none;height:70px}
 </div>
 
 <!-- MODALS -->
+
+<!-- MODAL: Lançar Gasto -->
+<div class="modal-overlay" id="expenseFormModal">
+  <div class="modal">
+    <div class="modal-title" id="expenseFormTitle">💸 Lançar Gasto</div>
+    <button class="modal-close" onclick="closeModal('expenseFormModal')">✕</button>
+    <input type="hidden" id="expenseEditId" value="">
+    <div class="field"><label class="label">Descrição *</label><input class="input" id="expenseName" placeholder="Ex: Almoço, Pedágio, Combustível" /></div>
+    <div class="field"><label class="label">Valor (R$) *</label><input class="input" id="expenseAmount" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Tipo</label>
+      <select class="input" id="expenseType" onchange="updateExpenseCategoryList()">
+        <option value="Variável">Variável</option>
+        <option value="Fixo">Fixo</option>
+      </select>
+    </div>
+    <div class="field"><label class="label">Categoria</label>
+      <select class="input" id="expenseCategory">
+        <option>Alimentação</option><option>Combustível</option><option>Pedágio</option>
+        <option>Manutenção Veículo</option><option>Materiais</option><option>Outros</option>
+      </select>
+    </div>
+    <div class="field"><label class="label">Data</label><input class="input" id="expenseDate" type="date" /></div>
+    <div class="field"><label class="label">Observações</label><input class="input" id="expenseNotes" placeholder="Opcional" /></div>
+    <button class="btn btn-primary" id="expenseSaveBtn" onclick="saveExpense()">✓ Salvar Gasto</button>
+  </div>
+</div>
+
+<!-- MODAL: Gastos Fixos (Templates) -->
+<div class="modal-overlay" id="expenseTemplatesModal">
+  <div class="modal">
+    <div class="modal-title">⚙️ Gastos Fixos Recorrentes</div>
+    <button class="modal-close" onclick="closeModal('expenseTemplatesModal')">✕</button>
+    <div style="color:var(--sub);font-size:12px;margin-bottom:12px;">Cadastre aqui os gastos fixos (aluguel, salário, água, luz…). Ao abrir um novo mês, eles aparecem automaticamente para você confirmar.</div>
+    <button class="btn btn-primary btn-sm" style="margin-bottom:12px;width:100%;" onclick="openTemplateForm()">+ Novo Gasto Fixo</button>
+    <div id="templatesList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+  </div>
+</div>
+
+<!-- MODAL: Form Gasto Fixo Template -->
+<div class="modal-overlay" id="templateFormModal">
+  <div class="modal">
+    <div class="modal-title" id="templateFormTitle">⚙️ Gasto Fixo</div>
+    <button class="modal-close" onclick="closeModal('templateFormModal')">✕</button>
+    <input type="hidden" id="templateEditId" value="">
+    <div class="field"><label class="label">Descrição *</label><input class="input" id="templateName" placeholder="Ex: Aluguel, Salário, Água" /></div>
+    <div class="field"><label class="label">Valor (R$) *</label><input class="input" id="templateAmount" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Categoria</label>
+      <select class="input" id="templateCategory">
+        <option>Aluguel</option><option>Salário</option><option>Água</option><option>Energia Elétrica</option>
+        <option>Internet</option><option>Telefone</option><option>Contabilidade</option><option>Outros Fixos</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="templateSaveBtn" onclick="saveTemplate()">✓ Salvar</button>
+  </div>
+</div>
 <div class="modal-overlay" id="clientFormModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Novo Cliente</div><button class="modal-close" onclick="closeModal('clientFormModal')">✕</button></div>
@@ -936,7 +1028,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList };
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, expenses: loadExpenses };
   if (map[s]) map[s]();
 }
 
@@ -952,12 +1044,13 @@ function setDate() {
 
 async function loadHomeData() {
   try {
-    const [clients, orders, billing, stock, extintores] = await Promise.all([
+    const [clients, orders, billing, stock, extintores, expenses] = await Promise.all([
       dbGet('clients', { order: 'created_at', asc: false, limit: 3 }),
       dbGet('orders', {}),
       dbGet('billing', {}),
       dbGet('stock', {}),
-      dbGet('extintores', {})
+      dbGet('extintores', {}),
+      dbGet('expenses', {})
     ]);
 
     // Stats
@@ -982,9 +1075,19 @@ async function loadHomeData() {
     });
     const recebido = monthBilling.filter(b => b.status === 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
     const pendente = monthBilling.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    const monthExpenses = expenses.filter(e => {
+      if (e.is_template) return false;
+      const d = e.expense_date ? new Date(e.expense_date) : (e.created_at ? new Date(e.created_at) : null);
+      return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const totalGastos = monthExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0);
+    const resultado = recebido - totalGastos;
     document.getElementById('monthRevenue').textContent = 'R$' + recebido.toFixed(0);
     document.getElementById('monthPending').textContent = 'R$' + pendente.toFixed(0);
-    document.getElementById('monthOrders').textContent = monthOrders.length;
+    document.getElementById('monthExpenses').textContent = 'R$' + totalGastos.toFixed(0);
+    const resEl = document.getElementById('monthResult');
+    resEl.textContent = (resultado >= 0 ? '+' : '') + 'R$' + resultado.toFixed(0);
+    resEl.style.color = resultado >= 0 ? 'var(--success)' : 'var(--primary)';
 
     // Alertas de extintores vencendo
     const in30 = new Date(); in30.setDate(in30.getDate() + 30);
@@ -3542,6 +3645,270 @@ window.addEventListener('load', () => {
   checkAndSendAlerts();
   setInterval(checkAndSendAlerts, 30 * 60 * 1000);
 });
+
+// ============================================================
+// GASTOS
+// ============================================================
+let expenseCurrentMonth = new Date().getMonth();
+let expenseCurrentYear = new Date().getFullYear();
+
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const EXPENSE_CAT_FIXED  = ['Aluguel','Salário','Água','Energia Elétrica','Internet','Telefone','Contabilidade','Outros Fixos'];
+const EXPENSE_CAT_VAR    = ['Alimentação','Combustível','Pedágio','Manutenção Veículo','Materiais','Outros'];
+
+function changeExpenseMonth(dir) {
+  expenseCurrentMonth += dir;
+  if (expenseCurrentMonth > 11) { expenseCurrentMonth = 0; expenseCurrentYear++; }
+  if (expenseCurrentMonth < 0)  { expenseCurrentMonth = 11; expenseCurrentYear--; }
+  loadExpenses();
+}
+
+async function loadExpenses() {
+  const label = `${MONTHS_PT[expenseCurrentMonth]} ${expenseCurrentYear}`;
+  document.getElementById('expenseMonthLabel').textContent = label;
+  document.getElementById('expensesSubtitle').textContent = label;
+  document.getElementById('expensesList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+
+  // Busca lançamentos do mês (não templates)
+  const all = await dbGet('expenses', {});
+  const items = all.filter(e => {
+    if (e.is_template) return false;
+    const d = e.expense_date ? new Date(e.expense_date + 'T12:00:00') : new Date(e.created_at);
+    return d.getMonth() === expenseCurrentMonth && d.getFullYear() === expenseCurrentYear;
+  }).sort((a,b) => new Date(b.expense_date || b.created_at) - new Date(a.expense_date || a.created_at));
+
+  // Totais
+  const fixos   = items.filter(e => e.type === 'Fixo').reduce((s,e)  => s + parseFloat(e.amount||0), 0);
+  const variaveis = items.filter(e => e.type !== 'Fixo').reduce((s,e) => s + parseFloat(e.amount||0), 0);
+  const total   = fixos + variaveis;
+  document.getElementById('expTotalFixed').textContent = 'R$ ' + fixos.toFixed(2).replace('.',',');
+  document.getElementById('expTotalVar').textContent   = 'R$ ' + variaveis.toFixed(2).replace('.',',');
+  document.getElementById('expTotalAll').textContent   = 'R$ ' + total.toFixed(2).replace('.',',');
+
+  if (!items.length) {
+    // Verifica se tem templates para oferecer importação
+    const templates = all.filter(e => e.is_template);
+    let msg = '<div style="text-align:center;padding:30px;color:var(--sub);font-size:13px;">Nenhum gasto lançado neste mês.</div>';
+    if (templates.length > 0) {
+      msg += `<button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="importTemplatesForMonth()">📋 Importar ${templates.length} gasto(s) fixo(s) do mês</button>`;
+    }
+    document.getElementById('expensesList').innerHTML = msg;
+    return;
+  }
+
+  // Agrupa por categoria
+  const groups = {};
+  items.forEach(e => {
+    const cat = e.category || 'Outros';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(e);
+  });
+
+  // Verifica templates já importados
+  const templates = all.filter(e => e.is_template);
+  const importedNames = items.filter(e => e.type === 'Fixo').map(e => e.name.toLowerCase());
+  const pendingTemplates = templates.filter(t => !importedNames.includes(t.name.toLowerCase()));
+
+  let html = '';
+
+  // Botão de importar fixos pendentes
+  if (pendingTemplates.length > 0) {
+    html += `<button class="btn btn-sm" style="width:100%;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;margin-bottom:12px;" onclick="importTemplatesForMonth()">📋 Importar ${pendingTemplates.length} fixo(s) ainda não lançado(s)</button>`;
+  }
+
+  Object.entries(groups).forEach(([cat, list]) => {
+    const catTotal = list.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+    html += `<div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;">${cat} · R$ ${catTotal.toFixed(2).replace('.',',')}</div>`;
+    list.forEach(e => {
+      const dateStr = e.expense_date ? new Date(e.expense_date + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+      const badge = e.type === 'Fixo'
+        ? `<span style="font-size:10px;background:#22c55e22;color:#22c55e;border-radius:6px;padding:2px 6px;font-weight:700;">Fixo</span>`
+        : `<span style="font-size:10px;background:#f0a50022;color:var(--secondary);border-radius:6px;padding:2px 6px;font-weight:700;">Variável</span>`;
+      html += `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:13px;">${e.name} ${badge}</div>
+            <div style="color:var(--sub);font-size:11px;margin-top:2px;">${dateStr}${e.notes ? ' · ' + e.notes : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-weight:800;font-size:15px;color:var(--primary);">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</div>
+            <button onclick="openExpenseForm(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="background:none;border:none;font-size:16px;cursor:pointer;">✏️</button>
+            <button onclick="deleteExpense(${e.id})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
+          </div>
+        </div>`;
+    });
+  });
+
+  document.getElementById('expensesList').innerHTML = html;
+}
+
+function openExpenseForm(expense = null) {
+  document.getElementById('expenseEditId').value = expense?.id || '';
+  document.getElementById('expenseFormTitle').textContent = expense ? '✏️ Editar Gasto' : '💸 Lançar Gasto';
+  document.getElementById('expenseName').value     = expense?.name     || '';
+  document.getElementById('expenseAmount').value   = expense?.amount   || '';
+  document.getElementById('expenseType').value     = expense?.type     || 'Variável';
+  document.getElementById('expenseNotes').value    = expense?.notes    || '';
+  updateExpenseCategoryList();
+  document.getElementById('expenseCategory').value = expense?.category || '';
+  // Data padrão: hoje
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('expenseDate').value = expense?.expense_date || today;
+  openModal('expenseFormModal');
+}
+
+function updateExpenseCategoryList() {
+  const type = document.getElementById('expenseType').value;
+  const cats = type === 'Fixo' ? EXPENSE_CAT_FIXED : EXPENSE_CAT_VAR;
+  const sel = document.getElementById('expenseCategory');
+  sel.innerHTML = cats.map(c => `<option>${c}</option>`).join('');
+}
+
+async function saveExpense() {
+  const name   = document.getElementById('expenseName').value.trim();
+  const amount = parseFloat(document.getElementById('expenseAmount').value);
+  if (!name || !amount) { showToast('⚠️ Preencha descrição e valor', 'error'); return; }
+
+  const btn = document.getElementById('expenseSaveBtn');
+  btn.textContent = '⏳ Salvando...'; btn.disabled = true;
+
+  const data = {
+    name,
+    amount,
+    type:         document.getElementById('expenseType').value,
+    category:     document.getElementById('expenseCategory').value,
+    expense_date: document.getElementById('expenseDate').value || null,
+    notes:        document.getElementById('expenseNotes').value.trim() || null,
+    is_template:  false,
+    month:        new Date(document.getElementById('expenseDate').value || new Date()).getMonth() + 1,
+    year:         new Date(document.getElementById('expenseDate').value || new Date()).getFullYear()
+  };
+
+  const editId = document.getElementById('expenseEditId').value;
+  let ok;
+  if (editId) {
+    ok = await dbUpdate('expenses', editId, data);
+  } else {
+    ok = await dbInsert('expenses', data);
+  }
+
+  btn.textContent = '✓ Salvar Gasto'; btn.disabled = false;
+  if (ok) {
+    closeModal('expenseFormModal');
+    showToast(editId ? '✅ Gasto atualizado!' : '✅ Gasto lançado!', 'success');
+    loadExpenses();
+  } else {
+    showToast('❌ Erro ao salvar', 'error');
+  }
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Excluir este gasto?')) return;
+  await dbDelete('expenses', id);
+  showToast('🗑️ Gasto excluído', 'success');
+  loadExpenses();
+}
+
+// ── Templates (gastos fixos) ────────────────────────────────
+async function openExpenseTemplatesModal() {
+  openModal('expenseTemplatesModal');
+  await loadTemplatesList();
+}
+
+async function loadTemplatesList() {
+  document.getElementById('templatesList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+  const all = await dbGet('expenses', {});
+  const templates = all.filter(e => e.is_template);
+  if (!templates.length) {
+    document.getElementById('templatesList').innerHTML = '<div style="text-align:center;padding:20px;color:var(--sub);font-size:13px;">Nenhum gasto fixo cadastrado.</div>';
+    return;
+  }
+  document.getElementById('templatesList').innerHTML = templates.map(t => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-weight:700;font-size:13px;">${t.name}</div>
+        <div style="color:var(--sub);font-size:11px;">${t.category || '—'} · R$ ${parseFloat(t.amount||0).toFixed(2).replace('.',',')}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="openTemplateForm(${JSON.stringify(t).replace(/"/g,'&quot;')})" style="background:none;border:none;font-size:16px;cursor:pointer;">✏️</button>
+        <button onclick="deleteTemplate(${t.id})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function openTemplateForm(template = null) {
+  document.getElementById('templateEditId').value   = template?.id  || '';
+  document.getElementById('templateFormTitle').textContent = template ? '✏️ Editar Fixo' : '⚙️ Novo Gasto Fixo';
+  document.getElementById('templateName').value     = template?.name   || '';
+  document.getElementById('templateAmount').value   = template?.amount || '';
+  document.getElementById('templateCategory').value = template?.category || '';
+  openModal('templateFormModal');
+}
+
+async function saveTemplate() {
+  const name   = document.getElementById('templateName').value.trim();
+  const amount = parseFloat(document.getElementById('templateAmount').value);
+  if (!name || !amount) { showToast('⚠️ Preencha descrição e valor', 'error'); return; }
+
+  const btn = document.getElementById('templateSaveBtn');
+  btn.textContent = '⏳...'; btn.disabled = true;
+
+  const data = {
+    name, amount,
+    category:    document.getElementById('templateCategory').value,
+    type:        'Fixo',
+    is_template: true,
+    expense_date: null, month: null, year: null
+  };
+
+  const editId = document.getElementById('templateEditId').value;
+  const ok = editId ? await dbUpdate('expenses', editId, data) : await dbInsert('expenses', data);
+
+  btn.textContent = '✓ Salvar'; btn.disabled = false;
+  if (ok) {
+    closeModal('templateFormModal');
+    showToast('✅ Gasto fixo salvo!', 'success');
+    await loadTemplatesList();
+  } else {
+    showToast('❌ Erro ao salvar', 'error');
+  }
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('Excluir este gasto fixo?')) return;
+  await dbDelete('expenses', id);
+  showToast('🗑️ Removido', 'success');
+  await loadTemplatesList();
+}
+
+// Importa templates como lançamentos do mês corrente
+async function importTemplatesForMonth() {
+  const all = await dbGet('expenses', {});
+  const templates = all.filter(e => e.is_template);
+  const existingFixed = all.filter(e => !e.is_template && e.type === 'Fixo'
+    && parseInt(e.month) === expenseCurrentMonth + 1
+    && parseInt(e.year)  === expenseCurrentYear
+  );
+  const existingNames = existingFixed.map(e => e.name.toLowerCase());
+  const toImport = templates.filter(t => !existingNames.includes(t.name.toLowerCase()));
+
+  if (!toImport.length) { showToast('✅ Todos os fixos já foram lançados!', 'success'); return; }
+
+  let ok = 0;
+  // Dia 1 do mês corrente como data padrão
+  const dateStr = `${expenseCurrentYear}-${String(expenseCurrentMonth+1).padStart(2,'0')}-01`;
+  for (const t of toImport) {
+    const res = await dbInsert('expenses', {
+      name: t.name, amount: t.amount, category: t.category,
+      type: 'Fixo', is_template: false,
+      expense_date: dateStr,
+      month: expenseCurrentMonth + 1, year: expenseCurrentYear
+    });
+    if (res) ok++;
+  }
+  showToast(`✅ ${ok} gasto(s) fixo(s) importado(s)!`, 'success');
+  loadExpenses();
+}
 </script>
 </body>
 </html>
