@@ -1028,7 +1028,15 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, expenses: loadExpenses };
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList,
+    expenses: () => {
+      // Sempre reseta para o mês atual ao entrar na tela
+      const now = new Date();
+      expenseCurrentMonth = now.getMonth();
+      expenseCurrentYear  = now.getFullYear();
+      loadExpenses();
+    }
+  };
   if (map[s]) map[s]();
 }
 
