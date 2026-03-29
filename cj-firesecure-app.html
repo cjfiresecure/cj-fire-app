@@ -531,20 +531,36 @@ textarea.input{resize:none;height:70px}
 <!-- MODAL: Lançar Pagamento de Obra -->
 <div class="modal-overlay" id="obraPagamentoModal">
   <div class="modal">
-    <div class="modal-title" id="obraPagamentoTitle">💰 Lançar Pagamento</div>
+    <div class="modal-title" id="obraPagamentoTitle">💰 Registrar Recebimento</div>
     <button class="modal-close" onclick="closeModal('obraPagamentoModal')">✕</button>
     <input type="hidden" id="obraPagamentoObraId">
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;" id="obraPagamentoResumo"></div>
-    <div class="field"><label class="label">Descrição *</label><input class="input" id="obraPagDesc" placeholder="Ex: Entrada 50%, Medição final" /></div>
-    <div class="field"><label class="label">Valor (R$) *</label><input class="input" id="obraPagValue" type="number" step="0.01" placeholder="0,00" /></div>
-    <div class="field"><label class="label">Data</label><input class="input" id="obraPagDate" type="date" /></div>
-    <div class="field"><label class="label">Status</label>
-      <select class="input" id="obraPagStatus">
-        <option value="Pago">✅ Pago — já recebido</option>
-        <option value="Pendente">⏳ Pendente — a receber</option>
-      </select>
+
+    <!-- Resumo visual da obra -->
+    <div id="obraPagamentoResumo" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;"></div>
+
+    <div class="field">
+      <label class="label">Valor Recebido (R$) *</label>
+      <input class="input" id="obraPagValue" type="number" step="0.01" placeholder="0,00" oninput="previewObraPag()" style="font-size:20px;font-weight:700;text-align:center;" />
     </div>
-    <button class="btn btn-primary" id="obraPagSaveBtn" onclick="saveObraPagamento()">✓ Lançar Pagamento</button>
+    <div class="field">
+      <label class="label">Data do Recebimento</label>
+      <input class="input" id="obraPagDate" type="date" />
+    </div>
+
+    <!-- Preview do que vai ficar -->
+    <div id="obraPagPreview" style="display:none;background:var(--card);border:1px solid #22c55e44;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;">
+      <div style="color:var(--sub);font-size:11px;margin-bottom:6px;">APÓS ESTE RECEBIMENTO</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><div style="font-weight:800;font-size:16px;color:var(--success);" id="previewRecebido">R$ 0</div><div style="color:var(--sub);font-size:10px;">Recebido</div></div>
+        <div><div style="font-weight:800;font-size:16px;color:var(--secondary);" id="previewPendente">R$ 0</div><div style="color:var(--sub);font-size:10px;">Pendente</div></div>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-top:10px;">
+        <div id="previewBarra" style="background:#22c55e;width:0%;height:100%;border-radius:4px;transition:width .3s;"></div>
+      </div>
+      <div style="color:var(--success);font-size:12px;font-weight:700;margin-top:6px;" id="previewPct">0%</div>
+    </div>
+
+    <button class="btn btn-primary" id="obraPagSaveBtn" onclick="saveObraPagamento()">✓ Confirmar Recebimento</button>
   </div>
 </div>
 
@@ -4245,6 +4261,8 @@ async function deleteObra(id) {
 }
 
 // ── Pagamentos de Obra ──────────────────────────────────────
+let _obraAtual = null; // cache da obra atual para o preview
+
 async function openObraPagamento(obraId) {
   currentObraId = obraId;
   const obras = await dbGet('obras', {});
@@ -4255,63 +4273,96 @@ async function openObraPagamento(obraId) {
   const obraPags = pags.filter(p => p.obra_id === obraId);
   const recebido = obraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
   const total    = parseFloat(o.value || 0);
-  const restante = total - recebido;
+  const restante = Math.max(0, total - recebido);
+  const pct      = total > 0 ? Math.min(100, Math.round(recebido / total * 100)) : 0;
+
+  _obraAtual = { o, recebido, total, restante };
 
   document.getElementById('obraPagamentoTitle').textContent = `💰 ${o.client}`;
   document.getElementById('obraPagamentoObraId').value = obraId;
   document.getElementById('obraPagamentoResumo').innerHTML = `
-    <div style="font-weight:700;font-size:13px;margin-bottom:6px;">${o.description}</div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);">
-      <span>Contrato: <b style="color:var(--text);">R$ ${total.toFixed(2).replace('.',',')}</b></span>
-      <span>Recebido: <b style="color:var(--success);">R$ ${recebido.toFixed(2).replace('.',',')}</b></span>
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px;">${o.description} · ${o.city || ''}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin-bottom:10px;">
+      <div><div style="font-size:11px;color:var(--sub);">CONTRATO</div><div style="font-weight:800;color:#3b82f6;">R$ ${total.toFixed(2).replace('.',',')}</div></div>
+      <div><div style="font-size:11px;color:var(--sub);">RECEBIDO</div><div style="font-weight:800;color:var(--success);">R$ ${recebido.toFixed(2).replace('.',',')}</div></div>
+      <div><div style="font-size:11px;color:var(--sub);">PENDENTE</div><div style="font-weight:800;color:var(--secondary);">R$ ${restante.toFixed(2).replace('.',',')}</div></div>
     </div>
-    <div style="color:var(--secondary);font-size:12px;margin-top:4px;">⏳ Saldo restante: R$ ${restante.toFixed(2).replace('.',',')}</div>`;
+    <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+      <div style="background:#22c55e;width:${pct}%;height:100%;border-radius:4px;"></div>
+    </div>
+    <div style="text-align:center;color:var(--success);font-size:12px;font-weight:700;margin-top:4px;">${pct}% recebido</div>`;
 
-  document.getElementById('obraPagDesc').value  = '';
-  document.getElementById('obraPagValue').value = restante > 0 ? restante.toFixed(2) : '';
-  document.getElementById('obraPagDate').value  = new Date().toISOString().split('T')[0];
-  document.getElementById('obraPagStatus').value = 'Pago';
+  document.getElementById('obraPagValue').value  = restante > 0 ? restante.toFixed(2) : '';
+  document.getElementById('obraPagDate').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('obraPagPreview').style.display = 'none';
 
   closeModal('obraDetailModal');
   openModal('obraPagamentoModal');
+  // Dispara preview com valor pré-preenchido
+  setTimeout(previewObraPag, 100);
+}
+
+function previewObraPag() {
+  if (!_obraAtual) return;
+  const val = parseFloat(document.getElementById('obraPagValue').value) || 0;
+  if (val <= 0) { document.getElementById('obraPagPreview').style.display = 'none'; return; }
+
+  const { recebido, total } = _obraAtual;
+  const novoRecebido = Math.min(total, recebido + val);
+  const novoPendente = Math.max(0, total - novoRecebido);
+  const novoPct      = total > 0 ? Math.min(100, Math.round(novoRecebido / total * 100)) : 0;
+
+  document.getElementById('previewRecebido').textContent = 'R$ ' + novoRecebido.toFixed(2).replace('.',',');
+  document.getElementById('previewPendente').textContent = 'R$ ' + novoPendente.toFixed(2).replace('.',',');
+  document.getElementById('previewBarra').style.width    = novoPct + '%';
+  document.getElementById('previewPct').textContent      = novoPct + '%' + (novoPct >= 100 ? ' 🎉 Obra quitada!' : '');
+  document.getElementById('previewPct').style.color      = novoPct >= 100 ? 'var(--success)' : 'var(--secondary)';
+  document.getElementById('obraPagPreview').style.display = 'block';
 }
 
 async function saveObraPagamento() {
   const obraId = parseInt(document.getElementById('obraPagamentoObraId').value);
-  const desc   = document.getElementById('obraPagDesc').value.trim();
   const value  = parseFloat(document.getElementById('obraPagValue').value);
-  if (!desc || !value) { showToast('⚠️ Preencha descrição e valor', 'error'); return; }
+  if (!value || value <= 0) { showToast('⚠️ Informe o valor recebido', 'error'); return; }
 
   const btn = document.getElementById('obraPagSaveBtn');
-  btn.textContent = '⏳...'; btn.disabled = true;
+  btn.textContent = '⏳ Salvando...'; btn.disabled = true;
 
-  const pagStatus = document.getElementById('obraPagStatus').value;
+  // Gera descrição automática com número sequencial
+  const allPags = await dbGet('obra_pagamentos', {});
+  const obraPagsAnt = allPags.filter(p => p.obra_id === obraId && p.status === 'Pago');
+  const seq = obraPagsAnt.length + 1;
+  const obras = await dbGet('obras', {});
+  const o = obras.find(x => x.id === obraId);
+  const total = parseFloat(o?.value || 0);
+  const recebidoAnt = obraPagsAnt.reduce((a, p) => a + parseFloat(p.value || 0), 0);
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  const descAuto = `Recebimento ${seq} — ${pct}% do contrato`;
+
   const ok = await dbInsert('obra_pagamentos', {
-    obra_id:  obraId,
-    description: desc,
+    obra_id:     obraId,
+    description: descAuto,
     value,
-    pag_date: document.getElementById('obraPagDate').value || null,
-    status:   pagStatus
+    pag_date:    document.getElementById('obraPagDate').value || null,
+    status:      'Pago'
   });
 
   if (ok) {
-    // Verifica se obra está totalmente paga
-    const obras = await dbGet('obras', {});
-    const o = obras.find(x => x.id === obraId);
-    const allPags = await dbGet('obra_pagamentos', {});
-    const obraPags = allPags.filter(p => p.obra_id === obraId);
-    const totalPago = obraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0) + (pagStatus === 'Pago' ? value : 0);
-    if (o && totalPago >= parseFloat(o.value || 0)) {
+    // Verifica se obra está 100% paga
+    const novoRecebido = recebidoAnt + value;
+    if (total > 0 && novoRecebido >= total - 0.01) {
       await dbUpdate('obras', obraId, { status: 'Concluída' });
-      showToast('✅ Pagamento lançado! Obra concluída! 🎉', 'success');
+      showToast('🎉 Obra quitada e marcada como Concluída!', 'success');
     } else {
-      showToast('✅ Pagamento lançado!', 'success');
+      const pctTotal = Math.round(novoRecebido / total * 100);
+      showToast(`✅ Recebimento registrado! ${pctTotal}% do contrato recebido.`, 'success');
     }
     closeModal('obraPagamentoModal');
+    _obraAtual = null;
     loadObras();
   } else showToast('❌ Erro ao salvar', 'error');
 
-  btn.textContent = '✓ Lançar Pagamento'; btn.disabled = false;
+  btn.textContent = '✓ Confirmar Recebimento'; btn.disabled = false;
 }
 
 async function openObraDetail(obraId) {
