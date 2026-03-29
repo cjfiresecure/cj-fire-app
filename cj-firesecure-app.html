@@ -2266,29 +2266,33 @@ async function markPaid(id) {
   const b = allBilling.find(x => x.id === id);
   if (!b) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
 
-  // Determina o order_id — usa campo direto se disponível, senão extrai do service
-  let orderId = b.order_id || null;
+  // Determina o order_id
+  let orderId = b.order_id ? parseInt(b.order_id) : null;
   let orderNum = null;
 
-  if (!orderId) {
-    const match = (b.service || '').match(/APP-(\d+)/);
+  if (!orderId || orderId === 0) {
+    // Tenta extrair do service — só aceita APP-NNN onde NNN > 0
+    const match = (b.service || '').match(/APP-0*([1-9]\d*)/);
     if (!match) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
     orderId = parseInt(match[1]);
-    orderNum = match[0];
+    orderNum = `APP-${String(orderId).padStart(3,'0')}`;
   } else {
     orderNum = `APP-${String(orderId).padStart(3,'0')}`;
   }
 
-  // Busca TODAS as cobranças deste pedido
-  const orderBillings = allBilling.filter(x =>
-    x.order_id === orderId || (x.service || '').includes(orderNum)
-  );
-  const total = orderBillings.length;
-  // Conta como paga a atual (acabou de ser marcada) + as já pagas
-  const pagas = orderBillings.filter(x => x.status === 'Pago' || x.id === id).length;
+  // Busca cobranças deste pedido — por order_id OU pelo número exato no service
+  const orderBillings = allBilling.filter(x => {
+    if (x.order_id && parseInt(x.order_id) === orderId) return true;
+    // Match exato: APP-022 seguido de espaço, ponto ou fim — evita APP-0220 bater em APP-022
+    const svcMatch = (x.service || '').match(/APP-0*([1-9]\d*)/);
+    return svcMatch && parseInt(svcMatch[1]) === orderId;
+  });
+
+  const total    = orderBillings.length;
+  const pagas    = orderBillings.filter(x => x.status === 'Pago' || x.id === id).length;
   const pendentes = total - pagas;
 
-  const orders = await dbGet('orders', {});
+  const orders  = await dbGet('orders', {});
   const related = orders.find(o => o.id === orderId);
   if (!related) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
 
