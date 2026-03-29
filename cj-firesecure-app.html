@@ -1510,7 +1510,19 @@ function renderOrderItems() {
   if (!orderItems.length) { document.getElementById('orderProductsList').innerHTML = ''; updateOrderTotal(); return; }
   document.getElementById('orderProductsList').innerHTML = orderItems.map((item, i) => `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-      <div style="display:flex;justify-content:space-between;"><div><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="color:var(--secondary);font-size:12px;font-weight:700;">R$ ${parseFloat(item.price).toFixed(2).replace('.', ',')}</div></div><button onclick="removeOrderItem(${i})" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;">✕</button></div>
+      <div style="display:flex;justify-content:space-between;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;">${item.name}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+            <span style="color:var(--sub);font-size:11px;">R$</span>
+            <input type="number" step="0.01" value="${parseFloat(item.price).toFixed(2)}"
+              onchange="changeItemPrice(${i}, this.value)"
+              style="width:80px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--secondary);font-weight:700;font-size:13px;text-align:right;" />
+            <span style="color:var(--sub);font-size:11px;">/ ${item.unit||'un'}</span>
+          </div>
+        </div>
+        <button onclick="removeOrderItem(${i})" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;">✕</button>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
         <button onclick="changeQty(${i},-1)" style="width:32px;height:32px;border-radius:8px;background:#e8210a22;color:var(--primary);border:1px solid #e8210a44;font-size:18px;font-weight:700;cursor:pointer;">−</button>
         <span style="font-weight:700;font-size:15px;min-width:24px;text-align:center;">${item.qty}</span>
@@ -1521,7 +1533,10 @@ function renderOrderItems() {
   updateOrderTotal();
 }
 
-function changeQty(i, d) { orderItems[i].qty = Math.max(1, orderItems[i].qty + d); renderOrderItems(); }
+function changeItemPrice(i, val) {
+  const v = parseFloat(val);
+  if (!isNaN(v) && v >= 0) { orderItems[i].price = v; updateOrderTotal(); }
+}
 function removeOrderItem(i) { orderItems.splice(i, 1); renderOrderItems(); }
 function updateOrderTotal() {
   const subtotal = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
@@ -1706,6 +1721,7 @@ async function saveOrder() {
               service: `${orderNum} · Parcela ${i+1}/${installments} · ${serviceDesc}`,
               value: parseFloat(parcelValue.toFixed(2)),
               due_date: dueDate.toISOString().split('T')[0],
+              order_id: result.id,
               multa: 2, juros: 1, status: 'Pendente'
             });
           }
@@ -1721,6 +1737,7 @@ async function saveOrder() {
             service: `${orderNum} · ${serviceDesc}`,
             value: total,
             due_date: dueDate.toISOString().split('T')[0],
+            order_id: result.id,
             multa: 2, juros: 1, status: 'Pendente'
           });
         }
@@ -2083,22 +2100,44 @@ async function loadBilling() {
 
 async function markPaid(id) {
   await dbUpdate('billing', id, { status: 'Pago' });
-  // Busca o pedido relacionado e marca como Concluído
-  const billing = await dbGet('billing', {});
-  const b = billing.find(x => x.id === id);
-  if (b) {
-    const orders = await dbGet('orders', {});
-    const related = orders.find(o =>
-      o.client?.toLowerCase() === b.client?.toLowerCase() &&
-      (o.order_status === 'Em Aberto' || !o.order_status)
-    );
-    if (related) {
-      await dbUpdate('orders', related.id, { order_status: 'Concluído' });
-      showToast('✅ Pago! Pedido marcado como Concluído!', 'success');
-    } else {
-      showToast('✅ Marcado como pago!', 'success');
-    }
+
+  const allBilling = await dbGet('billing', {});
+  const b = allBilling.find(x => x.id === id);
+  if (!b) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
+
+  // Determina o order_id — usa campo direto se disponível, senão extrai do service
+  let orderId = b.order_id || null;
+  let orderNum = null;
+
+  if (!orderId) {
+    const match = (b.service || '').match(/APP-(\d+)/);
+    if (!match) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
+    orderId = parseInt(match[1]);
+    orderNum = match[0];
+  } else {
+    orderNum = `APP-${String(orderId).padStart(3,'0')}`;
   }
+
+  // Busca TODAS as cobranças deste pedido
+  const orderBillings = allBilling.filter(x =>
+    x.order_id === orderId || (x.service || '').includes(orderNum)
+  );
+  const total = orderBillings.length;
+  // Conta como paga a atual (acabou de ser marcada) + as já pagas
+  const pagas = orderBillings.filter(x => x.status === 'Pago' || x.id === id).length;
+  const pendentes = total - pagas;
+
+  const orders = await dbGet('orders', {});
+  const related = orders.find(o => o.id === orderId);
+  if (!related) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
+
+  if (pendentes === 0) {
+    await dbUpdate('orders', related.id, { order_status: 'Concluído' });
+    showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
+  } else {
+    showToast(`✅ ${pagas}/${total} parcela(s) paga(s) · ${pendentes} ainda em aberto`, 'success');
+  }
+
   loadBilling();
 }
 async function deleteBilling(id) {
@@ -2118,8 +2157,8 @@ function calcBillingUpdated(value, dueDate, multa, juros) {
   const due = new Date(dueDate + 'T12:00:00');
   const daysLate = Math.max(0, Math.floor((today - due) / (1000 * 60 * 60 * 24)));
   if (daysLate === 0) return { original, multa: 0, juros: 0, total: original, daysLate: 0 };
-  const multaVal = original * (parseFloat(multa || 2) / 100);
-  const jurosVal = original * (parseFloat(juros || 1) / 100) * (daysLate / 30);
+  const multaVal = original * ((multa != null ? parseFloat(multa) : 2) / 100);
+  const jurosVal = original * ((juros != null ? parseFloat(juros) : 1) / 100) * (daysLate / 30);
   const total = original + multaVal + jurosVal;
   return { original, multa: multaVal, juros: jurosVal, total, daysLate };
 }
@@ -2173,15 +2212,28 @@ async function editBilling(id) {
 async function saveBilling() {
   const client = document.getElementById('billingClient').value.trim();
   if (!client) { showToast('⚠️ Informe o cliente', 'error'); return; }
+
+  const multaInput = document.getElementById('billingMulta').value;
+  const jurosInput = document.getElementById('billingJuros').value;
+  // Permite 0 — só usa default se o campo estiver vazio
+  const multa = multaInput === '' ? 2 : parseFloat(multaInput);
+  const juros = jurosInput === '' ? 1 : parseFloat(jurosInput);
+  const value  = parseFloat(document.getElementById('billingValue').value) || 0;
+  const due    = document.getElementById('billingDue').value;
+
+  // Recalcula acréscimo com os novos percentuais (zera se multa e juros = 0)
+  const calc = calcBillingUpdated(value, due, multa, juros);
+
   const billingData = {
     client,
-    service: document.getElementById('billingService').value,
-    value: parseFloat(document.getElementById('billingValue').value) || 0,
-    due_date: document.getElementById('billingDue').value,
-    multa: parseFloat(document.getElementById('billingMulta').value) || 2,
-    juros: parseFloat(document.getElementById('billingJuros').value) || 1,
+    service:  document.getElementById('billingService').value,
+    value,
+    due_date: due,
+    multa,
+    juros,
     status: 'Pendente'
   };
+
   let result;
   if (editingBillingId) {
     result = await dbUpdate('billing', editingBillingId, billingData);
@@ -2189,8 +2241,14 @@ async function saveBilling() {
   } else {
     result = await dbInsert('billing', billingData);
   }
-  if (result !== false && result !== null) { closeModal('billingFormModal'); showToast('✅ Cobrança salva!', 'success'); loadBilling(); }
-  else showToast('❌ Erro ao salvar', 'error');
+  if (result !== false && result !== null) {
+    closeModal('billingFormModal');
+    const msg = (multa === 0 && juros === 0)
+      ? '✅ Cobrança salva sem multa/juros!'
+      : '✅ Cobrança salva!';
+    showToast(msg, 'success');
+    loadBilling();
+  } else showToast('❌ Erro ao salvar', 'error');
 }
 
 // ============================================================
