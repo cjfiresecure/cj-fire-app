@@ -586,6 +586,14 @@ textarea.input{resize:none;height:70px}
       <select class="input" id="expenseType" onchange="updateExpenseCategoryList()">
         <option value="Variável">Variável</option>
         <option value="Fixo">Fixo</option>
+        <option value="Obra">🏗️ Obra</option>
+      </select>
+    </div>
+    <!-- Seletor de obra — aparece só quando tipo = Obra -->
+    <div class="field" id="obraSelectField" style="display:none;">
+      <label class="label">Vincular à Obra</label>
+      <select class="input" id="expenseObraId">
+        <option value="">Selecione uma obra...</option>
       </select>
     </div>
     <div class="field"><label class="label">Categoria</label>
@@ -1656,17 +1664,38 @@ function renderOrderItems() {
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
         <button onclick="changeQty(${i},-1)" style="width:32px;height:32px;border-radius:8px;background:#e8210a22;color:var(--primary);border:1px solid #e8210a44;font-size:18px;font-weight:700;cursor:pointer;">−</button>
-        <span style="font-weight:700;font-size:15px;min-width:24px;text-align:center;">${item.qty}</span>
+        <span data-qty style="font-weight:700;font-size:15px;min-width:24px;text-align:center;">${item.qty}</span>
         <button onclick="changeQty(${i},1)" style="width:32px;height:32px;border-radius:8px;background:#e8210a22;color:var(--primary);border:1px solid #e8210a44;font-size:18px;font-weight:700;cursor:pointer;">+</button>
-        <div style="margin-left:auto;color:var(--secondary);font-weight:800;">R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</div>
+        <div data-sub style="margin-left:auto;color:var(--secondary);font-weight:800;">R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</div>
       </div>
     </div>`).join('');
   updateOrderTotal();
 }
 
+function changeQty(i, d) {
+  orderItems[i].qty = Math.max(1, orderItems[i].qty + d);
+  // Atualiza só o display de qty e subtotal do item sem re-renderizar tudo
+  const cards = document.getElementById('orderProductsList').children;
+  if (cards[i]) {
+    const qtySpan = cards[i].querySelector('[data-qty]');
+    const subDiv  = cards[i].querySelector('[data-sub]');
+    if (qtySpan) qtySpan.textContent = orderItems[i].qty;
+    if (subDiv)  subDiv.textContent  = 'R$ ' + (orderItems[i].price * orderItems[i].qty).toFixed(2).replace('.', ',');
+  }
+  updateOrderTotal();
+}
 function changeItemPrice(i, val) {
   const v = parseFloat(val);
-  if (!isNaN(v) && v >= 0) { orderItems[i].price = v; updateOrderTotal(); }
+  if (!isNaN(v) && v >= 0) {
+    orderItems[i].price = v;
+    // Atualiza só o subtotal do item sem re-renderizar
+    const cards = document.getElementById('orderProductsList').children;
+    if (cards[i]) {
+      const subDiv = cards[i].querySelector('[data-sub]');
+      if (subDiv) subDiv.textContent = 'R$ ' + (orderItems[i].price * orderItems[i].qty).toFixed(2).replace('.', ',');
+    }
+    updateOrderTotal();
+  }
 }
 function removeOrderItem(i) { orderItems.splice(i, 1); renderOrderItems(); }
 function updateOrderTotal() {
@@ -1839,7 +1868,8 @@ async function saveOrder() {
         // Cobrança automática — parcelado cria uma cobrança por parcela
         const baseDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
         const serviceDesc = `Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${surcharge > 0 ? ` (Acrés: R$ ${surcharge.toFixed(2).replace('.',',')})` : ''}`;
-        const orderNum = `APP-${String(result.id || '').padStart(3,'0')}`;
+        const orderNum = `APP-${String(result[0]?.id || result.id || '').padStart(3,'0')}`;
+        const orderId  = result[0]?.id || result.id;
 
         if (payment === 'Parcelado' && installments > 1) {
           // Cria uma cobrança por parcela
@@ -1852,7 +1882,7 @@ async function saveOrder() {
               service: `${orderNum} · Parcela ${i+1}/${installments} · ${serviceDesc}`,
               value: parseFloat(parcelValue.toFixed(2)),
               due_date: dueDate.toISOString().split('T')[0],
-              order_id: result.id,
+              order_id: orderId,
               multa: 2, juros: 1, status: 'Pendente'
             });
           }
@@ -1868,7 +1898,7 @@ async function saveOrder() {
             service: `${orderNum} · ${serviceDesc}`,
             value: total,
             due_date: dueDate.toISOString().split('T')[0],
-            order_id: result.id,
+            order_id: orderId,
             multa: 2, juros: 1, status: 'Pendente'
           });
         }
@@ -3960,38 +3990,55 @@ function openExpenseForm(expense = null) {
 
 function updateExpenseCategoryList() {
   const type = document.getElementById('expenseType').value;
-  const cats = type === 'Fixo' ? EXPENSE_CAT_FIXED : EXPENSE_CAT_VAR;
-  const sel = document.getElementById('expenseCategory');
-  sel.innerHTML = cats.map(c => `<option>${c}</option>`).join('');
+  const obraField = document.getElementById('obraSelectField');
+
+  if (type === 'Obra') {
+    obraField.style.display = 'block';
+    // Carrega obras em andamento no select
+    dbGet('obras', {}).then(obras => {
+      const abertas = obras.filter(o => o.status !== 'Cancelada');
+      document.getElementById('expenseObraId').innerHTML =
+        '<option value="">Selecione uma obra...</option>' +
+        abertas.map(o => `<option value="${o.id}">${o.client} — ${o.description.substring(0,30)}</option>`).join('');
+    });
+    const cats = ['Alimentação', 'Combustível', 'Pedágio', 'Materiais', 'Hospedagem', 'Outros'];
+    document.getElementById('expenseCategory').innerHTML = cats.map(c => `<option>${c}</option>`).join('');
+  } else {
+    obraField.style.display = 'none';
+    const cats = type === 'Fixo' ? EXPENSE_CAT_FIXED : EXPENSE_CAT_VAR;
+    document.getElementById('expenseCategory').innerHTML = cats.map(c => `<option>${c}</option>`).join('');
+  }
 }
 
 async function saveExpense() {
   const name   = document.getElementById('expenseName').value.trim();
   const amount = parseFloat(document.getElementById('expenseAmount').value);
+  const type   = document.getElementById('expenseType').value;
   if (!name || !amount) { showToast('⚠️ Preencha descrição e valor', 'error'); return; }
+  if (type === 'Obra' && !document.getElementById('expenseObraId').value) {
+    showToast('⚠️ Selecione a obra vinculada', 'error'); return;
+  }
 
   const btn = document.getElementById('expenseSaveBtn');
   btn.textContent = '⏳ Salvando...'; btn.disabled = true;
 
+  const obraId = type === 'Obra' ? parseInt(document.getElementById('expenseObraId').value) : null;
+
   const data = {
-    name,
-    amount,
-    type:         document.getElementById('expenseType').value,
+    name, amount, type,
     category:     document.getElementById('expenseCategory').value,
     expense_date: document.getElementById('expenseDate').value || null,
     notes:        document.getElementById('expenseNotes').value.trim() || null,
     is_template:  false,
+    obra_id:      obraId,
     month:        new Date(document.getElementById('expenseDate').value || new Date()).getMonth() + 1,
     year:         new Date(document.getElementById('expenseDate').value || new Date()).getFullYear()
   };
 
   const editId = document.getElementById('expenseEditId').value;
   let ok;
-  if (editId) {
-    ok = await dbUpdate('expenses', editId, data);
-  } else {
-    ok = await dbInsert('expenses', data);
-  }
+  if (editId) { ok = await dbUpdate('expenses', editId, data); }
+  else        { ok = await dbInsert('expenses', data); }
 
   btn.textContent = '✓ Salvar Gasto'; btn.disabled = false;
   if (ok) {
@@ -4367,7 +4414,11 @@ async function saveObraPagamento() {
 
 async function openObraDetail(obraId) {
   currentObraId = obraId;
-  const [obras, pags] = await Promise.all([dbGet('obras', {}), dbGet('obra_pagamentos', {})]);
+  const [obras, pags, allExpenses] = await Promise.all([
+    dbGet('obras', {}),
+    dbGet('obra_pagamentos', {}),
+    dbGet('expenses', {})
+  ]);
   const o = obras.find(x => x.id === obraId);
   if (!o) return;
 
@@ -4376,6 +4427,11 @@ async function openObraDetail(obraId) {
   const total    = parseFloat(o.value || 0);
   const pct      = total > 0 ? Math.min(100, Math.round(recebido / total * 100)) : 0;
   const cor      = { 'Em andamento':'#3b82f6','Concluída':'#22c55e','Pausada':'#f0a500','Cancelada':'#e8210a' }[o.status] || '#3b82f6';
+
+  // Gastos vinculados a esta obra
+  const obraExpenses = allExpenses.filter(e => e.obra_id === obraId && !e.is_template);
+  const totalGastosObra = obraExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0);
+  const margem = recebido - totalGastosObra;
 
   document.getElementById('obraDetailTitle').textContent = `🏗️ ${o.client}`;
   document.getElementById('obraDetailContent').innerHTML = `
@@ -4397,6 +4453,28 @@ async function openObraDetail(obraId) {
         <div style="background:${cor};width:${pct}%;height:100%;border-radius:4px;"></div>
       </div>
     </div>
+
+    <!-- Custos da obra -->
+    ${obraExpenses.length > 0 ? `
+    <div style="background:var(--card);border:1px solid #e8210a33;border-radius:12px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💸 Custos desta Obra</div>
+      ${obraExpenses.map(e => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span style="color:var(--text);">${e.name} <span style="color:var(--sub);">(${e.expense_date ? new Date(e.expense_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'})</span></span>
+          <span style="color:var(--primary);font-weight:700;">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</span>
+        </div>`).join('')}
+      <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="text-align:center;background:#e8210a11;border-radius:8px;padding:8px;">
+          <div style="font-size:11px;color:var(--sub);">TOTAL CUSTOS</div>
+          <div style="font-weight:800;color:var(--primary);">R$ ${totalGastosObra.toFixed(2).replace('.',',')}</div>
+        </div>
+        <div style="text-align:center;background:${margem>=0?'#22c55e11':'#e8210a11'};border-radius:8px;padding:8px;">
+          <div style="font-size:11px;color:var(--sub);">MARGEM</div>
+          <div style="font-weight:800;color:${margem>=0?'var(--success)':'var(--primary)'};">${margem>=0?'+':''}R$ ${margem.toFixed(2).replace('.',',')}</div>
+        </div>
+      </div>
+    </div>` : ''}
+
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Histórico de Pagamentos</div>
     ${obraPags.length ? obraPags.map(p => `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
@@ -4406,8 +4484,7 @@ async function openObraDetail(obraId) {
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div>
-            <div style="font-weight:800;font-size:14px;color:${p.status==='Pago'?'var(--success)':'var(--secondary)'};">R$ ${parseFloat(p.value||0).toFixed(2).replace('.',',')}</div>
-            <div style="font-size:10px;text-align:right;color:${p.status==='Pago'?'var(--success)':'var(--secondary)'};">${p.status}</div>
+            <div style="font-weight:800;font-size:14px;color:var(--success);">R$ ${parseFloat(p.value||0).toFixed(2).replace('.',',')}</div>
           </div>
           <button onclick="deleteObraPagamento(${p.id},${obraId})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
         </div>
