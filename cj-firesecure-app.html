@@ -218,6 +218,7 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('extintores')" style="border-color:#e8210a44;"><div style="font-size:28px;">🧯</div><div style="font-weight:700;color:var(--primary);">Extintores</div><div style="color:var(--sub);font-size:11px;">QR Code · NBR</div></button>
       <button class="menu-item" onclick="navigate('nbr')" style="border-color:#f0a50044;"><div style="font-size:28px;">📋</div><div style="font-weight:700;color:var(--secondary);">Inspeção NBR</div><div style="color:var(--sub);font-size:11px;">Checklist 12962</div></button>
       <button class="menu-item" onclick="navigate('expenses')" style="border-color:#22c55e44;"><div style="font-size:28px;">💸</div><div style="font-weight:700;color:#22c55e;">Gastos</div><div style="color:var(--sub);font-size:11px;">Controle de custos</div></button>
+      <button class="menu-item" onclick="navigate('obras')" style="border-color:#3b82f644;"><div style="font-size:28px;">🏗️</div><div style="font-weight:700;color:#3b82f6;">Obras</div><div style="color:var(--sub);font-size:11px;">Serviços de mão de obra</div></button>
     </div>
   </div>
 
@@ -442,6 +443,40 @@ textarea.input{resize:none;height:70px}
     <div id="suppliersList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
+  <!-- OBRAS & SERVIÇOS -->
+  <div id="screen-obras" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">Obras & Serviços</div><div style="color:var(--sub);font-size:12px;" id="obrasSubtitle">Mão de obra e contratos</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openObraForm()">+ Nova</button>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;">
+      <button class="filter-tab active" onclick="setObraFilter('Todos',this)" id="obraFilterTodos">Todos</button>
+      <button class="filter-tab" onclick="setObraFilter('Em andamento',this)">Em andamento</button>
+      <button class="filter-tab" onclick="setObraFilter('Concluída',this)">Concluídas</button>
+      <button class="filter-tab" onclick="setObraFilter('Pausada',this)">Pausadas</button>
+    </div>
+
+    <!-- Resumo -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;">CONTRATOS</div>
+        <div style="font-size:18px;font-weight:800;color:#3b82f6;margin-top:2px;" id="obrasTotalContratos">R$ 0</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;">RECEBIDO</div>
+        <div style="font-size:18px;font-weight:800;color:var(--success);margin-top:2px;" id="obrasTotalRecebido">R$ 0</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;">PENDENTE</div>
+        <div style="font-size:18px;font-weight:800;color:var(--secondary);margin-top:2px;" id="obrasTotalPendente">R$ 0</div>
+      </div>
+    </div>
+
+    <div id="obrasList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+  </div>
+
   <!-- NAV -->
   <nav class="bottom-nav">
     <button class="nav-btn active" onclick="navigate('home')" id="nav-home"><span class="icon">🏠</span><span class="label">Início</span></button>
@@ -453,6 +488,75 @@ textarea.input{resize:none;height:70px}
 </div>
 
 <!-- MODALS -->
+
+<!-- MODAL: Cadastro de Obra -->
+<div class="modal-overlay" id="obraFormModal">
+  <div class="modal">
+    <div class="modal-title" id="obraFormTitle">🏗️ Nova Obra / Serviço</div>
+    <button class="modal-close" onclick="closeModal('obraFormModal')">✕</button>
+    <input type="hidden" id="obraEditId">
+    <div class="field"><label class="label">Cliente / Contratante *</label>
+      <input class="input" id="obraClient" placeholder="🔍 Digite para buscar..." oninput="autocompleteClient('obraClient','obraClientDd')" autocomplete="off"/>
+      <div id="obraClientDd" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+    </div>
+    <div class="field"><label class="label">Descrição do Serviço *</label><input class="input" id="obraDesc" placeholder="Ex: Instalação sistema de alarme" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field"><label class="label">Cidade</label><input class="input" id="obraCity" placeholder="Ex: Frutal - MG" /></div>
+      <div class="field"><label class="label">Tipo</label>
+        <select class="input" id="obraType">
+          <option>Alarme de Incêndio</option>
+          <option>Hidrante</option>
+          <option>Sprinkler</option>
+          <option>CFTV</option>
+          <option>Elétrica</option>
+          <option>Outros</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label class="label">Valor Total do Contrato (R$) *</label><input class="input" id="obraValue" type="number" step="0.01" placeholder="0,00" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field"><label class="label">Data de Início</label><input class="input" id="obraStart" type="date" /></div>
+      <div class="field"><label class="label">Previsão Fim</label><input class="input" id="obraEnd" type="date" /></div>
+    </div>
+    <div class="field"><label class="label">Status</label>
+      <select class="input" id="obraStatus">
+        <option>Em andamento</option><option>Pausada</option><option>Concluída</option><option>Cancelada</option>
+      </select>
+    </div>
+    <div class="field"><label class="label">Observações</label><input class="input" id="obraObs" placeholder="Opcional" /></div>
+    <button class="btn btn-primary" id="obraSaveBtn" onclick="saveObra()">✓ Salvar Obra</button>
+  </div>
+</div>
+
+<!-- MODAL: Lançar Pagamento de Obra -->
+<div class="modal-overlay" id="obraPagamentoModal">
+  <div class="modal">
+    <div class="modal-title" id="obraPagamentoTitle">💰 Lançar Pagamento</div>
+    <button class="modal-close" onclick="closeModal('obraPagamentoModal')">✕</button>
+    <input type="hidden" id="obraPagamentoObraId">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;" id="obraPagamentoResumo"></div>
+    <div class="field"><label class="label">Descrição *</label><input class="input" id="obraPagDesc" placeholder="Ex: Entrada 50%, Medição final" /></div>
+    <div class="field"><label class="label">Valor (R$) *</label><input class="input" id="obraPagValue" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Data</label><input class="input" id="obraPagDate" type="date" /></div>
+    <div class="field"><label class="label">Status</label>
+      <select class="input" id="obraPagStatus">
+        <option value="Pago">✅ Pago — já recebido</option>
+        <option value="Pendente">⏳ Pendente — a receber</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="obraPagSaveBtn" onclick="saveObraPagamento()">✓ Lançar Pagamento</button>
+  </div>
+</div>
+
+<!-- MODAL: Detalhes da Obra -->
+<div class="modal-overlay" id="obraDetailModal">
+  <div class="modal">
+    <div class="modal-title" id="obraDetailTitle">🏗️ Detalhes da Obra</div>
+    <button class="modal-close" onclick="closeModal('obraDetailModal')">✕</button>
+    <div id="obraDetailContent"></div>
+    <button class="btn btn-primary" style="margin-top:8px;" onclick="openObraPagamento(currentObraId)">+ Lançar Pagamento</button>
+  </div>
+</div>
 
 <!-- MODAL: Lançar Gasto -->
 <div class="modal-overlay" id="expenseFormModal">
@@ -1028,9 +1132,8 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList,
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, obras: loadObras,
     expenses: () => {
-      // Sempre reseta para o mês atual ao entrar na tela
       const now = new Date();
       expenseCurrentMonth = now.getMonth();
       expenseCurrentYear  = now.getFullYear();
@@ -1052,13 +1155,15 @@ function setDate() {
 
 async function loadHomeData() {
   try {
-    const [clients, orders, billing, stock, extintores, expenses] = await Promise.all([
+    const [clients, orders, billing, stock, extintores, expenses, obras, obraPags] = await Promise.all([
       dbGet('clients', { order: 'created_at', asc: false, limit: 3 }),
       dbGet('orders', {}),
       dbGet('billing', {}),
       dbGet('stock', {}),
       dbGet('extintores', {}),
-      dbGet('expenses', {})
+      dbGet('expenses', {}),
+      dbGet('obras', {}),
+      dbGet('obra_pagamentos', {})
     ]);
 
     // Stats
@@ -1071,29 +1176,39 @@ async function loadHomeData() {
 
     // Financeiro do mês
     const now = new Date();
-    const monthOrders = orders.filter(o => {
-      if (!o.created_at) return false;
-      const d = new Date(o.created_at);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && o.type === 'Pedido';
-    });
     const monthBilling = billing.filter(b => {
       if (!b.created_at) return false;
       const d = new Date(b.created_at);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
-    const recebido = monthBilling.filter(b => b.status === 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-    const pendente = monthBilling.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentMonth = now.getMonth() + 1;
     const currentYear  = now.getFullYear();
+
+    // Receita de pedidos
+    const recebidoPedidos = monthBilling.filter(b => b.status === 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    const pendentePedidos = monthBilling.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+
+    // Receita de obras (pagamentos do mês)
+    const monthObraPags = obraPags.filter(p => {
+      const d = p.pag_date ? new Date(p.pag_date + 'T12:00:00') : (p.created_at ? new Date(p.created_at) : null);
+      return d && d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
+    });
+    const recebidoObras  = monthObraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+    const pendenteObras  = monthObraPags.filter(p => p.status !== 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+
+    const recebido = recebidoPedidos + recebidoObras;
+    const pendente = pendentePedidos + pendenteObras;
+
+    // Gastos do mês
     const monthExpenses = expenses.filter(e => {
       if (e.is_template) return false;
-      // Usa campos month/year se disponíveis, fallback para expense_date
       if (e.month && e.year) return parseInt(e.month) === currentMonth && parseInt(e.year) === currentYear;
       const d = e.expense_date ? new Date(e.expense_date + 'T12:00:00') : (e.created_at ? new Date(e.created_at) : null);
       return d && d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
     });
     const totalGastos = monthExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0);
     const resultado = recebido - totalGastos;
+
     document.getElementById('monthRevenue').textContent = 'R$' + recebido.toFixed(0);
     document.getElementById('monthPending').textContent = 'R$' + pendente.toFixed(0);
     document.getElementById('monthExpenses').textContent = 'R$' + totalGastos.toFixed(0);
@@ -3978,6 +4093,284 @@ async function importTemplatesForMonth() {
   }
   showToast(`✅ ${ok} gasto(s) fixo(s) importado(s)!`, 'success');
   loadExpenses();
+}
+
+// ============================================================
+// OBRAS & SERVIÇOS
+// ============================================================
+let obraFilterCurrent = 'Todos';
+let currentObraId = null;
+
+function setObraFilter(f, el) {
+  obraFilterCurrent = f;
+  document.querySelectorAll('#screen-obras .filter-tab').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  loadObras();
+}
+
+async function loadObras() {
+  document.getElementById('obrasList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
+
+  const [obras, pags] = await Promise.all([
+    dbGet('obras', {}),
+    dbGet('obra_pagamentos', {})
+  ]);
+
+  // Calcula totais globais
+  const totalContratos = obras.reduce((a, o) => a + parseFloat(o.value || 0), 0);
+  const totalRecebido  = pags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+  const totalPendente  = pags.filter(p => p.status !== 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+  document.getElementById('obrasTotalContratos').textContent = 'R$ ' + totalContratos.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  document.getElementById('obrasTotalRecebido').textContent  = 'R$ ' + totalRecebido.toFixed(0);
+  document.getElementById('obrasTotalPendente').textContent  = 'R$ ' + totalPendente.toFixed(0);
+  document.getElementById('obrasSubtitle').textContent = `${obras.length} obra(s) cadastrada(s)`;
+
+  const filtered = obraFilterCurrent === 'Todos' ? obras : obras.filter(o => o.status === obraFilterCurrent);
+
+  if (!filtered.length) {
+    document.getElementById('obrasList').innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub);font-size:13px;">Nenhuma obra encontrada.</div>';
+    return;
+  }
+
+  const STATUS_COLOR = { 'Em andamento': '#3b82f6', 'Concluída': '#22c55e', 'Pausada': '#f0a500', 'Cancelada': '#e8210a' };
+
+  document.getElementById('obrasList').innerHTML = filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).map(o => {
+    const obraPags = pags.filter(p => p.obra_id === o.id);
+    const recebido = obraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+    const total    = parseFloat(o.value || 0);
+    const pendente = total - recebido;
+    const pct      = total > 0 ? Math.min(100, Math.round(recebido / total * 100)) : 0;
+    const cor      = STATUS_COLOR[o.status] || '#3b82f6';
+
+    return `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;" onclick="openObraDetail(${o.id})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">${o.client}</div>
+          <div style="color:var(--sub);font-size:11px;margin-top:2px;">${o.type} · ${o.city || '—'}</div>
+          <div style="color:var(--text);font-size:12px;margin-top:4px;">${o.description}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <span style="background:${cor}22;color:${cor};border:1px solid ${cor}44;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">${o.status}</span>
+          <div style="font-weight:800;font-size:15px;color:${cor};">R$ ${total.toFixed(2).replace('.',',')}</div>
+        </div>
+      </div>
+      <!-- Barra de progresso -->
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-bottom:4px;">
+          <span>✅ Recebido: R$ ${recebido.toFixed(2).replace('.',',')}</span>
+          <span>${pct}%</span>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+          <div style="background:${cor};width:${pct}%;height:100%;border-radius:4px;transition:width .4s;"></div>
+        </div>
+        ${pendente > 0 ? `<div style="color:var(--secondary);font-size:11px;margin-top:4px;">⏳ Pendente: R$ ${pendente.toFixed(2).replace('.',',')}</div>` : ''}
+      </div>
+      <!-- Ações -->
+      <div style="display:flex;gap:8px;margin-top:10px;" onclick="event.stopPropagation()">
+        <button onclick="openObraPagamento(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">💰 Pagamento</button>
+        <button onclick="openObraForm(${o.id})" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:14px;cursor:pointer;">✏️</button>
+        <button onclick="deleteObra(${o.id})" style="background:#e8210a11;border:1px solid #e8210a33;border-radius:8px;padding:7px 12px;font-size:14px;cursor:pointer;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openObraForm(id = null) {
+  document.getElementById('obraEditId').value = id || '';
+  document.getElementById('obraFormTitle').textContent = id ? '✏️ Editar Obra' : '🏗️ Nova Obra / Serviço';
+  document.getElementById('obraStart').value = new Date().toISOString().split('T')[0];
+  document.getElementById('obraEnd').value = '';
+  document.getElementById('obraClient').value = '';
+  document.getElementById('obraDesc').value = '';
+  document.getElementById('obraCity').value = '';
+  document.getElementById('obraValue').value = '';
+  document.getElementById('obraObs').value = '';
+  document.getElementById('obraStatus').value = 'Em andamento';
+
+  if (id) {
+    const obras = await dbGet('obras', {});
+    const o = obras.find(x => x.id === id);
+    if (o) {
+      document.getElementById('obraClient').value  = o.client || '';
+      document.getElementById('obraDesc').value    = o.description || '';
+      document.getElementById('obraCity').value    = o.city || '';
+      document.getElementById('obraValue').value   = o.value || '';
+      document.getElementById('obraType').value    = o.type || 'Outros';
+      document.getElementById('obraStart').value   = o.start_date || '';
+      document.getElementById('obraEnd').value     = o.end_date || '';
+      document.getElementById('obraStatus').value  = o.status || 'Em andamento';
+      document.getElementById('obraObs').value     = o.obs || '';
+    }
+  }
+  openModal('obraFormModal');
+}
+
+async function saveObra() {
+  const client = document.getElementById('obraClient').value.trim();
+  const desc   = document.getElementById('obraDesc').value.trim();
+  const value  = parseFloat(document.getElementById('obraValue').value);
+  if (!client || !desc || !value) { showToast('⚠️ Preencha cliente, descrição e valor', 'error'); return; }
+
+  const btn = document.getElementById('obraSaveBtn');
+  btn.textContent = '⏳ Salvando...'; btn.disabled = true;
+
+  const data = {
+    client, description: desc,
+    city:       document.getElementById('obraCity').value.trim() || null,
+    type:       document.getElementById('obraType').value,
+    value,
+    start_date: document.getElementById('obraStart').value || null,
+    end_date:   document.getElementById('obraEnd').value   || null,
+    status:     document.getElementById('obraStatus').value,
+    obs:        document.getElementById('obraObs').value.trim() || null
+  };
+
+  const editId = document.getElementById('obraEditId').value;
+  const ok = editId ? await dbUpdate('obras', editId, data) : await dbInsert('obras', data);
+
+  btn.textContent = '✓ Salvar Obra'; btn.disabled = false;
+  if (ok) { closeModal('obraFormModal'); showToast(editId ? '✅ Obra atualizada!' : '✅ Obra cadastrada!', 'success'); loadObras(); }
+  else showToast('❌ Erro ao salvar', 'error');
+}
+
+async function deleteObra(id) {
+  if (!confirm('Excluir esta obra e todos os pagamentos vinculados?')) return;
+  // Remove pagamentos vinculados
+  const pags = await dbGet('obra_pagamentos', {});
+  for (const p of pags.filter(p => p.obra_id === id)) await dbDelete('obra_pagamentos', p.id);
+  await dbDelete('obras', id);
+  showToast('🗑️ Obra excluída', 'success');
+  loadObras();
+}
+
+// ── Pagamentos de Obra ──────────────────────────────────────
+async function openObraPagamento(obraId) {
+  currentObraId = obraId;
+  const obras = await dbGet('obras', {});
+  const o = obras.find(x => x.id === obraId);
+  if (!o) return;
+
+  const pags = await dbGet('obra_pagamentos', {});
+  const obraPags = pags.filter(p => p.obra_id === obraId);
+  const recebido = obraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+  const total    = parseFloat(o.value || 0);
+  const restante = total - recebido;
+
+  document.getElementById('obraPagamentoTitle').textContent = `💰 ${o.client}`;
+  document.getElementById('obraPagamentoObraId').value = obraId;
+  document.getElementById('obraPagamentoResumo').innerHTML = `
+    <div style="font-weight:700;font-size:13px;margin-bottom:6px;">${o.description}</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--sub);">
+      <span>Contrato: <b style="color:var(--text);">R$ ${total.toFixed(2).replace('.',',')}</b></span>
+      <span>Recebido: <b style="color:var(--success);">R$ ${recebido.toFixed(2).replace('.',',')}</b></span>
+    </div>
+    <div style="color:var(--secondary);font-size:12px;margin-top:4px;">⏳ Saldo restante: R$ ${restante.toFixed(2).replace('.',',')}</div>`;
+
+  document.getElementById('obraPagDesc').value  = '';
+  document.getElementById('obraPagValue').value = restante > 0 ? restante.toFixed(2) : '';
+  document.getElementById('obraPagDate').value  = new Date().toISOString().split('T')[0];
+  document.getElementById('obraPagStatus').value = 'Pago';
+
+  closeModal('obraDetailModal');
+  openModal('obraPagamentoModal');
+}
+
+async function saveObraPagamento() {
+  const obraId = parseInt(document.getElementById('obraPagamentoObraId').value);
+  const desc   = document.getElementById('obraPagDesc').value.trim();
+  const value  = parseFloat(document.getElementById('obraPagValue').value);
+  if (!desc || !value) { showToast('⚠️ Preencha descrição e valor', 'error'); return; }
+
+  const btn = document.getElementById('obraPagSaveBtn');
+  btn.textContent = '⏳...'; btn.disabled = true;
+
+  const pagStatus = document.getElementById('obraPagStatus').value;
+  const ok = await dbInsert('obra_pagamentos', {
+    obra_id:  obraId,
+    description: desc,
+    value,
+    pag_date: document.getElementById('obraPagDate').value || null,
+    status:   pagStatus
+  });
+
+  if (ok) {
+    // Verifica se obra está totalmente paga
+    const obras = await dbGet('obras', {});
+    const o = obras.find(x => x.id === obraId);
+    const allPags = await dbGet('obra_pagamentos', {});
+    const obraPags = allPags.filter(p => p.obra_id === obraId);
+    const totalPago = obraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0) + (pagStatus === 'Pago' ? value : 0);
+    if (o && totalPago >= parseFloat(o.value || 0)) {
+      await dbUpdate('obras', obraId, { status: 'Concluída' });
+      showToast('✅ Pagamento lançado! Obra concluída! 🎉', 'success');
+    } else {
+      showToast('✅ Pagamento lançado!', 'success');
+    }
+    closeModal('obraPagamentoModal');
+    loadObras();
+  } else showToast('❌ Erro ao salvar', 'error');
+
+  btn.textContent = '✓ Lançar Pagamento'; btn.disabled = false;
+}
+
+async function openObraDetail(obraId) {
+  currentObraId = obraId;
+  const [obras, pags] = await Promise.all([dbGet('obras', {}), dbGet('obra_pagamentos', {})]);
+  const o = obras.find(x => x.id === obraId);
+  if (!o) return;
+
+  const obraPags = pags.filter(p => p.obra_id === obraId).sort((a,b) => new Date(b.pag_date || b.created_at) - new Date(a.pag_date || a.created_at));
+  const recebido = obraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+  const total    = parseFloat(o.value || 0);
+  const pct      = total > 0 ? Math.min(100, Math.round(recebido / total * 100)) : 0;
+  const cor      = { 'Em andamento':'#3b82f6','Concluída':'#22c55e','Pausada':'#f0a500','Cancelada':'#e8210a' }[o.status] || '#3b82f6';
+
+  document.getElementById('obraDetailTitle').textContent = `🏗️ ${o.client}`;
+  document.getElementById('obraDetailContent').innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:14px;">${o.description}</div>
+      <div style="color:var(--sub);font-size:12px;margin-top:2px;">${o.type} · ${o.city || '—'}</div>
+      ${o.obs ? `<div style="color:var(--sub);font-size:11px;margin-top:4px;">${o.obs}</div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;">
+          <div style="font-size:11px;color:var(--sub);">CONTRATO</div>
+          <div style="font-weight:800;color:${cor};">R$ ${total.toFixed(2).replace('.',',')}</div>
+        </div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;">
+          <div style="font-size:11px;color:var(--sub);">RECEBIDO</div>
+          <div style="font-weight:800;color:var(--success);">R$ ${recebido.toFixed(2).replace('.',',')} (${pct}%)</div>
+        </div>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-top:10px;">
+        <div style="background:${cor};width:${pct}%;height:100%;border-radius:4px;"></div>
+      </div>
+    </div>
+    <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Histórico de Pagamentos</div>
+    ${obraPags.length ? obraPags.map(p => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:600;font-size:13px;">${p.description}</div>
+          <div style="color:var(--sub);font-size:11px;">${p.pag_date ? new Date(p.pag_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div>
+            <div style="font-weight:800;font-size:14px;color:${p.status==='Pago'?'var(--success)':'var(--secondary)'};">R$ ${parseFloat(p.value||0).toFixed(2).replace('.',',')}</div>
+            <div style="font-size:10px;text-align:right;color:${p.status==='Pago'?'var(--success)':'var(--secondary)'};">${p.status}</div>
+          </div>
+          <button onclick="deleteObraPagamento(${p.id},${obraId})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
+        </div>
+      </div>`).join('') : '<div style="color:var(--sub);font-size:12px;text-align:center;padding:16px;">Nenhum pagamento lançado ainda.</div>'}
+  `;
+  openModal('obraDetailModal');
+}
+
+async function deleteObraPagamento(pagId, obraId) {
+  if (!confirm('Excluir este pagamento?')) return;
+  await dbDelete('obra_pagamentos', pagId);
+  showToast('🗑️ Pagamento removido', 'success');
+  closeModal('obraDetailModal');
+  await openObraDetail(obraId);
 }
 </script>
 </body>
