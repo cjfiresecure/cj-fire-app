@@ -457,6 +457,7 @@ textarea.input{resize:none;height:70px}
     <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;">
       <button class="filter-tab active" onclick="setObraFilter('Todos',this)" id="obraFilterTodos">Todos</button>
       <button class="filter-tab" onclick="setObraFilter('Em andamento',this)">Em andamento</button>
+      <button class="filter-tab" onclick="setObraFilter('Finalizada · A Receber',this)">A Receber</button>
       <button class="filter-tab" onclick="setObraFilter('Concluída',this)">Concluídas</button>
       <button class="filter-tab" onclick="setObraFilter('Pausada',this)">Pausadas</button>
     </div>
@@ -522,8 +523,12 @@ textarea.input{resize:none;height:70px}
       <div class="field"><label class="label">Previsão Fim</label><input class="input" id="obraEnd" type="date" /></div>
     </div>
     <div class="field"><label class="label">Status</label>
-      <select class="input" id="obraStatus">
-        <option>Em andamento</option><option>Pausada</option><option>Concluída</option><option>Cancelada</option>
+      <select class="input" id="obraStatus" onchange="onObraStatusChange()">
+        <option>Em andamento</option>
+        <option>Finalizada · A Receber</option>
+        <option>Pausada</option>
+        <option>Concluída</option>
+        <option>Cancelada</option>
       </select>
     </div>
     <div class="field"><label class="label">Observações</label><input class="input" id="obraObs" placeholder="Opcional" /></div>
@@ -1221,10 +1226,17 @@ async function loadHomeData() {
       return d && d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
     });
     const recebidoObras  = monthObraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
-    const pendenteObras  = monthObraPags.filter(p => p.status !== 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+
+    // Saldo pendente de obras "Finalizada · A Receber" (contrato - já recebido total)
+    const pendenteObrasFinalizadas = obras
+      .filter(o => o.status === 'Finalizada · A Receber')
+      .reduce((sum, o) => {
+        const totalPago = obraPags.filter(p => p.obra_id === o.id && p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+        return sum + Math.max(0, parseFloat(o.value || 0) - totalPago);
+      }, 0);
 
     const recebido = recebidoPedidos + recebidoObras;
-    const pendente = pendentePedidos + pendenteObras;
+    const pendente = pendentePedidos + pendenteObrasFinalizadas;
 
     // Gastos do mês
     const monthExpenses = expenses.filter(e => {
@@ -4225,7 +4237,7 @@ async function loadObras() {
     return;
   }
 
-  const STATUS_COLOR = { 'Em andamento': '#3b82f6', 'Concluída': '#22c55e', 'Pausada': '#f0a500', 'Cancelada': '#e8210a' };
+  const STATUS_COLOR = { 'Em andamento': '#3b82f6', 'Finalizada · A Receber': '#f0a500', 'Concluída': '#22c55e', 'Pausada': '#94a3b8', 'Cancelada': '#e8210a' };
 
   document.getElementById('obrasList').innerHTML = filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).map(o => {
     const obraPags = pags.filter(p => p.obra_id === o.id);
@@ -4299,11 +4311,22 @@ async function openObraForm(id = null) {
   openModal('obraFormModal');
 }
 
+function onObraStatusChange() {} // status é livre para editar manualmente
+
 async function saveObra() {
   const client = document.getElementById('obraClient').value.trim();
   const desc   = document.getElementById('obraDesc').value.trim();
   const value  = parseFloat(document.getElementById('obraValue').value);
   if (!client || !desc || !value) { showToast('⚠️ Preencha cliente, descrição e valor', 'error'); return; }
+
+  const endDate = document.getElementById('obraEnd').value || null;
+  let   status  = document.getElementById('obraStatus').value;
+
+  // Auto-status: preencheu data final e ainda estava Em andamento → Finalizada · A Receber
+  if (endDate && status === 'Em andamento') {
+    status = 'Finalizada · A Receber';
+    document.getElementById('obraStatus').value = status;
+  }
 
   const btn = document.getElementById('obraSaveBtn');
   btn.textContent = '⏳ Salvando...'; btn.disabled = true;
@@ -4314,8 +4337,8 @@ async function saveObra() {
     type:       document.getElementById('obraType').value,
     value,
     start_date: document.getElementById('obraStart').value || null,
-    end_date:   document.getElementById('obraEnd').value   || null,
-    status:     document.getElementById('obraStatus').value,
+    end_date:   endDate,
+    status,
     obs:        document.getElementById('obraObs').value.trim() || null
   };
 
@@ -4323,8 +4346,14 @@ async function saveObra() {
   const ok = editId ? await dbUpdate('obras', editId, data) : await dbInsert('obras', data);
 
   btn.textContent = '✓ Salvar Obra'; btn.disabled = false;
-  if (ok) { closeModal('obraFormModal'); showToast(editId ? '✅ Obra atualizada!' : '✅ Obra cadastrada!', 'success'); loadObras(); }
-  else showToast('❌ Erro ao salvar', 'error');
+  if (ok) {
+    closeModal('obraFormModal');
+    const msg = (endDate && status === 'Finalizada · A Receber')
+      ? '✅ Obra finalizada! Aguardando recebimento.'
+      : editId ? '✅ Obra atualizada!' : '✅ Obra cadastrada!';
+    showToast(msg, 'success');
+    loadObras();
+  } else showToast('❌ Erro ao salvar', 'error');
 }
 
 async function deleteObra(id) {
@@ -4429,9 +4458,13 @@ async function saveObraPagamento() {
     const novoRecebido = recebidoAnt + value;
     if (total > 0 && novoRecebido >= total - 0.01) {
       await dbUpdate('obras', obraId, { status: 'Concluída' });
-      showToast('🎉 Obra quitada e marcada como Concluída!', 'success');
+      showToast('🎉 Valor total recebido! Obra marcada como Concluída!', 'success');
     } else {
       const pctTotal = Math.round(novoRecebido / total * 100);
+      // Se ainda estava Em andamento, atualiza para Finalizada · A Receber
+      if (o && o.status === 'Em andamento') {
+        await dbUpdate('obras', obraId, { status: 'Finalizada · A Receber' });
+      }
       showToast(`✅ Recebimento registrado! ${pctTotal}% do contrato recebido.`, 'success');
     }
     closeModal('obraPagamentoModal');
