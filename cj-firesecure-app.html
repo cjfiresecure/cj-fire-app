@@ -388,7 +388,10 @@ textarea.input{resize:none;height:70px}
       <div class="field">
         <label class="label">Assinatura do Cliente</label>
         <canvas id="nbrSigCanvas" style="width:100%;height:160px;background:#fff;border-radius:12px;border:2px solid var(--border);touch-action:none;" width="600" height="160"></canvas>
-        <button onclick="clearNbrSig()" style="background:none;border:none;color:var(--sub);font-size:12px;margin-top:4px;cursor:pointer;">🗑️ Limpar</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+          <button onclick="clearNbrSig()" style="background:none;border:none;color:var(--sub);font-size:12px;cursor:pointer;">🗑️ Limpar</button>
+          <div id="nbrSignaturePreview" style="font-size:11px;color:var(--sub);">Sem assinatura</div>
+        </div>
       </div>
       <div id="nbrFinalCard" class="card" style="text-align:center;margin:14px 0;"></div>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -1268,9 +1271,11 @@ let allClients = [];
 
 async function loadClients() {
   document.getElementById('clientsList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
-  allClients = await dbGet('clients', { order: 'created_at', asc: false });
-  document.getElementById('clientCount').textContent = allClients.length + ' cadastrados';
-  renderClients(allClients);
+  try {
+    allClients = await dbGet('clients', { order: 'created_at', asc: false });
+    document.getElementById('clientCount').textContent = allClients.length + ' cadastrados';
+    renderClients(allClients);
+  } catch(e) { console.error('loadClients:', e); document.getElementById('clientsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar clientes.</div>'; }
 }
 
 function renderClients(list) {
@@ -1423,14 +1428,16 @@ let allOrders = [], orderFilter = 'Todos', orderStatusFilter = 'Todos', orderDat
 
 async function loadOrders() {
   document.getElementById('ordersList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
-  allOrders = await dbGet('orders', { order: 'created_at', asc: false });
-  const pedidos = allOrders.filter(o => o.type === 'Pedido');
-  const orcs = allOrders.filter(o => o.type === 'Orçamento');
-  document.getElementById('ordersCountPedido').textContent = pedidos.length + ' pedidos';
-  document.getElementById('ordersTotalPedido').textContent = 'R$ ' + pedidos.reduce((a, o) => a + parseFloat(o.value || 0), 0).toFixed(2).replace('.', ',');
-  document.getElementById('ordersCountOrc').textContent = orcs.length + ' orçamentos';
-  document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toFixed(2).replace('.', ',');
-  renderOrders();
+  try {
+    allOrders = await dbGet('orders', { order: 'created_at', asc: false });
+    const pedidos = allOrders.filter(o => o.type === 'Pedido');
+    const orcs = allOrders.filter(o => o.type === 'Orçamento');
+    document.getElementById('ordersCountPedido').textContent = pedidos.length + ' pedidos';
+    document.getElementById('ordersTotalPedido').textContent = 'R$ ' + pedidos.reduce((a, o) => a + parseFloat(o.value || 0), 0).toFixed(2).replace('.', ',');
+    document.getElementById('ordersCountOrc').textContent = orcs.length + ' orçamentos';
+    document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toFixed(2).replace('.', ',');
+    renderOrders();
+  } catch(e) { console.error('loadOrders:', e); document.getElementById('ordersList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar pedidos.</div>'; }
 }
 
 function renderOrders() {
@@ -2115,24 +2122,26 @@ async function sharePDF() {
 // STOCK
 // ============================================================
 async function loadStock() {
-  const data = await dbGet('stock', { order: 'name' });
-  if (!data.length) { document.getElementById('stockList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Estoque vazio.</div>'; return; }
-  document.getElementById('stockList').innerHTML = data.map(item => {
-    const low = parseInt(item.qty) <= parseInt(item.min_qty || 0);
-    const pct = Math.min(100, Math.round((item.qty / Math.max(item.min_qty * 2, 1)) * 100));
-    return `<div class="card ${low ? 'danger-border' : ''}">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="color:var(--sub);font-size:10px;">Mínimo: ${item.min_qty || 0}</div></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="font-weight:800;font-size:16px;color:${low ? 'var(--danger)' : 'var(--success)'};">${item.qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit || 'un'}</span></div>
-          <button onclick="editStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
-          <button onclick="deleteStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
+  try {
+    const data = await dbGet('stock', { order: 'name' });
+    if (!data.length) { document.getElementById('stockList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Estoque vazio.</div>'; return; }
+    document.getElementById('stockList').innerHTML = data.map(item => {
+      const low = parseInt(item.qty) <= parseInt(item.min_qty || 0);
+      const pct = Math.min(100, Math.round((item.qty / Math.max(item.min_qty * 2, 1)) * 100));
+      return `<div class="card ${low ? 'danger-border' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="color:var(--sub);font-size:10px;">Mínimo: ${item.min_qty || 0}</div></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-weight:800;font-size:16px;color:${low ? 'var(--danger)' : 'var(--success)'};">${item.qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit || 'un'}</span></div>
+            <button onclick="editStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
+            <button onclick="deleteStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
+          </div>
         </div>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${low ? 'var(--danger)' : 'var(--success)'};"></div></div>
-      ${low ? '<div style="color:var(--danger);font-size:11px;font-weight:600;margin-top:4px;">⚠️ Repor estoque</div>' : ''}
-    </div>`;
-  }).join('');
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${low ? 'var(--danger)' : 'var(--success)'};"></div></div>
+        ${low ? '<div style="color:var(--danger);font-size:11px;font-weight:600;margin-top:4px;">⚠️ Repor estoque</div>' : ''}
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('loadStock:', e); document.getElementById('stockList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar estoque.</div>'; }
 }
 
 let editingStockId = null;
@@ -2442,8 +2451,10 @@ async function loadNotifications() {
 // ============================================================
 let allProducts = [];
 async function loadProducts() {
-  allProducts = await dbGet('products', { order: 'category' });
-  renderProducts(allProducts);
+  try {
+    allProducts = await dbGet('products', { order: 'category' });
+    renderProducts(allProducts);
+  } catch(e) { console.error('loadProducts:', e); document.getElementById('productsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar produtos.</div>'; }
 }
 
 function renderProducts(list) {
@@ -2475,6 +2486,17 @@ function openProductForm() {
   document.querySelector('#productFormModal .modal-title').textContent = 'Novo Produto';
   document.querySelector('#productFormModal .btn-primary').textContent = '✓ Cadastrar';
   openModal('productFormModal');
+}
+
+// Edição rápida de preço direto na lista
+async function editPrice(id, name, currentPrice) {
+  const newPrice = prompt(`Novo preço para "${name}":`, parseFloat(currentPrice).toFixed(2));
+  if (newPrice === null) return;
+  const price = parseFloat(newPrice.replace(',', '.'));
+  if (isNaN(price) || price < 0) { showToast('⚠️ Preço inválido', 'error'); return; }
+  await dbUpdate('products', id, { price });
+  showToast('✅ Preço atualizado!', 'success');
+  loadProducts();
 }
 
 async function editProduct(id) {
@@ -2522,9 +2544,11 @@ async function deleteProduct(id) {
 // ============================================================
 let allSuppliers = [];
 async function loadSuppliers() {
-  allSuppliers = await dbGet('suppliers', { order: 'name' });
-  document.getElementById('supplierCount').textContent = allSuppliers.length + ' cadastrados';
-  renderSuppliers(allSuppliers);
+  try {
+    allSuppliers = await dbGet('suppliers', { order: 'name' });
+    document.getElementById('supplierCount').textContent = allSuppliers.length + ' cadastrados';
+    renderSuppliers(allSuppliers);
+  } catch(e) { console.error('loadSuppliers:', e); document.getElementById('suppliersList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar fornecedores.</div>'; }
 }
 
 function renderSuppliers(list) {
@@ -2627,9 +2651,11 @@ let allExtintores = [], extintorFilter = 'Todos', editingExtintorId = null;
 
 async function loadExtintores() {
   document.getElementById('extintoresList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
-  allExtintores = await dbGet('extintores', { order: 'created_at', asc: false });
-  document.getElementById('extintorCount').textContent = allExtintores.length + ' cadastrados';
-  renderExtintores(allExtintores);
+  try {
+    allExtintores = await dbGet('extintores', { order: 'created_at', asc: false });
+    document.getElementById('extintorCount').textContent = allExtintores.length + ' cadastrados';
+    renderExtintores(allExtintores);
+  } catch(e) { console.error('loadExtintores:', e); document.getElementById('extintoresList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar extintores.</div>'; }
 }
 
 function renderExtintores(list) {
