@@ -765,7 +765,12 @@ textarea.input{resize:none;height:70px}
       </div>
     </div>
 
-    <div class="field"><label class="label">Observações</label><textarea class="input" id="orderObs" placeholder="Informações adicionais..."></textarea></div>
+    <div class="field"><label class="label">Observações</label><textarea class="input" id="orderObs" placeholder="Informações adicionais..." style="height:70px;resize:none;font-size:12px;"></textarea></div>
+    <div style="display:flex;gap:6px;margin-top:-8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button type="button" onclick="setObsTemplate('manutencao')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--sub);cursor:pointer;">📋 Manutenção</button>
+      <button type="button" onclick="setObsTemplate('teste')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--sub);cursor:pointer;">🔧 Teste Hidrostático</button>
+      <button type="button" onclick="setObsTemplate('limpar')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--sub);cursor:pointer;">🗑️ Limpar</button>
+    </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-primary" onclick="saveOrder()" style="flex:2;">✓ Confirmar</button>
       <button onclick="generateOrderPDF()" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;">📄 PDF</button>
@@ -1314,7 +1319,11 @@ function renderClients(list) {
 function checkClientDuplicate(name) {
   const warn = document.getElementById('clientDuplicateWarn');
   if (!name || name.length < 3) { warn.style.display = 'none'; return; }
-  const existing = allClients.find(c => c.name?.toLowerCase().includes(name.toLowerCase()));
+  const cnpjDigitado = document.getElementById('clientCnpj')?.value.replace(/\D/g,'') || '';
+  const existing = allClients.find(c => {
+    if (cnpjDigitado && c.cnpj) return c.cnpj.replace(/\D/g,'') === cnpjDigitado;
+    return c.name?.toLowerCase().trim() === name.toLowerCase().trim();
+  });
   if (existing) {
     warn.style.display = 'block';
     warn.innerHTML = `⚠️ Possível duplicata: <strong>${existing.name}</strong> já cadastrado!`;
@@ -1344,11 +1353,17 @@ async function saveClient() {
   const name = document.getElementById('clientName').value.trim();
   if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
 
-  // Verifica duplicidade
-  const existing = allClients.find(c =>
-    c.name?.toLowerCase().trim() === name.toLowerCase().trim() ||
-    (document.getElementById('clientCnpj').value && c.cnpj === document.getElementById('clientCnpj').value)
-  );
+  // Verifica duplicidade — CNPJ tem prioridade: mesmo CNPJ = duplicata
+  // Mesmo nome mas CNPJ diferente = empresa com filiais = permitido
+  const cnpjDigitado = document.getElementById('clientCnpj').value.trim();
+  const existing = allClients.find(c => {
+    if (cnpjDigitado && c.cnpj) {
+      // Compara só dígitos
+      return c.cnpj.replace(/\D/g,'') === cnpjDigitado.replace(/\D/g,'');
+    }
+    // Sem CNPJ: compara nome exato
+    return c.name?.toLowerCase().trim() === name.toLowerCase().trim();
+  });
   if (existing) {
     showToast(`⚠️ Cliente "${existing.name}" já cadastrado!`, 'error');
     return;
@@ -1796,6 +1811,27 @@ async function adjustStock(items, deduct) {
   }
 }
 
+function setObsTemplate(tipo) {
+  const el = document.getElementById('orderObs');
+  if (tipo === 'limpar') { el.value = ''; return; }
+  if (tipo === 'manutencao') {
+    el.value = 'Os valores apresentados neste orçamento são baseados na vistoria inicial dos equipamentos. O valor final poderá sofrer alteração caso sejam identificadas peças danificadas ou com desgaste que necessitem de substituição, bem como a necessidade de realização de teste hidrostático. Qualquer alteração será previamente comunicada ao cliente para aprovação.';
+  } else if (tipo === 'teste') {
+    el.value = 'Este orçamento contempla a realização de teste hidrostático nos equipamentos indicados. O valor poderá ser ajustado após a inspeção técnica, caso sejam constatadas irregularidades ou necessidade de substituição de componentes. O cliente será notificado antes de qualquer alteração no valor final.';
+  }
+}
+// Agenda visita se tiver extintor, manutenção, recarga, CO2, AP, ABC, BC, sprinkler ou hidrante
+// NÃO agenda se for só placa, luz de emergência, sinalização, materiais avulsos
+function pedidoNecessitaVisita(items) {
+  const PRECISA = /extintor|manutenção|manutencao|recarga|co2|pó|po abc|po bc|ap |abc|sprinkler|hidrante|inspeção|inspecao|detector|alarme|central/i;
+  const NAO_PRECISA = /^placa|^luz de emer|^sinaliza|^placa foto|^manômetro|^manometro|^abrigo/i;
+  return items.some(item => {
+    const nome = item.name || '';
+    if (NAO_PRECISA.test(nome)) return false;
+    return PRECISA.test(nome);
+  });
+}
+
 async function saveOrder() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
   if (!orderItems.length) { showToast('⚠️ Adicione pelo menos 1 produto', 'error'); return; }
@@ -1808,6 +1844,8 @@ async function saveOrder() {
   const installments = payment === 'Parcelado' ? parseInt(document.getElementById('orderInstallments').value) : 1;
   const orderData = {
     client: selectedOrderClient.name, cnpj: selectedOrderClient.cnpj || '',
+    client_address: selectedOrderClient.address || '', client_city: selectedOrderClient.city || '',
+    client_phone: selectedOrderClient.phone || '', client_email: selectedOrderClient.email || '',
     type: currentOrderType, value: total, payment,
     order_date: orderDate,
     discount: discount || 0,
@@ -1858,16 +1896,40 @@ async function saveOrder() {
           multa: 2, juros: 1, status: 'Pendente'
         });
       }
-      // Agenda próxima visita
-      const nextVisit = new Date(baseDate);
-      nextVisit.setFullYear(nextVisit.getFullYear() + 1);
-      if (selectedOrderClient.id) await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
-      showToast('✅ Convertido em Pedido · Cobrança(s), estoque e visita agendados!', 'success');
+      // Agenda próxima visita só se tiver produtos que precisam de retorno anual
+      if (pedidoNecessitaVisita(orderItems)) {
+        const nextVisit = new Date(baseDate);
+        nextVisit.setFullYear(nextVisit.getFullYear() + 1);
+        if (selectedOrderClient.id) await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
+        showToast('✅ Convertido em Pedido · Cobrança(s), estoque e visita agendados!', 'success');
+      } else {
+        showToast('✅ Convertido em Pedido · Cobrança(s) e estoque atualizados!', 'success');
+      }
     }
-    // Pedido → Pedido: ajusta estoque
+    // Pedido → Pedido: ajusta estoque E atualiza cobrança pendente
     else if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
       await adjustStock(oldItems, false);
       await adjustStock(orderItems, true);
+      // Atualiza o valor da cobrança pendente vinculada a este pedido
+      const allBilling = await dbGet('billing', {});
+      const orderNum = `APP-${String(editingOrderId).padStart(3,'0')}`;
+      const vinculadas = allBilling.filter(b =>
+        (b.order_id && parseInt(b.order_id) === editingOrderId) ||
+        (b.service || '').includes(orderNum)
+      ).filter(b => b.status === 'Pendente');
+      if (vinculadas.length === 1) {
+        // Cobrança única — atualiza valor direto
+        const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${surcharge > 0 ? ` (Acrés: R$ ${surcharge.toFixed(2).replace('.',',')})` : ''}`;
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc });
+        showToast('✅ Pedido e cobrança atualizados!', 'success');
+      } else if (vinculadas.length > 1) {
+        // Parcelado — distribui novo total entre as parcelas pendentes
+        const novoValorParcela = total / vinculadas.length;
+        for (const b of vinculadas) {
+          await dbUpdate('billing', b.id, { value: parseFloat(novoValorParcela.toFixed(2)) });
+        }
+        showToast(`✅ Pedido atualizado · ${vinculadas.length} parcelas reajustadas!`, 'success');
+      }
     }
 
     await dbUpdate('orders', editingOrderId, orderData);
@@ -1922,12 +1984,12 @@ async function saveOrder() {
           });
         }
 
-        // Agendar próxima visita automaticamente (1 ano)
-        const nextVisit = new Date(baseDate);
-        nextVisit.setFullYear(nextVisit.getFullYear() + 1);
-        if (selectedOrderClient.id) {
+        // Agendar próxima visita só se tiver produtos que precisam de retorno anual
+        if (pedidoNecessitaVisita(orderItems) && selectedOrderClient.id) {
+          const nextVisit = new Date(baseDate);
+          nextVisit.setFullYear(nextVisit.getFullYear() + 1);
           await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
-          showToast(`📅 Próxima visita: ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+          showToast(`📅 Visita agendada: ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
         }
 
         closeModal('orderFormModal');
@@ -1982,11 +2044,21 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
       </div>
     </div>
     <div style="background:#f5f5f5;border-radius:8px;padding:10px;margin-bottom:12px;">
-      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px;">CLIENTE</div>
-      <div style="font-size:13px;font-weight:700;">${client.name}</div>
-      ${client.cnpj ? `<div style="font-size:11px;color:#666;">CNPJ: ${client.cnpj}</div>` : ''}
-      <div style="font-size:11px;color:#666;">Pagamento: ${payment}${installments > 1 ? ' — ' + installments + 'x de R$ ' + (total/installments).toFixed(2).replace('.',',') : ''}</div>
-      <div style="font-size:11px;color:#666;">Data combinada: ${date}</div>
+      <div style="font-size:11px;font-weight:700;color:#e8210a;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px;">Cliente</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:4px;margin-bottom:4px;">
+        <div><span style="font-size:10px;color:#999;">NOME / RAZÃO SOCIAL</span><br><span style="font-size:13px;font-weight:700;">${client.name}</span></div>
+        ${client.cnpj ? `<div style="text-align:right;"><span style="font-size:10px;color:#999;">CNPJ / CPF</span><br><span style="font-size:11px;font-weight:600;">${client.cnpj}</span></div>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;font-size:10px;">
+        ${client.address ? `<div style="grid-column:1/3;"><span style="color:#999;">ENDEREÇO</span><br><b>${client.address}</b></div>` : ''}
+        ${client.city ? `<div><span style="color:#999;">MUNICÍPIO / UF</span><br><b>${client.city}</b></div>` : ''}
+        ${client.phone ? `<div><span style="color:#999;">TELEFONE</span><br><b>${client.phone}</b></div>` : ''}
+        ${client.email ? `<div><span style="color:#999;">E-MAIL</span><br><b>${client.email}</b></div>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;font-size:10px;border-top:1px solid #ddd;padding-top:6px;">
+        <div><span style="color:#999;">FORMA DE PAGAMENTO</span><br><b>${payment}${installments > 1 ? ' — ' + installments + 'x de R$ ' + (total/installments).toFixed(2).replace('.',',') : ''}</b></div>
+        <div><span style="color:#999;">DATA DO PEDIDO</span><br><b>${date}</b></div>
+      </div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
       <thead><tr style="background:#e8210a;color:#fff;"><th style="padding:6px 8px;text-align:left;font-size:11px;">Produto/Serviço</th><th style="padding:6px;text-align:center;font-size:11px;">Qtd</th><th style="padding:6px;text-align:right;font-size:11px;">Unit.</th><th style="padding:6px;text-align:right;font-size:11px;">Total</th></tr></thead>
@@ -2025,7 +2097,7 @@ function viewOrderPDF(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
-  buildPDF({ name: o.client, cnpj: o.cnpj }, o.type, items, o.payment, o.obs,
+  buildPDF({ name: o.client, cnpj: o.cnpj, address: o.client_address, phone: o.client_phone, email: o.client_email, city: o.client_city }, o.type, items, o.payment, o.obs,
     { discount: o.discount || 0, installments: o.installments || 1, order_date: o.order_date, id: o.id }
   );
 }
