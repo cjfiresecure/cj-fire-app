@@ -1910,25 +1910,23 @@ async function saveOrder() {
     else if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
       await adjustStock(oldItems, false);
       await adjustStock(orderItems, true);
-      // Atualiza o valor da cobrança pendente vinculada a este pedido
       const allBilling = await dbGet('billing', {});
       const orderNum = `APP-${String(editingOrderId).padStart(3,'0')}`;
-      const vinculadas = allBilling.filter(b =>
-        (b.order_id && parseInt(b.order_id) === editingOrderId) ||
-        (b.service || '').includes(orderNum)
-      ).filter(b => b.status === 'Pendente');
+      const vinculadas = allBilling.filter(b => {
+        if (b.status !== 'Pendente') return false;
+        if (b.order_id && parseInt(b.order_id) === editingOrderId) return true;
+        // Match exato pelo número no service (evita APP-022 bater em APP-0220)
+        const m = (b.service || '').match(/APP-0*([1-9]\d*)/);
+        return m && parseInt(m[1]) === editingOrderId;
+      });
+      const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${surcharge > 0 ? ` (Acrés: R$ ${surcharge.toFixed(2).replace('.',',')})` : ''}`;
       if (vinculadas.length === 1) {
-        // Cobrança única — atualiza valor direto
-        const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${surcharge > 0 ? ` (Acrés: R$ ${surcharge.toFixed(2).replace('.',',')})` : ''}`;
         await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc });
-        showToast('✅ Pedido e cobrança atualizados!', 'success');
       } else if (vinculadas.length > 1) {
-        // Parcelado — distribui novo total entre as parcelas pendentes
         const novoValorParcela = total / vinculadas.length;
         for (const b of vinculadas) {
           await dbUpdate('billing', b.id, { value: parseFloat(novoValorParcela.toFixed(2)) });
         }
-        showToast(`✅ Pedido atualizado · ${vinculadas.length} parcelas reajustadas!`, 'success');
       }
     }
 
