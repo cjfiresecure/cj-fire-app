@@ -1504,6 +1504,7 @@ function renderOrders() {
           <button onclick="changeOrderStatus(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;">🔄</button>
           <button onclick="editOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--secondary);">✏️</button>
           <button onclick="viewOrderPDF(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--sub);">📄</button>
+          ${o.type === 'Pedido' ? `<button onclick="recriarCobranca(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;" title="Recriar cobrança">💰</button>` : ''}
           <button onclick="deleteOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--danger);">🗑️</button>
         </div>
       </div>
@@ -1548,6 +1549,59 @@ async function changeOrderStatus(id) {
     <button onclick="setOrderStatusDB(${id},'${s}')" style="background:${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--card)'};color:${(o.order_status||'Em Aberto')===s?'#fff':'var(--text)'};border:1px solid ${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--border)'};border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">${s}</button>
   `).join('');
   openModal('orderStatusModal');
+}
+
+async function recriarCobranca(id) {
+  const o = allOrders.find(x => x.id === id);
+  if (!o || o.type !== 'Pedido') return;
+
+  // Verifica se já tem cobrança pendente
+  const allBilling = await dbGet('billing', {});
+  const orderNum = `APP-${String(id).padStart(3,'0')}`;
+  const jaTemCobranca = allBilling.some(b => {
+    if (b.status === 'Pago') return false;
+    if (b.order_id && parseInt(b.order_id) === id) return true;
+    const m = (b.service || '').match(/APP-0*([1-9]\d*)/);
+    return m && parseInt(m[1]) === id;
+  });
+
+  if (jaTemCobranca) {
+    showToast('⚠️ Este pedido já tem cobrança pendente!', 'error');
+    return;
+  }
+
+  let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
+  const total      = parseFloat(o.value || 0);
+  const payment    = o.payment || 'À vista';
+  const installments = parseInt(o.installments || 1);
+  const baseDate   = o.order_date ? new Date(o.order_date + 'T12:00:00') : new Date();
+  const serviceDesc = `${orderNum} · Pedido - ${items.map(i => i.name).join(', ')}`;
+
+  if (payment === 'Parcelado' && installments > 1) {
+    const parcelValue = total / installments;
+    for (let i = 0; i < installments; i++) {
+      const due = new Date(baseDate);
+      due.setMonth(due.getMonth() + i + 1);
+      await dbInsert('billing', {
+        client: o.client, service: `${orderNum} · Parcela ${i+1}/${installments} · ${serviceDesc}`,
+        value: parseFloat(parcelValue.toFixed(2)),
+        due_date: due.toISOString().split('T')[0],
+        order_id: id, multa: 2, juros: 1, status: 'Pendente'
+      });
+    }
+    showToast(`✅ ${installments} cobranças recriadas!`, 'success');
+  } else {
+    const due = new Date(baseDate);
+    if (payment === '15 dias') due.setDate(due.getDate() + 15);
+    else if (payment === '30 dias') due.setDate(due.getDate() + 30);
+    else if (payment === '60 dias') due.setDate(due.getDate() + 60);
+    await dbInsert('billing', {
+      client: o.client, service: serviceDesc,
+      value: total, due_date: due.toISOString().split('T')[0],
+      order_id: id, multa: 2, juros: 1, status: 'Pendente'
+    });
+    showToast('✅ Cobrança recriada!', 'success');
+  }
 }
 
 async function setOrderStatusDB(id, status) {
