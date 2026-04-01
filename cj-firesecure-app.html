@@ -1578,8 +1578,10 @@ async function recriarCobranca(id) {
   }
 
   // Confirmação antes de recriar
-  confirmDelete(`💰 Recriar cobrança do ${orderNum} — R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')} para ${o.client}?`, async () => {
-    let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
+  const msg = `Recriar cobrança do ${orderNum} no valor de R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')} para ${o.client}?`;
+  if (!confirm(msg)) return;
+
+  let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
     const total      = parseFloat(o.value || 0);
     const payment    = o.payment || 'À vista';
     const installments = parseInt(o.installments || 1);
@@ -1611,7 +1613,6 @@ async function recriarCobranca(id) {
       });
       showToast('✅ Cobrança recriada!', 'success');
     }
-  });
 }
 
 async function setOrderStatusDB(id, status) {
