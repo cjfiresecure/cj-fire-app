@@ -742,10 +742,16 @@ textarea.input{resize:none;height:70px}
           style="width:120px;background:var(--bg);border:1px solid #22c55e44;border-radius:8px;padding:6px 10px;color:var(--success);font-size:13px;text-align:right;outline:none;"
           oninput="updateOrderTotal()" />
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="color:var(--secondary);font-size:13px;">Acréscimo (R$)</span>
         <input id="orderSurcharge" type="number" step="0.01" min="0" placeholder="0,00"
           style="width:120px;background:var(--bg);border:1px solid #f0a50044;border-radius:8px;padding:6px 10px;color:var(--secondary);font-size:13px;text-align:right;outline:none;"
+          oninput="updateOrderTotal()" />
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="color:#3b82f6;font-size:13px;">Frete (R$)</span>
+        <input id="orderFreight" type="number" step="0.01" min="0" placeholder="0,00"
+          style="width:120px;background:var(--bg);border:1px solid #3b82f644;border-radius:8px;padding:6px 10px;color:#3b82f6;font-size:13px;text-align:right;outline:none;"
           oninput="updateOrderTotal()" />
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px;">
@@ -1707,6 +1713,7 @@ function openOrderForm() {
   document.getElementById('orderSubtotal').textContent = 'R$ 0,00';
   document.getElementById('orderDiscount').value = '';
   document.getElementById('orderSurcharge').value = '';
+  document.getElementById('orderFreight').value = '';
   document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('orderPayment').value = 'À vista';
   document.getElementById('installmentArea').style.display = 'none';
@@ -1723,7 +1730,16 @@ async function editOrder(id) {
   if (!o) return;
   editingOrderId = id;
   orderItems = []; try { orderItems = JSON.parse(o.items || '[]'); } catch {}
-  selectedOrderClient = { name: o.client, cnpj: o.cnpj || '' };
+
+  // Busca dados completos do cliente — tenta pelo nome no cadastro, fallback nos dados salvos no pedido
+  if (!allClients.length) await loadClients();
+  const clienteFull = allClients.find(c => c.name?.toLowerCase().trim() === o.client?.toLowerCase().trim()
+    || (o.cnpj && c.cnpj?.replace(/\D/g,'') === o.cnpj?.replace(/\D/g,'')));
+  selectedOrderClient = clienteFull || {
+    name: o.client, cnpj: o.cnpj || '',
+    address: o.client_address || '', city: o.client_city || '',
+    phone: o.client_phone || '', email: o.client_email || ''
+  };
   currentOrderType = o.type || 'Pedido';
   document.getElementById('orderClientSearch').value = '';
   document.getElementById('orderClientSelected').style.display = 'block';
@@ -1731,6 +1747,7 @@ async function editOrder(id) {
   document.getElementById('orderClientCnpj').textContent = o.cnpj || '';
   document.getElementById('orderPayment').value = o.payment || 'À vista';
   document.getElementById('orderObs').value = o.obs || '';
+  document.getElementById('orderFreight').value = o.freight || '';
   document.querySelector('#orderFormModal .modal-title').textContent = '✏️ Editar Pedido';
   document.querySelector('#orderFormModal .btn-primary').textContent = '✓ Salvar Alterações';
   setOrderType(currentOrderType);
@@ -1799,9 +1816,10 @@ function changeItemPrice(i, val) {
 function removeOrderItem(i) { orderItems.splice(i, 1); renderOrderItems(); }
 function updateOrderTotal() {
   const subtotal = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
-  const discount = parseFloat(document.getElementById('orderDiscount')?.value || 0) || 0;
+  const discount  = parseFloat(document.getElementById('orderDiscount')?.value  || 0) || 0;
   const surcharge = parseFloat(document.getElementById('orderSurcharge')?.value || 0) || 0;
-  const total = Math.max(0, subtotal - discount + surcharge);
+  const freight   = parseFloat(document.getElementById('orderFreight')?.value   || 0) || 0;
+  const total = Math.max(0, subtotal - discount + surcharge + freight);
   if (document.getElementById('orderSubtotal')) document.getElementById('orderSubtotal').textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
   document.getElementById('orderTotal').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
   calcInstallments();
@@ -1817,10 +1835,11 @@ function handlePaymentChange() {
 function calcInstallments() {
   const payment = document.getElementById('orderPayment')?.value;
   if (payment !== 'Parcelado') return;
-  const subtotal = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
-  const discount = parseFloat(document.getElementById('orderDiscount')?.value || 0) || 0;
+  const subtotal  = orderItems.reduce((a, item) => a + item.price * item.qty, 0);
+  const discount  = parseFloat(document.getElementById('orderDiscount')?.value  || 0) || 0;
   const surcharge = parseFloat(document.getElementById('orderSurcharge')?.value || 0) || 0;
-  const total = Math.max(0, subtotal - discount + surcharge);
+  const freight   = parseFloat(document.getElementById('orderFreight')?.value   || 0) || 0;
+  const total = Math.max(0, subtotal - discount + surcharge + freight);
   const n = parseInt(document.getElementById('orderInstallments')?.value || 2);
   const parcel = total / n;
   const baseDate = document.getElementById('orderDate')?.value
@@ -1900,10 +1919,11 @@ function pedidoNecessitaVisita(items) {
 async function saveOrder() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
   if (!orderItems.length) { showToast('⚠️ Adicione pelo menos 1 produto', 'error'); return; }
-  const subtotal = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
-  const discount = parseFloat(document.getElementById('orderDiscount').value || 0) || 0;
+  const subtotal  = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
+  const discount  = parseFloat(document.getElementById('orderDiscount').value  || 0) || 0;
   const surcharge = parseFloat(document.getElementById('orderSurcharge').value || 0) || 0;
-  const total = Math.max(0, subtotal - discount + surcharge);
+  const freight   = parseFloat(document.getElementById('orderFreight').value   || 0) || 0;
+  const total = Math.max(0, subtotal - discount + surcharge + freight);
   const payment = document.getElementById('orderPayment').value;
   const orderDate = document.getElementById('orderDate').value;
   const installments = payment === 'Parcelado' ? parseInt(document.getElementById('orderInstallments').value) : 1;
@@ -1914,6 +1934,7 @@ async function saveOrder() {
     type: currentOrderType, value: total, payment,
     order_date: orderDate,
     discount: discount || 0,
+    freight: freight || 0,
     installments: installments,
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
@@ -2072,7 +2093,8 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
   const subtotal = items.reduce((a, i) => a + i.price * i.qty, 0);
   const discount = parseFloat(extra.discount || 0);
   const surcharge = parseFloat(extra.surcharge || 0);
-  const total = Math.max(0, subtotal - discount + surcharge);
+  const freight = parseFloat(extra.freight || 0);
+  const total = Math.max(0, subtotal - discount + surcharge + freight);
   const installments = parseInt(extra.installments || 1);
   const showDiscount = extra.showDiscount !== false;
   const showInstallments = extra.showInstallments !== false;
@@ -2185,6 +2207,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
         <tfoot>
           ${showDiscount && discount > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#22c55e;">Desconto</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#22c55e;font-weight:700;">- R$ ${discount.toFixed(2).replace('.',',')}</td></tr>` : ''}
           ${showDiscount && surcharge > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#f0a500;">Acréscimo</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#f0a500;font-weight:700;">+ R$ ${surcharge.toFixed(2).replace('.',',')}</td></tr>` : ''}
+          ${freight > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#3b82f6;">Frete</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#3b82f6;font-weight:700;">+ R$ ${freight.toFixed(2).replace('.',',')}</td></tr>` : ''}
           <tr style="border-top:2px solid #e8210a;background:#fff8f8;">
             <td colspan="4" style="padding:6px 8px;font-size:11px;font-weight:700;text-align:right;color:#666;">TOTAL GERAL</td>
             <td style="padding:6px 8px;text-align:right;font-size:13px;font-weight:800;color:#e8210a;">R$ ${total.toFixed(2).replace('.',',')}</td>
@@ -2214,8 +2237,9 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
 
 function generateOrderPDF() {
   if (!selectedOrderClient) { showToast('⚠️ Selecione um cliente', 'error'); return; }
-  const discount = parseFloat(document.getElementById('orderDiscount').value || 0) || 0;
-  const surcharge = parseFloat(document.getElementById('orderSurcharge').value || 0) || 0;
+  const discount    = parseFloat(document.getElementById('orderDiscount').value  || 0) || 0;
+  const surcharge   = parseFloat(document.getElementById('orderSurcharge').value || 0) || 0;
+  const freight     = parseFloat(document.getElementById('orderFreight').value   || 0) || 0;
   const installments = parseInt(document.getElementById('orderInstallments')?.value || 1);
   const showDiscount = document.getElementById('pdfShowDiscount')?.checked !== false;
   const showInstallments = document.getElementById('pdfShowInstallments')?.checked !== false;
@@ -2223,7 +2247,7 @@ function generateOrderPDF() {
   buildPDF(selectedOrderClient, currentOrderType, orderItems,
     document.getElementById('orderPayment').value,
     showObs ? document.getElementById('orderObs').value : '',
-    { discount, surcharge, installments, order_date: document.getElementById('orderDate').value, showDiscount, showInstallments }
+    { discount, surcharge, freight, installments, order_date: document.getElementById('orderDate').value, showDiscount, showInstallments }
   );
 }
 
@@ -2232,7 +2256,7 @@ function viewOrderPDF(id) {
   if (!o) return;
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
   buildPDF({ name: o.client, cnpj: o.cnpj, address: o.client_address, phone: o.client_phone, email: o.client_email, city: o.client_city }, o.type, items, o.payment, o.obs,
-    { discount: o.discount || 0, installments: o.installments || 1, order_date: o.order_date, id: o.id }
+    { discount: o.discount || 0, freight: o.freight || 0, installments: o.installments || 1, order_date: o.order_date, id: o.id }
   );
 }
 
