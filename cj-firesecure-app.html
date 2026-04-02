@@ -141,10 +141,20 @@ textarea.input{resize:none;height:70px}
 
     <!-- Stats principais -->
     <div class="stats-grid">
-      <div class="stat-card"><div style="font-size:22px;">👥</div><div style="font-size:26px;font-weight:800;color:var(--primary);margin-top:4px;" id="statClients">—</div><div style="color:var(--sub);font-size:11px;">Clientes</div></div>
       <div class="stat-card"><div style="font-size:22px;">📋</div><div style="font-size:26px;font-weight:800;color:var(--secondary);margin-top:4px;" id="statOrders">—</div><div style="color:var(--sub);font-size:11px;">Pedidos</div></div>
       <div class="stat-card"><div style="font-size:22px;">💰</div><div style="font-size:22px;font-weight:800;color:var(--success);margin-top:4px;" id="statBilling">—</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
-      <div class="stat-card"><div style="font-size:22px;">📦</div><div style="font-size:26px;font-weight:800;color:var(--danger);margin-top:4px;" id="statStock">—</div><div style="color:var(--sub);font-size:11px;">Itens em Falta</div></div>
+      <div class="stat-card" style="grid-column:1/-1;cursor:pointer;border-color:#22c55e44;" onclick="navigate('caixa')">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">💳 Saldo em Caixa</div>
+            <div style="font-size:26px;font-weight:900;" id="statCaixa">—</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:20px;color:var(--sub);">›</div>
+            <div style="font-size:10px;color:var(--sub);margin-top:2px;">Ver detalhes</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Relatório financeiro do mês -->
@@ -168,7 +178,7 @@ textarea.input{resize:none;height:70px}
 
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Acesso Rápido</div>
     <div class="quick-grid">
-      <div class="quick-btn" onclick="navigate('clients')"><span class="icon">👥</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Clientes</span></div>
+      <div class="quick-btn" onclick="navigate('caixa')"><span class="icon">💳</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Caixa</span></div>
       <div class="quick-btn" onclick="navigate('orders')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Pedidos</span></div>
       <div class="quick-btn" onclick="navigate('nbr')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Inspeção</span></div>
       <div class="quick-btn" onclick="navigate('billing')"><span class="icon">💰</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Cobranças</span></div>
@@ -668,11 +678,19 @@ textarea.input{resize:none;height:70px}
 <!-- MODAL: Caixa - Saldo Inicial -->
 <div class="modal-overlay" id="caixaConfigModal">
   <div class="modal">
-    <div class="modal-title">⚙️ Saldo Inicial do Caixa</div>
-    <button class="modal-close" onclick="closeModal('caixaConfigModal')">✕</button>
-    <div style="color:var(--sub);font-size:12px;margin-bottom:16px;">Informe quanto você tem na conta hoje. Este valor será a base do caixa e as entradas/saídas serão calculadas a partir daí.</div>
-    <div class="field"><label class="label">Saldo Atual na Conta (R$)</label><input class="input" id="caixaSaldoInicialInput" type="number" step="0.01" placeholder="0,00" /></div>
-    <button class="btn btn-primary" onclick="saveCaixaConfig()">✓ Salvar Saldo</button>
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Configurar Caixa</div>
+      <button class="modal-close" onclick="closeModal('caixaConfigModal')">✕</button>
+    </div>
+    <div style="color:var(--sub);font-size:12px;margin-bottom:16px;">
+      Informe o saldo que você tinha na data de início. Somente entradas e saídas <strong style="color:var(--text);">a partir dessa data</strong> serão somadas ao cálculo.
+    </div>
+    <div class="field"><label class="label">Data de Início *</label><input class="input" id="caixaDataInicio" type="date" /></div>
+    <div class="field"><label class="label">Saldo na Conta nessa Data (R$)</label><input class="input" id="caixaSaldoInicialInput" type="number" step="0.01" placeholder="0,00" /></div>
+    <div style="background:#3b82f618;border:1px solid #3b82f644;border-radius:10px;padding:10px 12px;font-size:11px;color:#93c5fd;margin-bottom:16px;">
+      💡 Exemplo: se você quer acompanhar a partir de hoje, coloque a data de hoje e o saldo atual da sua conta.
+    </div>
+    <button class="btn btn-primary" onclick="saveCaixaConfig()">✓ Salvar Configuração</button>
   </div>
 </div>
 
@@ -1304,12 +1322,25 @@ async function loadHomeData() {
     ]);
 
     // Stats
-    document.getElementById('statClients').textContent = clients.length;
     document.getElementById('statOrders').textContent = orders.length;
     const totalReceber = billing.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
     document.getElementById('statBilling').textContent = 'R$' + totalReceber.toFixed(0);
-    const low = stock.filter(s => parseInt(s.qty) <= parseInt(s.min_qty || 0)).length;
-    document.getElementById('statStock').textContent = low;
+
+    // Caixa na home
+    try {
+      const caixaConfig = await dbGet('caixa_config', {});
+      const saldoInicial = parseFloat(caixaConfig[0]?.saldo_inicial || 0);
+      const dataInicio   = caixaConfig[0]?.data_inicio ? new Date(caixaConfig[0].data_inicio + 'T00:00:00') : null;
+      const aposInicio   = (ds) => { if (!dataInicio) return true; if (!ds) return false; return new Date(ds) >= dataInicio; };
+      const entB = billing.filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at)).reduce((s, b) => s + parseFloat(b.value || 0), 0);
+      const pags = await dbGet('obra_pagamentos', {});
+      const entO = pags.filter(p => p.status === 'Pago' && aposInicio(p.pag_date ? p.pag_date + 'T12:00:00' : (p.updated_at || p.created_at))).reduce((s, p) => s + parseFloat(p.value || 0), 0);
+      const saV  = expenses.filter(e => !e.is_template && e.type !== 'Fixo' && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : e.created_at)).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      const saF  = expenses.filter(e => !e.is_template && e.type === 'Fixo' && e.paid && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : e.created_at)).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      const saldo = saldoInicial + entB + entO - saV - saF;
+      const statEl = document.getElementById('statCaixa');
+      if (statEl) { statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + Math.abs(saldo).toFixed(0); statEl.style.color = saldo >= 0 ? '#22c55e' : 'var(--danger)'; }
+    } catch(e) { console.warn('Caixa home err', e); }
 
     // Financeiro do mês
     const now = new Date();
@@ -5085,23 +5116,31 @@ async function loadCaixa() {
   ]);
 
   const saldoInicial = parseFloat(config[0]?.saldo_inicial || 0);
+  const dataInicio   = config[0]?.data_inicio ? new Date(config[0].data_inicio + 'T00:00:00') : null;
+
+  // Helper: retorna true se a data do registro é >= data_inicio
+  const aposInicio = (dateStr) => {
+    if (!dataInicio) return true;
+    if (!dateStr) return false;
+    return new Date(dateStr) >= dataInicio;
+  };
 
   const entBilling = billing
-    .filter(b => b.status === 'Pago')
+    .filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at))
     .reduce((s, b) => s + parseFloat(b.value || 0), 0);
 
   const entObras = obraPags
-    .filter(p => p.status === 'Pago')
+    .filter(p => p.status === 'Pago' && aposInicio(p.pag_date ? p.pag_date + 'T12:00:00' : (p.updated_at || p.created_at)))
     .reduce((s, p) => s + parseFloat(p.value || 0), 0);
 
   const totalEntradas = entBilling + entObras;
 
   const saidasVar = expenses
-    .filter(e => !e.is_template && e.type !== 'Fixo')
+    .filter(e => !e.is_template && e.type !== 'Fixo' && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : (e.created_at)))
     .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 
   const saidasFixo = expenses
-    .filter(e => !e.is_template && e.type === 'Fixo' && e.paid)
+    .filter(e => !e.is_template && e.type === 'Fixo' && e.paid && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : (e.created_at)))
     .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 
   const saldo = saldoInicial + totalEntradas - saidasVar - saidasFixo;
@@ -5123,23 +5162,32 @@ async function loadCaixa() {
   document.getElementById('caixaSaidasFixo').textContent    = 'R$ ' + saidasFixo.toFixed(2).replace('.', ',');
   document.getElementById('caixaEntBilling').textContent    = 'R$ ' + entBilling.toFixed(2).replace('.', ',');
   document.getElementById('caixaEntObras').textContent      = 'R$ ' + entObras.toFixed(2).replace('.', ',');
+
+  // Atualiza card na home se existir
+  const statEl = document.getElementById('statCaixa');
+  if (statEl) {
+    statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + Math.abs(saldo).toFixed(0);
+    statEl.style.color = cor;
+  }
 }
 
 async function openCaixaConfig() {
   const config = await dbGet('caixa_config', {});
   document.getElementById('caixaSaldoInicialInput').value = config[0]?.saldo_inicial || '';
+  document.getElementById('caixaDataInicio').value = config[0]?.data_inicio || '';
   openModal('caixaConfigModal');
 }
 
 async function saveCaixaConfig() {
-  const valor = parseFloat(document.getElementById('caixaSaldoInicialInput').value || 0) || 0;
+  const valor      = parseFloat(document.getElementById('caixaSaldoInicialInput').value || 0) || 0;
+  const dataInicio = document.getElementById('caixaDataInicio').value || null;
   const config = await dbGet('caixa_config', {});
   if (config[0]) {
-    await dbUpdate('caixa_config', config[0].id, { saldo_inicial: valor });
+    await dbUpdate('caixa_config', config[0].id, { saldo_inicial: valor, data_inicio: dataInicio });
   } else {
-    await dbInsert('caixa_config', { saldo_inicial: valor });
+    await dbInsert('caixa_config', { saldo_inicial: valor, data_inicio: dataInicio });
   }
-  showToast('✅ Saldo inicial salvo!', 'success');
+  showToast('✅ Caixa configurado!', 'success');
   closeModal('caixaConfigModal');
   loadCaixa();
 }
