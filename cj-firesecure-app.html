@@ -644,7 +644,7 @@ textarea.input{resize:none;height:70px}
     <div class="field"><label class="label">Valor (R$) *</label><input class="input" id="templateAmount" type="number" step="0.01" placeholder="0,00" /></div>
     <div class="field"><label class="label">Categoria</label>
       <select class="input" id="templateCategory">
-        <option>Aluguel</option><option>Salário</option><option>Água</option><option>Energia Elétrica</option>
+        <option>Aluguel</option><option>Salário</option><option>Remuneração - Caio Vinícius</option><option>Remuneração - Jhonatan Freitas</option><option>Água</option><option>Energia Elétrica</option>
         <option>Internet</option><option>Telefone</option><option>Contabilidade</option><option>Outros Fixos</option>
       </select>
     </div>
@@ -1651,11 +1651,7 @@ function searchOrderClient() {
   const q = document.getElementById('orderClientSearch').value.toLowerCase();
   const dd = document.getElementById('orderClientDropdown');
   if (!q || q.length < 2) { dd.style.display = 'none'; return; }
-  const qDigits = q.replace(/\D/g,'');
-  const matches = allClients.filter(c =>
-    c.name?.toLowerCase().includes(q) ||
-    (qDigits.length >= 2 && c.cnpj?.replace(/\D/g,'').includes(qDigits))
-  ).slice(0, 6);
+  const matches = allClients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 6);
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
   dd.innerHTML = matches.map(c => `<div onclick="selectOrderClient(${c.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${c.name}${c.cnpj ? '<br><span style="color:var(--sub);font-size:11px;">' + c.cnpj + '</span>' : ''}</div>`).join('');
@@ -2229,7 +2225,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
     <!-- RODAPÉ -->
     ${obs ? `<div style="border:1px solid #ddd;margin-bottom:8px;">
       <div style="background:#555;color:#fff;padding:4px 8px;font-size:11px;font-weight:700;text-transform:uppercase;">Observações</div>
-      <div style="padding:8px;font-size:10px;line-height:1.5;color:#444;">${obs}</div>
+      <div style="padding:8px;font-size:10px;line-height:1.6;color:#444;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;max-width:100%;">${obs}</div>
     </div>` : ''}
     <div style="border-top:2px solid #e8210a;padding-top:8px;text-align:center;color:#999;font-size:9px;">
       CJ FireSecure Ltda · CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025 · cjextintores28@gmail.com · Segurança contra incêndio
@@ -4205,7 +4201,7 @@ let expenseCurrentMonth = new Date().getMonth();
 let expenseCurrentYear = new Date().getFullYear();
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const EXPENSE_CAT_FIXED  = ['Aluguel','Salário','Água','Energia Elétrica','Internet','Telefone','Contabilidade','Outros Fixos'];
+const EXPENSE_CAT_FIXED  = ['Aluguel','Salário','Remuneração - Caio Vinícius','Remuneração - Jhonatan Freitas','Água','Energia Elétrica','Internet','Telefone','Contabilidade','Outros Fixos'];
 const EXPENSE_CAT_VAR    = ['Alimentação','Combustível','Pedágio','Manutenção Veículo','Materiais','Outros'];
 
 function changeExpenseMonth(dir) {
@@ -4276,14 +4272,18 @@ async function loadExpenses() {
       const badge = e.type === 'Fixo'
         ? `<span style="font-size:10px;background:#22c55e22;color:#22c55e;border-radius:6px;padding:2px 6px;font-weight:700;">Fixo</span>`
         : `<span style="font-size:10px;background:#f0a50022;color:var(--secondary);border-radius:6px;padding:2px 6px;font-weight:700;">Variável</span>`;
+      const paidBtn = e.paid
+        ? `<button onclick="toggleExpensePaid(${e.id}, false)" title="Marcar como não pago" style="background:#22c55e22;border:1px solid #22c55e44;border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;">✅</button>`
+        : `<button onclick="toggleExpensePaid(${e.id}, true)" title="Marcar como pago" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;opacity:0.5;">⬜</button>`;
       html += `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="background:var(--card);border:1px solid ${e.paid ? '#22c55e44' : 'var(--border)'};border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;${e.paid ? 'opacity:0.75;' : ''}">
           <div style="flex:1;">
-            <div style="font-weight:700;font-size:13px;">${e.name} ${badge}</div>
+            <div style="font-weight:700;font-size:13px;">${e.name} ${badge}${e.paid ? ' <span style="font-size:10px;background:#22c55e22;color:#22c55e;border-radius:6px;padding:2px 6px;">Pago</span>' : ''}</div>
             <div style="color:var(--sub);font-size:11px;margin-top:2px;">${dateStr}${e.notes ? ' · ' + e.notes : ''}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="font-weight:800;font-size:15px;color:var(--primary);">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${paidBtn}
+            <div style="font-weight:800;font-size:15px;color:${e.paid ? 'var(--success)' : 'var(--primary)'};">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</div>
             <button onclick="openExpenseForm(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="background:none;border:none;font-size:16px;cursor:pointer;">✏️</button>
             <button onclick="deleteExpense(${e.id})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
           </div>
@@ -4369,6 +4369,12 @@ async function saveExpense() {
   } else {
     showToast('❌ Erro ao salvar', 'error');
   }
+}
+
+async function toggleExpensePaid(id, paid) {
+  await dbUpdate('expenses', id, { paid });
+  showToast(paid ? '✅ Marcado como pago!' : '↩️ Marcado como não pago', 'success');
+  loadExpenses();
 }
 
 async function deleteExpense(id) {
