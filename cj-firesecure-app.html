@@ -1334,7 +1334,7 @@ function checkClientDuplicate(name) {
   if (!name || name.length < 3) { warn.style.display = 'none'; return; }
   const cnpjDigitado = document.getElementById('clientCnpj')?.value.replace(/\D/g,'') || '';
   const existing = allClients.find(c => {
-    if (cnpjDigitado && c.cnpj) return c.cnpj.replace(/\D/g,'') === cnpjDigitado;
+    if (cnpjDigitado) return c.cnpj?.replace(/\D/g,'') === cnpjDigitado;
     return c.name?.toLowerCase().trim() === name.toLowerCase().trim();
   });
   if (existing) {
@@ -1370,9 +1370,8 @@ async function saveClient() {
   // Mesmo nome mas CNPJ diferente = empresa com filiais = permitido
   const cnpjDigitado = document.getElementById('clientCnpj').value.trim();
   const existing = allClients.find(c => {
-    if (cnpjDigitado && c.cnpj) {
-      // Compara só dígitos
-      return c.cnpj.replace(/\D/g,'') === cnpjDigitado.replace(/\D/g,'');
+    if (cnpjDigitado) {
+      return c.cnpj?.replace(/\D/g,'') === cnpjDigitado.replace(/\D/g,'');
     }
     // Sem CNPJ: compara nome exato
     return c.name?.toLowerCase().trim() === name.toLowerCase().trim();
