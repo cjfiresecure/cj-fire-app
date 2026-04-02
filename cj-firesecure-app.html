@@ -75,46 +75,21 @@ textarea.input{resize:none;height:70px}
 
 <div class="toast" id="toast"></div>
 
-<!-- TELA DE LOGIN -->
+<!-- TELA DE SELEÇÃO -->
 <div id="selectScreen" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);">
-  <div style="margin-bottom:8px;">
-    <img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="width:80px;height:80px;border-radius:16px;object-fit:cover;" />
-    <span style="display:none;font-size:60px;">🦅</span>
-  </div>
+  <div style="font-size:60px;margin-bottom:8px;"><img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="width:80px;height:80px;border-radius:16px;object-fit:cover;" /><span style="display:none;">🦅</span></div>
   <div style="color:#e8210a;font-weight:900;font-size:20px;letter-spacing:1px;margin-bottom:4px;">CJ FIRE APP</div>
-  <div style="color:var(--sub);font-size:13px;margin-bottom:32px;">CJ FireSecure Ltda</div>
-
-  <!-- Formulário de login -->
-  <div id="loginForm" style="width:100%;max-width:340px;">
-    <div style="margin-bottom:14px;">
-      <label style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">E-mail</label>
-      <input id="loginEmail" type="email" placeholder="seu@email.com" class="input" autocomplete="email" />
-    </div>
-    <div style="margin-bottom:8px;">
-      <label style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Senha</label>
-      <div style="position:relative;">
-        <input id="loginPassword" type="password" placeholder="••••••••" class="input" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:44px;" />
-        <button onclick="toggleLoginPwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--sub);font-size:16px;cursor:pointer;" id="loginPwdEye">👁️</button>
-      </div>
-    </div>
-    <div style="text-align:right;margin-bottom:20px;">
-      <button onclick="showForgotPassword()" style="background:none;border:none;color:var(--sub);font-size:12px;cursor:pointer;text-decoration:underline;">Esqueci minha senha</button>
-    </div>
-    <div id="loginError" style="display:none;background:#ef444418;border:1px solid #ef444444;border-radius:10px;padding:10px 14px;color:var(--danger);font-size:13px;margin-bottom:14px;text-align:center;"></div>
-    <button onclick="doLogin()" id="loginBtn" class="btn btn-primary">🔐 Entrar</button>
-  </div>
-
-  <!-- Formulário de recuperação de senha -->
-  <div id="forgotForm" style="width:100%;max-width:340px;display:none;">
-    <div style="color:var(--text);font-weight:700;font-size:16px;margin-bottom:6px;">Recuperar senha</div>
-    <div style="color:var(--sub);font-size:12px;margin-bottom:16px;">Digite seu e-mail e enviaremos um link para redefinir sua senha.</div>
-    <div style="margin-bottom:14px;">
-      <label style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">E-mail</label>
-      <input id="forgotEmail" type="email" placeholder="seu@email.com" class="input" autocomplete="email" />
-    </div>
-    <div id="forgotMsg" style="display:none;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px;text-align:center;"></div>
-    <button onclick="doForgotPassword()" id="forgotBtn" class="btn btn-primary">📧 Enviar link de recuperação</button>
-    <button onclick="showLoginForm()" style="width:100%;margin-top:10px;background:none;border:1px solid var(--border);border-radius:12px;padding:13px;color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;">← Voltar ao login</button>
+  <div style="color:var(--sub);font-size:13px;margin-bottom:40px;">CJ FireSecure Ltda</div>
+  <div style="color:var(--sub);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Quem está acessando?</div>
+  <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;">
+    <a href="?user=caio" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;">
+      <div style="width:46px;height:46px;border-radius:50%;background:#e8210a22;display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>
+      <div><div style="color:var(--text);font-weight:700;font-size:15px;">Caio Vinícius</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Gestor · Dono</div></div>
+    </a>
+    <a href="?user=jhonatan" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;">
+      <div style="width:46px;height:46px;border-radius:50%;background:#f0a50022;display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>
+      <div><div style="color:var(--text);font-weight:700;font-size:15px;">Jhonatan</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Sócio · Gestor</div></div>
+    </a>
   </div>
 </div>
 
@@ -133,7 +108,6 @@ textarea.input{resize:none;height:70px}
         <button onclick="openGlobalSearch()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;">🔍</button>
         <button onclick="toggleTheme()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;" id="themeBtn">🌙</button>
         <button onclick="exportBackup()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">💾</button>
-        <button onclick="doLogout()" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Sair">🚪</button>
       </div>
       <div style="font-size:18px;font-weight:700;">Olá, <span id="homeUserName">Gestor</span> 👋</div>
       <div style="color:var(--sub);font-size:12px;margin-top:3px;" id="homeDate"></div>
@@ -245,6 +219,7 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('nbr')" style="border-color:#f0a50044;"><div style="font-size:28px;">📋</div><div style="font-weight:700;color:var(--secondary);">Inspeção NBR</div><div style="color:var(--sub);font-size:11px;">Checklist 12962</div></button>
       <button class="menu-item" onclick="navigate('expenses')" style="border-color:#22c55e44;"><div style="font-size:28px;">💸</div><div style="font-weight:700;color:#22c55e;">Gastos</div><div style="color:var(--sub);font-size:11px;">Controle de custos</div></button>
       <button class="menu-item" onclick="navigate('obras')" style="border-color:#3b82f644;"><div style="font-size:28px;">🏗️</div><div style="font-weight:700;color:#3b82f6;">Obras</div><div style="color:var(--sub);font-size:11px;">Serviços de mão de obra</div></button>
+      <button class="menu-item" onclick="navigate('caixa')" style="border-color:#22c55e44;"><div style="font-size:28px;">💳</div><div style="font-weight:700;color:#22c55e;">Caixa</div><div style="color:var(--sub);font-size:11px;">Saldo em tempo real</div></button>
     </div>
   </div>
 
@@ -514,6 +489,60 @@ textarea.input{resize:none;height:70px}
     <div id="obrasList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
+
+  <!-- CAIXA -->
+  <div id="screen-caixa" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">💳 Caixa</div><div style="color:var(--sub);font-size:12px;">Saldo em tempo real</div></div>
+      <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openCaixaConfig()">⚙️ Saldo inicial</button>
+    </div>
+
+    <!-- Card saldo atual -->
+    <div id="caixaSaldoCard" style="background:linear-gradient(135deg,#0d2137,#0a3d2e);border:2px solid #22c55e44;border-radius:18px;padding:20px;margin-bottom:16px;text-align:center;">
+      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">SALDO ATUAL EM CAIXA</div>
+      <div style="font-size:36px;font-weight:900;" id="caixaSaldoAtual">R$ 0,00</div>
+      <div style="color:var(--sub);font-size:11px;margin-top:6px;">Atualizado agora</div>
+    </div>
+
+    <!-- Breakdown -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+      <div style="background:var(--card);border:1px solid #22c55e44;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">💰 SALDO INICIAL</div>
+        <div style="font-size:15px;font-weight:800;color:#22c55e;" id="caixaSaldoInicial">R$ 0,00</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #22c55e44;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📥 ENTRADAS</div>
+        <div style="font-size:15px;font-weight:800;color:#22c55e;" id="caixaTotalEntradas">R$ 0,00</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #e8210a44;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📤 SAÍDAS VARIÁVEIS</div>
+        <div style="font-size:15px;font-weight:800;color:var(--primary);" id="caixaSaidasVar">R$ 0,00</div>
+      </div>
+      <div style="background:var(--card);border:1px solid #e8210a44;border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📤 SAÍDAS FIXAS PAGAS</div>
+        <div style="font-size:15px;font-weight:800;color:var(--primary);" id="caixaSaidasFixo">R$ 0,00</div>
+      </div>
+    </div>
+
+    <!-- Detalhamento entradas -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Detalhamento de Entradas</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+        <span style="color:var(--text);">Cobranças pagas</span>
+        <span style="color:#22c55e;font-weight:700;" id="caixaEntBilling">R$ 0,00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;">
+        <span style="color:var(--text);">Pagamentos de obras</span>
+        <span style="color:#22c55e;font-weight:700;" id="caixaEntObras">R$ 0,00</span>
+      </div>
+    </div>
+
+    <!-- Observação -->
+    <div style="background:#f0a50011;border:1px solid #f0a50033;border-radius:10px;padding:10px 14px;">
+      <div style="font-size:11px;color:var(--secondary);">ℹ️ Gastos variáveis são descontados automaticamente. Gastos fixos só são descontados após você marcar como ✅ pago na aba Gastos.</div>
+    </div>
+  </div>
+
   <!-- NAV -->
   <nav class="bottom-nav">
     <button class="nav-btn active" onclick="navigate('home')" id="nav-home"><span class="icon">🏠</span><span class="label">Início</span></button>
@@ -612,6 +641,17 @@ textarea.input{resize:none;height:70px}
     <button class="modal-close" onclick="closeModal('obraDetailModal')">✕</button>
     <div id="obraDetailContent"></div>
     <button class="btn btn-primary" style="margin-top:8px;" onclick="openObraPagamento(currentObraId)">+ Lançar Pagamento</button>
+  </div>
+</div>
+
+<!-- MODAL: Caixa - Saldo Inicial -->
+<div class="modal-overlay" id="caixaConfigModal">
+  <div class="modal">
+    <div class="modal-title">⚙️ Saldo Inicial do Caixa</div>
+    <button class="modal-close" onclick="closeModal('caixaConfigModal')">✕</button>
+    <div style="color:var(--sub);font-size:12px;margin-bottom:16px;">Informe quanto você tem na conta hoje. Este valor será a base do caixa e as entradas/saídas serão calculadas a partir daí.</div>
+    <div class="field"><label class="label">Saldo Atual na Conta (R$)</label><input class="input" id="caixaSaldoInicialInput" type="number" step="0.01" placeholder="0,00" /></div>
+    <button class="btn btn-primary" onclick="saveCaixaConfig()">✓ Salvar Saldo</button>
   </div>
 </div>
 
@@ -1208,7 +1248,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, obras: loadObras,
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, obras: loadObras, caixa: loadCaixa,
     expenses: () => {
       const now = new Date();
       expenseCurrentMonth = now.getMonth();
@@ -4198,156 +4238,32 @@ async function generateMonthlyReport() {
 }
 
 // ============================================================
-// AUTH
+// INIT
 // ============================================================
-const ALLOWED_EMAILS = ['caio20152012@gmail.com', 'crisdaianesousa123@outlook.com'];
+window.addEventListener('load', () => {
+  const params = new URLSearchParams(window.location.search);
+  const user = params.get('user');
 
-const USER_NAMES = {
-  'caio20152012@gmail.com': 'Caio Vinícius',
-  'crisdaianesousa123@outlook.com': 'Jhonatan'
-};
-
-function showLoginForm() {
-  document.getElementById('loginForm').style.display = 'block';
-  document.getElementById('forgotForm').style.display = 'none';
-  document.getElementById('loginError').style.display = 'none';
-}
-
-function showForgotPassword() {
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('forgotForm').style.display = 'block';
-  document.getElementById('forgotMsg').style.display = 'none';
-  const email = document.getElementById('loginEmail').value;
-  if (email) document.getElementById('forgotEmail').value = email;
-}
-
-function toggleLoginPwd() {
-  const input = document.getElementById('loginPassword');
-  const eye = document.getElementById('loginPwdEye');
-  if (input.type === 'password') { input.type = 'text'; eye.textContent = '🙈'; }
-  else { input.type = 'password'; eye.textContent = '👁️'; }
-}
-
-async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const password = document.getElementById('loginPassword').value;
-  const errEl = document.getElementById('loginError');
-  const btn = document.getElementById('loginBtn');
-
-  if (!email || !password) { errEl.textContent = '⚠️ Preencha e-mail e senha.'; errEl.style.display = 'block'; return; }
-  if (!ALLOWED_EMAILS.includes(email)) { errEl.textContent = '🚫 E-mail não autorizado.'; errEl.style.display = 'block'; return; }
-
-  btn.textContent = '⏳ Entrando...'; btn.disabled = true; errEl.style.display = 'none';
-
-  const sb = await waitForSB();
-  if (!sb) { errEl.textContent = '❌ Erro de conexão. Tente novamente.'; errEl.style.display = 'block'; btn.textContent = '🔐 Entrar'; btn.disabled = false; return; }
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-
-  btn.textContent = '🔐 Entrar'; btn.disabled = false;
-
-  if (error) {
-    if (error.message.includes('Invalid login') || error.message.includes('invalid')) {
-      errEl.textContent = '❌ E-mail ou senha incorretos.';
-    } else if (error.message.includes('Email not confirmed')) {
-      errEl.textContent = '📧 Confirme seu e-mail antes de entrar.';
-    } else {
-      errEl.textContent = '❌ ' + error.message;
-    }
-    errEl.style.display = 'block';
+  if (!user) {
+    document.getElementById('selectScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
     return;
   }
 
-  launchApp(data.user.email);
-}
-
-async function doForgotPassword() {
-  const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
-  const msgEl = document.getElementById('forgotMsg');
-  const btn = document.getElementById('forgotBtn');
-
-  if (!email) { msgEl.textContent = '⚠️ Digite seu e-mail.'; msgEl.style.background = '#ef444418'; msgEl.style.color = 'var(--danger)'; msgEl.style.display = 'block'; return; }
-  if (!ALLOWED_EMAILS.includes(email)) { msgEl.textContent = '🚫 E-mail não autorizado.'; msgEl.style.background = '#ef444418'; msgEl.style.color = 'var(--danger)'; msgEl.style.display = 'block'; return; }
-
-  btn.textContent = '⏳ Enviando...'; btn.disabled = true;
-
-  const sb = await waitForSB();
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + window.location.pathname
-  });
-
-  btn.textContent = '📧 Enviar link de recuperação'; btn.disabled = false;
-
-  if (error) {
-    msgEl.textContent = '❌ Erro: ' + error.message;
-    msgEl.style.background = '#ef444418'; msgEl.style.color = 'var(--danger)';
-  } else {
-    msgEl.textContent = '✅ Link enviado! Verifique seu e-mail.';
-    msgEl.style.background = '#22c55e18'; msgEl.style.color = 'var(--success)';
-  }
-  msgEl.style.display = 'block';
-}
-
-async function doLogout() {
-  if (!confirm('Deseja sair do app?')) return;
-  const sb = await waitForSB();
-  if (sb) await sb.auth.signOut();
-  document.getElementById('selectScreen').style.display = 'flex';
-  document.getElementById('mainApp').style.display = 'none';
-  document.getElementById('loginPassword').value = '';
-  showLoginForm();
-}
-
-function launchApp(email) {
-  const userName = USER_NAMES[email] || email.split('@')[0];
+  let userName = user === 'caio' ? 'Caio Vinícius' : user === 'jhonatan' ? 'Jhonatan' : 'Gestor';
   document.getElementById('selectScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
   document.getElementById('homeUserName').textContent = userName;
   loadHomeData();
   setDate();
   loadTheme();
+
+  // Solicita permissão de notificações push
   setTimeout(() => requestPushPermission(), 2000);
+
+  // Verifica alertas a cada 30 minutos
   checkAndSendAlerts();
   setInterval(checkAndSendAlerts, 30 * 60 * 1000);
-}
-
-// ============================================================
-// INIT
-// ============================================================
-window.addEventListener('load', async () => {
-  loadTheme();
-
-  // Verifica se há recuperação de senha em andamento (hash #access_token)
-  const hash = window.location.hash;
-  if (hash.includes('type=recovery')) {
-    const newPwd = prompt('Digite sua nova senha (mínimo 6 caracteres):');
-    if (newPwd && newPwd.length >= 6) {
-      const sb = await waitForSB();
-      const { error } = await sb.auth.updateUser({ password: newPwd });
-      if (error) { alert('Erro: ' + error.message); }
-      else { alert('✅ Senha atualizada com sucesso! Faça login.'); }
-      window.location.hash = '';
-    }
-    document.getElementById('selectScreen').style.display = 'flex';
-    document.getElementById('mainApp').style.display = 'none';
-    return;
-  }
-
-  // Verifica sessão ativa
-  const sb = await waitForSB();
-  if (!sb) {
-    document.getElementById('selectScreen').style.display = 'flex';
-    document.getElementById('mainApp').style.display = 'none';
-    return;
-  }
-
-  const { data: { session } } = await sb.auth.getSession();
-  if (session && ALLOWED_EMAILS.includes(session.user.email.toLowerCase())) {
-    launchApp(session.user.email.toLowerCase());
-  } else {
-    document.getElementById('selectScreen').style.display = 'flex';
-    document.getElementById('mainApp').style.display = 'none';
-  }
 });
 
 // ============================================================
@@ -4428,18 +4344,24 @@ async function loadExpenses() {
       const badge = e.type === 'Fixo'
         ? `<span style="font-size:10px;background:#22c55e22;color:#22c55e;border-radius:6px;padding:2px 6px;font-weight:700;">Fixo</span>`
         : `<span style="font-size:10px;background:#f0a50022;color:var(--secondary);border-radius:6px;padding:2px 6px;font-weight:700;">Variável</span>`;
-      const paidBtn = e.paid
-        ? `<button onclick="toggleExpensePaid(${e.id}, false)" title="Marcar como não pago" style="background:#22c55e22;border:1px solid #22c55e44;border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;">✅</button>`
-        : `<button onclick="toggleExpensePaid(${e.id}, true)" title="Marcar como pago" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;opacity:0.5;">⬜</button>`;
+      // Tick só aparece para gastos FIXOS
+      const isFixo = e.type === 'Fixo';
+      const paidBtn = isFixo
+        ? (e.paid
+          ? `<button onclick="toggleExpensePaid(${e.id}, false)" title="Marcar como não pago" style="background:#22c55e22;border:1px solid #22c55e44;border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;">✅</button>`
+          : `<button onclick="toggleExpensePaid(${e.id}, true)" title="Marcar como pago" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;opacity:0.5;">⬜</button>`)
+        : '';
+      const borderColor = isFixo && e.paid ? '#22c55e44' : 'var(--border)';
+      const opacity = isFixo && e.paid ? 'opacity:0.75;' : '';
       html += `
-        <div style="background:var(--card);border:1px solid ${e.paid ? '#22c55e44' : 'var(--border)'};border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;${e.paid ? 'opacity:0.75;' : ''}">
+        <div style="background:var(--card);border:1px solid ${borderColor};border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;${opacity}">
           <div style="flex:1;">
-            <div style="font-weight:700;font-size:13px;">${e.name} ${badge}${e.paid ? ' <span style="font-size:10px;background:#22c55e22;color:#22c55e;border-radius:6px;padding:2px 6px;">Pago</span>' : ''}</div>
+            <div style="font-weight:700;font-size:13px;">${e.name} ${badge}${isFixo && e.paid ? ' <span style="font-size:10px;background:#22c55e22;color:#22c55e;border-radius:6px;padding:2px 6px;">Pago</span>' : ''}</div>
             <div style="color:var(--sub);font-size:11px;margin-top:2px;">${dateStr}${e.notes ? ' · ' + e.notes : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             ${paidBtn}
-            <div style="font-weight:800;font-size:15px;color:${e.paid ? 'var(--success)' : 'var(--primary)'};">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</div>
+            <div style="font-weight:800;font-size:15px;color:${isFixo && e.paid ? 'var(--success)' : 'var(--primary)'};">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</div>
             <button onclick="openExpenseForm(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="background:none;border:none;font-size:16px;cursor:pointer;">✏️</button>
             <button onclick="deleteExpense(${e.id})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
           </div>
@@ -5003,6 +4925,86 @@ async function deleteObraPagamento(pagId, obraId) {
   showToast('🗑️ Pagamento removido', 'success');
   closeModal('obraDetailModal');
   await openObraDetail(obraId);
+}
+
+// ============================================================
+// CAIXA
+// ============================================================
+async function loadCaixa() {
+  // Atualiza card visual enquanto carrega
+  document.getElementById('caixaSaldoAtual').textContent = '⏳';
+
+  const [billing, obraPags, expenses, config] = await Promise.all([
+    dbGet('billing', {}),
+    dbGet('obra_pagamentos', {}),
+    dbGet('expenses', {}),
+    dbGet('caixa_config', {})
+  ]);
+
+  // Saldo inicial
+  const saldoInicial = parseFloat(config[0]?.saldo_inicial || 0);
+
+  // Entradas: cobranças pagas
+  const entBilling = billing
+    .filter(b => b.status === 'Pago')
+    .reduce((s, b) => s + parseFloat(b.value || 0), 0);
+
+  // Entradas: pagamentos de obras confirmados
+  const entObras = obraPags
+    .filter(p => p.status === 'Pago')
+    .reduce((s, p) => s + parseFloat(p.value || 0), 0);
+
+  const totalEntradas = entBilling + entObras;
+
+  // Saídas variáveis: sempre deduzi (não é template)
+  const saidasVar = expenses
+    .filter(e => !e.is_template && e.type !== 'Fixo')
+    .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+
+  // Saídas fixas: só quando marcadas como pagas
+  const saidasFixo = expenses
+    .filter(e => !e.is_template && e.type === 'Fixo' && e.paid)
+    .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+
+  const saldo = saldoInicial + totalEntradas - saidasVar - saidasFixo;
+
+  // Atualiza UI
+  const cor = saldo >= 0 ? '#22c55e' : 'var(--danger)';
+  const saldoEl = document.getElementById('caixaSaldoAtual');
+  saldoEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toFixed(2).replace('.', ',');
+  saldoEl.style.color = cor;
+
+  const cardEl = document.getElementById('caixaSaldoCard');
+  cardEl.style.border = `2px solid ${saldo >= 0 ? '#22c55e44' : '#ef444444'}`;
+  cardEl.style.background = saldo >= 0
+    ? 'linear-gradient(135deg,#0d2137,#0a3d2e)'
+    : 'linear-gradient(135deg,#1a0a04,#2d1008)';
+
+  document.getElementById('caixaSaldoInicial').textContent  = 'R$ ' + saldoInicial.toFixed(2).replace('.', ',');
+  document.getElementById('caixaTotalEntradas').textContent = 'R$ ' + totalEntradas.toFixed(2).replace('.', ',');
+  document.getElementById('caixaSaidasVar').textContent     = 'R$ ' + saidasVar.toFixed(2).replace('.', ',');
+  document.getElementById('caixaSaidasFixo').textContent    = 'R$ ' + saidasFixo.toFixed(2).replace('.', ',');
+  document.getElementById('caixaEntBilling').textContent    = 'R$ ' + entBilling.toFixed(2).replace('.', ',');
+  document.getElementById('caixaEntObras').textContent      = 'R$ ' + entObras.toFixed(2).replace('.', ',');
+}
+
+async function openCaixaConfig() {
+  const config = await dbGet('caixa_config', {});
+  document.getElementById('caixaSaldoInicialInput').value = config[0]?.saldo_inicial || '';
+  openModal('caixaConfigModal');
+}
+
+async function saveCaixaConfig() {
+  const valor = parseFloat(document.getElementById('caixaSaldoInicialInput').value || 0) || 0;
+  const config = await dbGet('caixa_config', {});
+  if (config[0]) {
+    await dbUpdate('caixa_config', config[0].id, { saldo_inicial: valor });
+  } else {
+    await dbInsert('caixa_config', { saldo_inicial: valor });
+  }
+  showToast('✅ Saldo inicial salvo!', 'success');
+  closeModal('caixaConfigModal');
+  loadCaixa();
 }
 </script>
 </body>
