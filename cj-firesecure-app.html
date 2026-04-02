@@ -1334,7 +1334,7 @@ function checkClientDuplicate(name) {
   if (!name || name.length < 3) { warn.style.display = 'none'; return; }
   const cnpjDigitado = document.getElementById('clientCnpj')?.value.replace(/\D/g,'') || '';
   const existing = allClients.find(c => {
-    if (cnpjDigitado) return c.cnpj?.replace(/\D/g,'') === cnpjDigitado;
+    if (cnpjDigitado && c.cnpj) return c.cnpj.replace(/\D/g,'') === cnpjDigitado;
     return c.name?.toLowerCase().trim() === name.toLowerCase().trim();
   });
   if (existing) {
@@ -1370,8 +1370,9 @@ async function saveClient() {
   // Mesmo nome mas CNPJ diferente = empresa com filiais = permitido
   const cnpjDigitado = document.getElementById('clientCnpj').value.trim();
   const existing = allClients.find(c => {
-    if (cnpjDigitado) {
-      return c.cnpj?.replace(/\D/g,'') === cnpjDigitado.replace(/\D/g,'');
+    if (cnpjDigitado && c.cnpj) {
+      // Compara só dígitos
+      return c.cnpj.replace(/\D/g,'') === cnpjDigitado.replace(/\D/g,'');
     }
     // Sem CNPJ: compara nome exato
     return c.name?.toLowerCase().trim() === name.toLowerCase().trim();
@@ -1650,7 +1651,11 @@ function searchOrderClient() {
   const q = document.getElementById('orderClientSearch').value.toLowerCase();
   const dd = document.getElementById('orderClientDropdown');
   if (!q || q.length < 2) { dd.style.display = 'none'; return; }
-  const matches = allClients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 6);
+  const qDigits = q.replace(/\D/g,'');
+  const matches = allClients.filter(c =>
+    c.name?.toLowerCase().includes(q) ||
+    (qDigits.length >= 2 && c.cnpj?.replace(/\D/g,'').includes(qDigits))
+  ).slice(0, 6);
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
   dd.innerHTML = matches.map(c => `<div onclick="selectOrderClient(${c.id})" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${c.name}${c.cnpj ? '<br><span style="color:var(--sub);font-size:11px;">' + c.cnpj + '</span>' : ''}</div>`).join('');
