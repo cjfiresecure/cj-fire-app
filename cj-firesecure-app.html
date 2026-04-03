@@ -141,19 +141,12 @@ textarea.input{resize:none;height:70px}
 
     <!-- Stats principais -->
     <div class="stats-grid">
-      <div class="stat-card"><div style="font-size:22px;">📋</div><div style="font-size:26px;font-weight:800;color:var(--secondary);margin-top:4px;" id="statOrders">—</div><div style="color:var(--sub);font-size:11px;">Pedidos</div></div>
-      <div class="stat-card"><div style="font-size:22px;">💰</div><div style="font-size:22px;font-weight:800;color:var(--success);margin-top:4px;" id="statBilling">—</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
-      <div class="stat-card" style="grid-column:1/-1;cursor:pointer;border-color:#22c55e44;" onclick="navigate('caixa')">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">💳 Saldo em Caixa</div>
-            <div style="font-size:26px;font-weight:900;" id="statCaixa">—</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:20px;color:var(--sub);">›</div>
-            <div style="font-size:10px;color:var(--sub);margin-top:2px;">Ver detalhes</div>
-          </div>
-        </div>
+      <div class="stat-card" style="text-align:center;"><div style="font-size:22px;">📋</div><div style="font-size:26px;font-weight:800;color:var(--secondary);margin-top:4px;" id="statOrders">—</div><div style="color:var(--sub);font-size:11px;">Pedidos</div></div>
+      <div class="stat-card" style="text-align:center;"><div style="font-size:22px;">💰</div><div style="font-size:20px;font-weight:800;color:var(--success);margin-top:4px;" id="statBilling">—</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
+      <div class="stat-card" style="grid-column:1/-1;cursor:pointer;border-color:#22c55e44;text-align:center;" onclick="navigate('caixa')">
+        <div style="font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💳 Saldo em Caixa</div>
+        <div style="font-size:30px;font-weight:900;" id="statCaixa">—</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:4px;">Ver detalhes ›</div>
       </div>
     </div>
 
@@ -178,7 +171,7 @@ textarea.input{resize:none;height:70px}
 
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Acesso Rápido</div>
     <div class="quick-grid">
-      <div class="quick-btn" onclick="navigate('caixa')"><span class="icon">💳</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Caixa</span></div>
+      <div class="quick-btn" onclick="navigate('obras')"><span class="icon">🏗️</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Obras</span></div>
       <div class="quick-btn" onclick="navigate('orders')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Pedidos</span></div>
       <div class="quick-btn" onclick="navigate('nbr')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Inspeção</span></div>
       <div class="quick-btn" onclick="navigate('billing')"><span class="icon">💰</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Cobranças</span></div>
@@ -1324,7 +1317,7 @@ async function loadHomeData() {
     // Stats
     document.getElementById('statOrders').textContent = orders.length;
     const totalReceber = billing.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-    document.getElementById('statBilling').textContent = 'R$' + totalReceber.toFixed(0);
+    document.getElementById('statBilling').textContent = 'R$ ' + totalReceber.toFixed(2).replace('.', ',');
 
     // Caixa na home
     try {
@@ -1339,7 +1332,7 @@ async function loadHomeData() {
       const saF  = expenses.filter(e => !e.is_template && e.type === 'Fixo' && e.paid && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : e.created_at)).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
       const saldo = saldoInicial + entB + entO - saV - saF;
       const statEl = document.getElementById('statCaixa');
-      if (statEl) { statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + Math.abs(saldo).toFixed(0); statEl.style.color = saldo >= 0 ? '#22c55e' : 'var(--danger)'; }
+      if (statEl) { statEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toFixed(2).replace('.', ','); statEl.style.color = saldo >= 0 ? '#22c55e' : 'var(--danger)'; }
     } catch(e) { console.warn('Caixa home err', e); }
 
     // Financeiro do mês
