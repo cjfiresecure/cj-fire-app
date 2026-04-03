@@ -1356,16 +1356,16 @@ async function loadHomeData() {
     });
     const recebidoObras  = monthObraPags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
 
-    // Saldo pendente de obras "Finalizada · A Receber" (contrato - já recebido total)
-    const pendenteObrasFinalizadas = obras
-      .filter(o => o.status === 'Finalizada · A Receber')
+    // Pendente de obras = todas obras não canceladas: contrato - já recebido total
+    const pendenteObras = obras
+      .filter(o => o.status !== 'Cancelada')
       .reduce((sum, o) => {
         const totalPago = obraPags.filter(p => p.obra_id === o.id && p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
         return sum + Math.max(0, parseFloat(o.value || 0) - totalPago);
       }, 0);
 
     const recebido = recebidoPedidos + recebidoObras;
-    const pendente = pendentePedidos + pendenteObrasFinalizadas;
+    const pendente = pendentePedidos + pendenteObras;
 
     // Gastos do mês
     const monthExpenses = expenses.filter(e => {
@@ -4756,7 +4756,13 @@ async function loadObras() {
   // Calcula totais globais
   const totalContratos = obras.reduce((a, o) => a + parseFloat(o.value || 0), 0);
   const totalRecebido  = pags.filter(p => p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
-  const totalPendente  = pags.filter(p => p.status !== 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+  // Pendente = soma de (contrato - já recebido) para cada obra não cancelada
+  const totalPendente  = obras
+    .filter(o => o.status !== 'Cancelada')
+    .reduce((sum, o) => {
+      const recebidoObra = pags.filter(p => p.obra_id === o.id && p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
+      return sum + Math.max(0, parseFloat(o.value || 0) - recebidoObra);
+    }, 0);
   document.getElementById('obrasTotalContratos').textContent = 'R$ ' + totalContratos.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   document.getElementById('obrasTotalRecebido').textContent  = 'R$ ' + totalRecebido.toFixed(0);
   document.getElementById('obrasTotalPendente').textContent  = 'R$ ' + totalPendente.toFixed(0);
