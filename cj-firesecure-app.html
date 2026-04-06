@@ -703,6 +703,116 @@ textarea.input{resize:none;height:70px}
   </div>
 </div>
 
+<!-- MODAL: Forma de Pagamento -->
+<div class="modal-overlay" id="paymentMethodModal">
+  <div class="modal">
+    <div class="modal-title">💳 Como foi o pagamento?</div>
+    <button class="modal-close" onclick="closeModal('paymentMethodModal')">✕</button>
+    <input type="hidden" id="pmBillingId" value="">
+
+    <!-- Valor original -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;text-align:center;">
+      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Valor da Cobrança</div>
+      <div style="font-size:22px;font-weight:900;color:var(--success);" id="pmValorOriginal">R$ 0,00</div>
+    </div>
+
+    <!-- Seleção do método -->
+    <div id="pmStep1">
+      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Forma de Pagamento</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
+        <button onclick="selectPayMethod('pix')" style="background:#3b82f618;border:1px solid #3b82f644;border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="font-size:24px;">📱</div>
+          <div style="color:#3b82f6;font-weight:700;font-size:13px;margin-top:4px;">PIX</div>
+          <div style="color:var(--sub);font-size:10px;">Sem taxa</div>
+        </button>
+        <button onclick="selectPayMethod('dinheiro')" style="background:#22c55e18;border:1px solid #22c55e44;border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="font-size:24px;">💵</div>
+          <div style="color:#22c55e;font-weight:700;font-size:13px;margin-top:4px;">Dinheiro</div>
+          <div style="color:var(--sub);font-size:10px;">Sem taxa</div>
+        </button>
+        <button onclick="selectPayMethod('debito')" style="background:#f0a50018;border:1px solid #f0a50044;border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="font-size:24px;">💳</div>
+          <div style="color:var(--secondary);font-weight:700;font-size:13px;margin-top:4px;">Débito</div>
+          <div style="color:var(--sub);font-size:10px;">Taxa 1,37%</div>
+        </button>
+        <button onclick="selectPayMethod('credito')" style="background:#e8210a18;border:1px solid #e8210a44;border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="font-size:24px;">💳</div>
+          <div style="color:var(--primary);font-weight:700;font-size:13px;margin-top:4px;">Crédito</div>
+          <div style="color:var(--sub);font-size:10px;">Taxa 3,15%+</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Passo 2: Crédito à vista ou parcelado -->
+    <div id="pmStep2" style="display:none;">
+      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Crédito — Quantas parcelas?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <button onclick="selectInstallments(1)" style="background:#22c55e18;border:1px solid #22c55e44;border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:#22c55e;font-weight:800;font-size:16px;">À Vista</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 3,15%</div>
+        </button>
+        <button onclick="selectInstallments(2)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">2x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 5,39%</div>
+        </button>
+        <button onclick="selectInstallments(3)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">3x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 6,12%</div>
+        </button>
+        <button onclick="selectInstallments(4)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">4x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 6,85%</div>
+        </button>
+        <button onclick="selectInstallments(5)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">5x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 7,57%</div>
+        </button>
+        <button onclick="selectInstallments(6)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">6x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 8,28%</div>
+        </button>
+        <button onclick="selectInstallments(7)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">7x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 8,99%</div>
+        </button>
+        <button onclick="selectInstallments(8)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">8x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 9,69%</div>
+        </button>
+        <button onclick="selectInstallments(9)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">9x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 10,38%</div>
+        </button>
+        <button onclick="selectInstallments(10)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">10x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 11,06%</div>
+        </button>
+        <button onclick="selectInstallments(11)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">11x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 11,74%</div>
+        </button>
+        <button onclick="selectInstallments(12)" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;">
+          <div style="color:var(--text);font-weight:800;font-size:16px;">12x</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:2px;">Taxa 12,40%</div>
+        </button>
+      </div>
+      <button onclick="document.getElementById('pmStep2').style.display='none';document.getElementById('pmStep1').style.display='block';" style="width:100%;background:none;border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--sub);font-size:13px;cursor:pointer;">← Voltar</button>
+    </div>
+
+    <!-- Passo 3: Resumo e confirmação -->
+    <div id="pmStep3" style="display:none;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="color:var(--sub);">Forma de pagamento</span><span style="color:var(--text);font-weight:700;" id="pmResumoMetodo">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="color:var(--sub);">Valor bruto</span><span style="color:var(--text);font-weight:700;" id="pmResumoBruto">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;" id="pmTaxaRow"><span style="color:var(--danger);">Taxa maquininha</span><span style="color:var(--danger);font-weight:700;" id="pmResumoTaxa">—</span></div>
+        <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:15px;font-weight:800;"><span style="color:var(--success);">Líquido no caixa</span><span style="color:var(--success);" id="pmResumoLiquido">—</span></div>
+      </div>
+      <button onclick="confirmPayment()" class="btn btn-primary" id="pmConfirmBtn">✅ Confirmar Pagamento</button>
+      <button onclick="document.getElementById('pmStep3').style.display='none';document.getElementById('pmStep1').style.display='block';" style="width:100%;background:none;border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--sub);font-size:13px;cursor:pointer;margin-top:8px;">← Alterar forma de pagamento</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Lançar Gasto -->
 <div class="modal-overlay" id="expenseFormModal">
   <div class="modal">
@@ -1343,7 +1453,7 @@ async function loadHomeData() {
       const saldoInicial = parseFloat(caixaConfig[0]?.saldo_inicial || 0);
       const dataInicio   = caixaConfig[0]?.data_inicio ? new Date(caixaConfig[0].data_inicio + 'T00:00:00') : null;
       const aposInicio   = (ds) => { if (!dataInicio) return true; if (!ds) return false; return new Date(ds) >= dataInicio; };
-      const entB = billing.filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at)).reduce((s, b) => s + parseFloat(b.value || 0), 0);
+      const entB = billing.filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at)).reduce((s, b) => s + parseFloat(b.value || 0) - parseFloat(b.tax_amount || 0), 0);
       const pags = await dbGet('obra_pagamentos', {});
       const entO = pags.filter(p => p.status === 'Pago' && aposInicio(p.pag_date ? p.pag_date + 'T12:00:00' : (p.updated_at || p.created_at))).reduce((s, p) => s + parseFloat(p.value || 0), 0);
       const saV  = expenses.filter(e => !e.is_template && e.type !== 'Fixo' && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : e.created_at)).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
@@ -1422,7 +1532,7 @@ async function loadHomeData() {
       return d && d < todayB;
     });
     const billingVencendo = billing.filter(b => {
-      if (b.status === 'Pago') return false;
+      if (b.status === 'Pago' || b.status === 'Vencido') return false;
       const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
       return d && d >= todayB && d <= in3;
     });
@@ -2712,51 +2822,118 @@ function renderBillingList() {
   }).join('');
 }
 
-async function markPaid(id) {
-  const paidAt = new Date().toISOString();
-  await dbUpdate('billing', id, { status: 'Pago', paid_at: paidAt });
+// Tabela de taxas Mastercard/Visa (plano 1 dia útil)
+const MAQUININHA_TAXAS = { debito: 1.37, 1: 3.15, 2: 5.39, 3: 6.12, 4: 6.85, 5: 7.57, 6: 8.28, 7: 8.99, 8: 9.69, 9: 10.38, 10: 11.06, 11: 11.74, 12: 12.40 };
 
+let _pmBillingId = null;
+let _pmMethod = null;
+let _pmInstallments = 1;
+let _pmTaxRate = 0;
+
+function markPaid(id) {
+  const billing = _billingData.find(b => b.id === id);
+  if (!billing) return;
+  _pmBillingId = id;
+  _pmMethod = null;
+  document.getElementById('pmBillingId').value = id;
+  document.getElementById('pmValorOriginal').textContent = 'R$ ' + parseFloat(billing.value||0).toFixed(2).replace('.',',');
+  document.getElementById('pmStep1').style.display = 'block';
+  document.getElementById('pmStep2').style.display = 'none';
+  document.getElementById('pmStep3').style.display = 'none';
+  openModal('paymentMethodModal');
+}
+
+function selectPayMethod(method) {
+  _pmMethod = method;
+  if (method === 'credito') {
+    document.getElementById('pmStep1').style.display = 'none';
+    document.getElementById('pmStep2').style.display = 'block';
+    return;
+  }
+  _pmInstallments = 1;
+  _pmTaxRate = method === 'debito' ? MAQUININHA_TAXAS.debito : 0;
+  showPmResumo();
+}
+
+function selectInstallments(n) {
+  _pmInstallments = n;
+  _pmTaxRate = MAQUININHA_TAXAS[n] || 0;
+  document.getElementById('pmStep2').style.display = 'none';
+  showPmResumo();
+}
+
+function showPmResumo() {
+  const billing = _billingData.find(b => b.id === _pmBillingId);
+  const bruto = parseFloat(billing?.value || 0);
+  const taxa = bruto * _pmTaxRate / 100;
+  const liquido = bruto - taxa;
+  const metodoLabel = {
+    pix: 'PIX', dinheiro: 'Dinheiro',
+    debito: `Débito (taxa ${MAQUININHA_TAXAS.debito}%)`,
+    credito: _pmInstallments === 1 ? `Crédito à vista (taxa ${MAQUININHA_TAXAS[1]}%)` : `Crédito ${_pmInstallments}x (taxa ${MAQUININHA_TAXAS[_pmInstallments]}%)`
+  }[_pmMethod] || _pmMethod;
+  document.getElementById('pmResumoMetodo').textContent = metodoLabel;
+  document.getElementById('pmResumoBruto').textContent = 'R$ ' + bruto.toFixed(2).replace('.',',');
+  document.getElementById('pmResumoTaxa').textContent = taxa > 0 ? '- R$ ' + taxa.toFixed(2).replace('.',',') : 'Sem taxa';
+  document.getElementById('pmTaxaRow').style.display = taxa > 0 ? 'flex' : 'none';
+  document.getElementById('pmResumoLiquido').textContent = 'R$ ' + liquido.toFixed(2).replace('.',',');
+  document.getElementById('pmStep3').style.display = 'block';
+}
+
+async function confirmPayment() {
+  const id = _pmBillingId;
+  const btn = document.getElementById('pmConfirmBtn');
+  btn.textContent = '⏳ Salvando...'; btn.disabled = true;
+
+  const billing = _billingData.find(b => b.id === id);
+  const bruto = parseFloat(billing?.value || 0);
+  const taxa = bruto * _pmTaxRate / 100;
+  const paidAt = new Date().toISOString();
+
+  await dbUpdate('billing', id, {
+    status: 'Pago',
+    paid_at: paidAt,
+    payment_method: _pmMethod,
+    card_installments: _pmMethod === 'credito' ? _pmInstallments : null,
+    tax_rate: _pmTaxRate,
+    tax_amount: parseFloat(taxa.toFixed(2))
+  });
+
+  closeModal('paymentMethodModal');
+  btn.textContent = '✅ Confirmar Pagamento'; btn.disabled = false;
+
+  // Lógica de atualização do pedido
   const allBilling = await dbGet('billing', {});
   const b = allBilling.find(x => x.id === id);
-  if (!b) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
+  if (!b) { showToast('✅ Pago!', 'success'); loadBilling(); return; }
 
-  // Determina o order_id
   let orderId = b.order_id ? parseInt(b.order_id) : null;
   let orderNum = null;
-
   if (!orderId || orderId === 0) {
-    // Tenta extrair do service — só aceita APP-NNN onde NNN > 0
     const match = (b.service || '').match(/APP-0*([1-9]\d*)/);
-    if (!match) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
+    if (!match) { showToast('✅ Pago!', 'success'); loadBilling(); return; }
     orderId = parseInt(match[1]);
-    orderNum = `APP-${String(orderId).padStart(3,'0')}`;
-  } else {
-    orderNum = `APP-${String(orderId).padStart(3,'0')}`;
   }
+  orderNum = `APP-${String(orderId).padStart(3,'0')}`;
 
-  // Busca cobranças deste pedido — por order_id OU pelo número exato no service
   const orderBillings = allBilling.filter(x => {
     if (x.order_id && parseInt(x.order_id) === orderId) return true;
-    // Match exato: APP-022 seguido de espaço, ponto ou fim — evita APP-0220 bater em APP-022
     const svcMatch = (x.service || '').match(/APP-0*([1-9]\d*)/);
     return svcMatch && parseInt(svcMatch[1]) === orderId;
   });
-
-  const total    = orderBillings.length;
-  const pagas    = orderBillings.filter(x => x.status === 'Pago' || x.id === id).length;
+  const total = orderBillings.length;
+  const pagas = orderBillings.filter(x => x.status === 'Pago').length;
   const pendentes = total - pagas;
 
-  const orders  = await dbGet('orders', {});
+  const orders = await dbGet('orders', {});
   const related = orders.find(o => o.id === orderId);
-  if (!related) { showToast('✅ Marcado como pago!', 'success'); loadBilling(); return; }
-
-  if (pendentes === 0) {
+  if (related && pendentes === 0) {
     await dbUpdate('orders', related.id, { order_status: 'Concluído' });
     showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
   } else {
-    showToast(`✅ ${pagas}/${total} parcela(s) paga(s) · ${pendentes} ainda em aberto`, 'success');
+    const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toFixed(2).replace('.',',')}` : '';
+    showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
   }
-
   loadBilling();
 }
 async function deleteBilling(id) {
@@ -5167,7 +5344,7 @@ async function loadCaixa() {
 
   const entBilling = billing
     .filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at))
-    .reduce((s, b) => s + parseFloat(b.value || 0), 0);
+    .reduce((s, b) => s + parseFloat(b.value || 0) - parseFloat(b.tax_amount || 0), 0);
 
   const entObras = obraPags
     .filter(p => p.status === 'Pago' && aposInicio(p.pag_date ? p.pag_date + 'T12:00:00' : (p.updated_at || p.created_at)))
