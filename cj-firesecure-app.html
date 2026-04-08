@@ -569,12 +569,17 @@ textarea.input{resize:none;height:70px}
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
       <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Detalhamento de Entradas</div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
-        <span style="color:var(--text);">Cobranças pagas</span>
+        <span style="color:var(--text);">Cobranças pagas (líquido)</span>
         <span style="color:#22c55e;font-weight:700;" id="caixaEntBilling">R$ 0,00</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px;">
         <span style="color:var(--text);">Pagamentos de obras</span>
         <span style="color:#22c55e;font-weight:700;" id="caixaEntObras">R$ 0,00</span>
+      </div>
+      <!-- Breakdown por forma de pagamento -->
+      <div style="border-top:1px solid var(--border);padding-top:10px;">
+        <div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💳 Por forma de pagamento</div>
+        <div id="caixaPaymentBreakdown" style="display:flex;flex-direction:column;gap:5px;"></div>
       </div>
     </div>
     <!-- Observação -->
@@ -1309,6 +1314,14 @@ textarea.input{resize:none;height:70px}
 
 
 <script>
+// Formata valor como moeda brasileira com separador de milhar
+// Exemplo: 1234.5 → "1.234,50"
+function fmt(valor) {
+  return parseFloat(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtInt(valor) {
+  return parseFloat(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 // ============================================================
 // SUPABASE
 // ============================================================
@@ -1445,7 +1458,7 @@ async function loadHomeData() {
     // Stats
     document.getElementById('statOrders').textContent = orders.filter(o => o.order_status !== 'Cancelado').length;
     const totalReceber = billing.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-    document.getElementById('statBilling').textContent = 'R$ ' + totalReceber.toFixed(2).replace('.', ',');
+    document.getElementById('statBilling').textContent = 'R$ ' + totalReceber.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 
     // Caixa na home
     try {
@@ -1460,7 +1473,7 @@ async function loadHomeData() {
       const saF  = expenses.filter(e => !e.is_template && e.type === 'Fixo' && e.paid && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : e.created_at)).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
       const saldo = saldoInicial + entB + entO - saV - saF;
       const statEl = document.getElementById('statCaixa');
-      if (statEl) { statEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toFixed(2).replace('.', ','); statEl.style.color = saldo >= 0 ? '#22c55e' : 'var(--danger)'; }
+      if (statEl) { statEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); statEl.style.color = saldo >= 0 ? '#22c55e' : 'var(--danger)'; }
     } catch(e) { console.warn('Caixa home err', e); }
 
     // Financeiro do mês
@@ -1505,11 +1518,11 @@ async function loadHomeData() {
     const totalGastos = monthExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0);
     const resultado = recebido - totalGastos;
 
-    document.getElementById('monthRevenue').textContent = 'R$' + recebido.toFixed(0);
-    document.getElementById('monthPending').textContent = 'R$' + pendente.toFixed(0);
-    document.getElementById('monthExpenses').textContent = 'R$' + totalGastos.toFixed(0);
+    document.getElementById('monthRevenue').textContent = 'R$' + fmtInt(recebido);
+    document.getElementById('monthPending').textContent = 'R$' + fmtInt(pendente);
+    document.getElementById('monthExpenses').textContent = 'R$' + fmtInt(totalGastos);
     const resEl = document.getElementById('monthResult');
-    resEl.textContent = (resultado >= 0 ? '+' : '') + 'R$' + resultado.toFixed(0);
+    resEl.textContent = (resultado >= 0 ? '+' : '') + 'R$' + fmtInt(resultado);
     resEl.style.color = resultado >= 0 ? 'var(--success)' : 'var(--primary)';
 
     // Alertas de extintores vencendo
@@ -1538,7 +1551,7 @@ async function loadHomeData() {
     });
     if (billingVencidas.length > 0) {
       document.getElementById('homeBillingAlertVencido').style.display = 'block';
-      document.getElementById('homeBillingVencidoText').textContent = `${billingVencidas.length} cobrança(s) vencida(s) — total R$ ${billingVencidas.reduce((s,b)=>s+parseFloat(b.value||0),0).toFixed(2).replace('.',',')}`;
+      document.getElementById('homeBillingVencidoText').textContent = `${billingVencidas.length} cobrança(s) vencida(s) — total R$ ${billingVencidas.reduce((s,b)=>s+parseFloat(b.value||0),0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     }
     if (billingVencendo.length > 0) {
       document.getElementById('homeBillingAlertVencendo').style.display = 'block';
@@ -1732,9 +1745,9 @@ async function loadOrders() {
     const pedidos = allOrders.filter(o => o.type === 'Pedido');
     const orcs = allOrders.filter(o => o.type === 'Orçamento');
     document.getElementById('ordersCountPedido').textContent = pedidos.length + ' pedidos';
-    document.getElementById('ordersTotalPedido').textContent = 'R$ ' + pedidos.reduce((a, o) => a + parseFloat(o.value || 0), 0).toFixed(2).replace('.', ',');
+    document.getElementById('ordersTotalPedido').textContent = 'R$ ' + pedidos.reduce((a, o) => a + parseFloat(o.value || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     document.getElementById('ordersCountOrc').textContent = orcs.length + ' orçamentos';
-    document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toFixed(2).replace('.', ',');
+    document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     renderOrders();
   } catch(e) { console.error('loadOrders:', e); document.getElementById('ordersList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar pedidos.</div>'; }
 }
@@ -1785,7 +1798,7 @@ function renderOrders() {
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
         <div><div style="color:var(--sub);font-size:11px;">${o.payment || 'À vista'}</div><div style="color:var(--sub);font-size:10px;">📅 ${date}</div></div>
         <div style="text-align:right;">
-          <div style="font-weight:800;font-size:16px;">R$ ${parseFloat(o.value || 0).toFixed(2).replace('.', ',')}</div>
+          <div style="font-weight:800;font-size:16px;">R$ ${parseFloat(o.value || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
           <span style="color:${o.type === 'Pedido' ? 'var(--success)' : 'var(--secondary)'};font-weight:800;font-size:13px;">${o.type}</span>
         </div>
       </div>
@@ -1843,7 +1856,7 @@ async function recriarCobranca(id) {
   }
 
   // Confirmação antes de recriar
-  const msg = `Recriar cobrança do ${orderNum} no valor de R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')} para ${o.client}?`;
+  const msg = `Recriar cobrança do ${orderNum} no valor de R$ ${parseFloat(o.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} para ${o.client}?`;
   if (!confirm(msg)) return;
 
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
@@ -2047,7 +2060,7 @@ function renderOrderItems() {
         <button onclick="changeQty(${i},-1)" style="width:32px;height:32px;border-radius:8px;background:#e8210a22;color:var(--primary);border:1px solid #e8210a44;font-size:18px;font-weight:700;cursor:pointer;">−</button>
         <span data-qty style="font-weight:700;font-size:15px;min-width:24px;text-align:center;">${item.qty}</span>
         <button onclick="changeQty(${i},1)" style="width:32px;height:32px;border-radius:8px;background:#e8210a22;color:var(--primary);border:1px solid #e8210a44;font-size:18px;font-weight:700;cursor:pointer;">+</button>
-        <div data-sub style="margin-left:auto;color:var(--secondary);font-weight:800;">R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</div>
+        <div data-sub style="margin-left:auto;color:var(--secondary);font-weight:800;">R$ ${(item.price * item.qty).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
       </div>
     </div>`).join('');
   updateOrderTotal();
@@ -2061,7 +2074,7 @@ function changeQty(i, d) {
     const qtySpan = cards[i].querySelector('[data-qty]');
     const subDiv  = cards[i].querySelector('[data-sub]');
     if (qtySpan) qtySpan.textContent = orderItems[i].qty;
-    if (subDiv)  subDiv.textContent  = 'R$ ' + (orderItems[i].price * orderItems[i].qty).toFixed(2).replace('.', ',');
+    if (subDiv)  subDiv.textContent  = 'R$ ' + (orderItems[i].price * orderItems[i].qty).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   }
   updateOrderTotal();
 }
@@ -2073,7 +2086,7 @@ function changeItemPrice(i, val) {
     const cards = document.getElementById('orderProductsList').children;
     if (cards[i]) {
       const subDiv = cards[i].querySelector('[data-sub]');
-      if (subDiv) subDiv.textContent = 'R$ ' + (orderItems[i].price * orderItems[i].qty).toFixed(2).replace('.', ',');
+      if (subDiv) subDiv.textContent = 'R$ ' + (orderItems[i].price * orderItems[i].qty).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     }
     updateOrderTotal();
   }
@@ -2085,8 +2098,8 @@ function updateOrderTotal() {
   const discountPct = parseFloat(document.getElementById('orderSurcharge')?.value || 0) || 0;
   const freight     = parseFloat(document.getElementById('orderFreight')?.value   || 0) || 0;
   const total = Math.max(0, subtotal - discount - (subtotal * discountPct / 100) + freight);
-  if (document.getElementById('orderSubtotal')) document.getElementById('orderSubtotal').textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
-  document.getElementById('orderTotal').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+  if (document.getElementById('orderSubtotal')) document.getElementById('orderSubtotal').textContent = 'R$ ' + subtotal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('orderTotal').textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   calcInstallments();
 }
 
@@ -2119,7 +2132,7 @@ function calcInstallments() {
     return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:8px;padding:8px 12px;">
       <div style="color:var(--sub);font-size:12px;font-weight:700;">${i + 1}ª parcela</div>
       <div style="color:var(--text);font-size:12px;">📅 ${d.toLocaleDateString('pt-BR')}</div>
-      <div style="color:var(--secondary);font-weight:800;font-size:13px;">R$ ${parcel.toFixed(2).replace('.', ',')}</div>
+      <div style="color:var(--secondary);font-weight:800;font-size:13px;">R$ ${parcel.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
     </div>`;
   }).join('');
 }
@@ -2136,7 +2149,7 @@ function filterAddProduct() {
   document.getElementById('addProductList').innerHTML = list.map(p => `
     <div onclick="addProductToOrder(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price},'${p.unit||'un'}')" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
       <div><div style="font-weight:600;font-size:13px;">${p.name}</div><div style="color:var(--sub);font-size:11px;">${p.category}</div></div>
-      <div style="color:var(--secondary);font-weight:800;">R$ ${parseFloat(p.price || 0).toFixed(2).replace('.', ',')}</div>
+      <div style="color:var(--secondary);font-weight:800;">R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
     </div>`).join('');
 }
 
@@ -2271,7 +2284,7 @@ async function saveOrder() {
         const m = (b.service || '').match(/APP-0*([1-9]\d*)/);
         return m && parseInt(m[1]) === editingOrderId;
       });
-      const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
+      const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
       if (vinculadas.length === 1) {
         await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc });
       } else if (vinculadas.length > 1) {
@@ -2298,7 +2311,7 @@ async function saveOrder() {
 
         // Cobrança automática — parcelado cria uma cobrança por parcela
         const baseDate = new Date(orderDate ? orderDate + 'T12:00:00' : new Date());
-        const serviceDesc = `Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toFixed(2).replace('.',',')})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
+        const serviceDesc = `Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
         const orderNum = `APP-${String(result[0]?.id || result.id || '').padStart(3,'0')}`;
         const orderId  = result[0]?.id || result.id;
 
@@ -2372,7 +2385,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
   // Condição de pagamento
   let condicao = payment;
   if (payment === 'Parcelado' && installments > 1) {
-    condicao = `${installments}x de R$ ${(total/installments).toFixed(2).replace('.',',')}`;
+    condicao = `${installments}x de R$ ${(total/installments).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
   }
 
   // Parcelas
@@ -2393,7 +2406,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
             return `<tr style="background:${i%2===0?'#fff':'#f9f9f9'};border-bottom:1px solid #eee;">
               <td style="padding:5px 8px;font-size:10px;">${i+1}ª parcela</td>
               <td style="padding:5px;text-align:center;font-size:10px;">${d.toLocaleDateString('pt-BR')}</td>
-              <td style="padding:5px;text-align:right;font-size:10px;font-weight:700;">R$ ${parcel.toFixed(2).replace('.',',')}</td>
+              <td style="padding:5px;text-align:right;font-size:10px;font-weight:700;">R$ ${parcel.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
             </tr>`;
           }).join('')}</tbody>
         </table>
@@ -2467,17 +2480,17 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
             <td style="padding:6px 8px;font-size:10px;">${item.name}</td>
             <td style="padding:6px;text-align:center;font-size:10px;">${item.unit || 'UN'}</td>
             <td style="padding:6px;text-align:center;font-size:10px;">${item.qty}</td>
-            <td style="padding:6px;text-align:right;font-size:10px;">R$ ${parseFloat(item.price).toFixed(2).replace('.',',')}</td>
-            <td style="padding:6px;text-align:right;font-size:10px;font-weight:700;">R$ ${(item.price*item.qty).toFixed(2).replace('.',',')}</td>
+            <td style="padding:6px;text-align:right;font-size:10px;">R$ ${parseFloat(item.price).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td style="padding:6px;text-align:right;font-size:10px;font-weight:700;">R$ ${(item.price*item.qty).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
           </tr>`).join('')}
         </tbody>
         <tfoot>
-          ${showDiscount && discount > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#22c55e;">Desconto</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#22c55e;font-weight:700;">- R$ ${discount.toFixed(2).replace('.',',')}</td></tr>` : ''}
-          ${showDiscount && discountPct > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#f0a500;">Desconto ${discountPct}%</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#f0a500;font-weight:700;">- R$ ${discountPctValue.toFixed(2).replace('.',',')}</td></tr>` : ''}
-          ${freight > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#3b82f6;">Frete</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#3b82f6;font-weight:700;">+ R$ ${freight.toFixed(2).replace('.',',')}</td></tr>` : ''}
+          ${showDiscount && discount > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#22c55e;">Desconto</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#22c55e;font-weight:700;">- R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>` : ''}
+          ${showDiscount && discountPct > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#f0a500;">Desconto ${discountPct}%</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#f0a500;font-weight:700;">- R$ ${discountPctValue.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>` : ''}
+          ${freight > 0 ? `<tr style="background:#f9f9f9;border-bottom:1px solid #eee;"><td colspan="4" style="padding:5px 8px;font-size:10px;text-align:right;color:#3b82f6;">Frete</td><td style="padding:5px 8px;text-align:right;font-size:10px;color:#3b82f6;font-weight:700;">+ R$ ${freight.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>` : ''}
           <tr style="border-top:2px solid #e8210a;background:#fff8f8;">
             <td colspan="4" style="padding:6px 8px;font-size:11px;font-weight:700;text-align:right;color:#666;">TOTAL GERAL</td>
-            <td style="padding:6px 8px;text-align:right;font-size:13px;font-weight:800;color:#e8210a;">R$ ${total.toFixed(2).replace('.',',')}</td>
+            <td style="padding:6px 8px;text-align:right;font-size:13px;font-weight:800;color:#e8210a;">R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
           </tr>
         </tfoot>
       </table>
@@ -2738,8 +2751,8 @@ async function loadBilling() {
     const overdue = data.filter(b => b.status === 'Vencido');
     const warning = data.filter(b => { if (b.status === 'Pago' || b.status === 'Vencido') return false; const due = b.due_date ? new Date(b.due_date + 'T12:00:00') : null; return due && due <= in3 && due >= today; });
 
-    document.getElementById('billingTotal').textContent = 'R$ ' + pending.reduce((a,b) => a + parseFloat(b.value||0), 0).toFixed(2).replace('.', ',');
-    document.getElementById('billingOverdue').textContent = 'R$ ' + overdue.reduce((a,b) => a + parseFloat(b.value||0), 0).toFixed(2).replace('.', ',');
+    document.getElementById('billingTotal').textContent = 'R$ ' + pending.reduce((a,b) => a + parseFloat(b.value||0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('billingOverdue').textContent = 'R$ ' + overdue.reduce((a,b) => a + parseFloat(b.value||0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     if (document.getElementById('billingWarning')) document.getElementById('billingWarning').textContent = warning.length;
 
     _billingData = data;
@@ -2792,7 +2805,7 @@ function renderBillingList() {
     const bgStyle = isOverdue ? 'background:linear-gradient(135deg,#1a1d27,#1f0a0a);' : isWarning ? 'background:linear-gradient(135deg,#1a1d27,#1a1500);' : isPaid ? 'opacity:0.7;' : '';
     let daysInfo = '';
     if (isOverdue && due) {
-      daysInfo = `<div style="background:#ef444422;border-radius:8px;padding:8px 10px;margin-top:8px;"><div style="color:var(--danger);font-size:11px;font-weight:700;">🚨 ${calc.daysLate} dia(s) em atraso</div><div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;"><span style="color:var(--sub);">Multa (${b.multa??2}%)</span><span style="color:var(--danger);">+ R$ ${calc.multa.toFixed(2).replace('.',',')}</span></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px;"><span style="color:var(--sub);">Juros (${b.juros??1}% a.m.)</span><span style="color:var(--danger);">+ R$ ${calc.juros.toFixed(2).replace('.',',')}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid #ef444444;margin-top:6px;padding-top:6px;"><span style="color:var(--danger);">Total Atualizado</span><span style="color:var(--danger);">R$ ${calc.total.toFixed(2).replace('.',',')}</span></div></div>`;
+      daysInfo = `<div style="background:#ef444422;border-radius:8px;padding:8px 10px;margin-top:8px;"><div style="color:var(--danger);font-size:11px;font-weight:700;">🚨 ${calc.daysLate} dia(s) em atraso</div><div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;"><span style="color:var(--sub);">Multa (${b.multa??2}%)</span><span style="color:var(--danger);">+ R$ ${fmt(calc.multa)}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid #ef444444;margin-top:6px;padding-top:6px;"><span style="color:var(--danger);">Total Atualizado</span><span style="color:var(--danger);">R$ ${calc.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></div></div>`;
     } else if (isWarning && due) {
       const dl = Math.ceil((due - today) / (1000*60*60*24));
       daysInfo = `<div style="background:#f59e0b22;border-radius:8px;padding:8px 10px;margin-top:8px;"><div style="color:var(--warning);font-size:12px;font-weight:800;">⏰ VENCE EM ${dl} DIA(S)!</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Após o vencimento: Multa ${b.multa??2}% + Juros ${b.juros??1}% a.m.</div></div>`;
@@ -2808,7 +2821,7 @@ function renderBillingList() {
           ${daysInfo}
         </div>
         <div style="text-align:right;">
-          <div style="font-weight:800;font-size:15px;color:${isOverdue?'var(--danger)':isPaid?'var(--success)':'var(--secondary)'};">R$ ${parseFloat(b.value||0).toFixed(2).replace('.', ',')}</div>
+          <div style="font-weight:800;font-size:15px;color:${isOverdue?'var(--danger)':isPaid?'var(--success)':'var(--secondary)'};">R$ ${parseFloat(b.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
           <span class="badge badge-${isPaid?'success':isOverdue?'danger':isWarning?'warning':'secondary'}">${b.status||'Pendente'}</span>
         </div>
       </div>
@@ -2836,7 +2849,7 @@ function markPaid(id) {
   _pmBillingId = id;
   _pmMethod = null;
   document.getElementById('pmBillingId').value = id;
-  document.getElementById('pmValorOriginal').textContent = 'R$ ' + parseFloat(billing.value||0).toFixed(2).replace('.',',');
+  document.getElementById('pmValorOriginal').textContent = 'R$ ' + parseFloat(billing.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('pmStep1').style.display = 'block';
   document.getElementById('pmStep2').style.display = 'none';
   document.getElementById('pmStep3').style.display = 'none';
@@ -2873,10 +2886,10 @@ function showPmResumo() {
     credito: _pmInstallments === 1 ? `Crédito à vista (taxa ${MAQUININHA_TAXAS[1]}%)` : `Crédito ${_pmInstallments}x (taxa ${MAQUININHA_TAXAS[_pmInstallments]}%)`
   }[_pmMethod] || _pmMethod;
   document.getElementById('pmResumoMetodo').textContent = metodoLabel;
-  document.getElementById('pmResumoBruto').textContent = 'R$ ' + bruto.toFixed(2).replace('.',',');
-  document.getElementById('pmResumoTaxa').textContent = taxa > 0 ? '- R$ ' + taxa.toFixed(2).replace('.',',') : 'Sem taxa';
+  document.getElementById('pmResumoBruto').textContent = 'R$ ' + bruto.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('pmResumoTaxa').textContent = taxa > 0 ? '- R$ ' + taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'Sem taxa';
   document.getElementById('pmTaxaRow').style.display = taxa > 0 ? 'flex' : 'none';
-  document.getElementById('pmResumoLiquido').textContent = 'R$ ' + liquido.toFixed(2).replace('.',',');
+  document.getElementById('pmResumoLiquido').textContent = 'R$ ' + liquido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('pmStep3').style.display = 'block';
 }
 
@@ -2931,7 +2944,7 @@ async function confirmPayment() {
     await dbUpdate('orders', related.id, { order_status: 'Concluído' });
     showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
   } else {
-    const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toFixed(2).replace('.',',')}` : '';
+    const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
   }
   loadBilling();
@@ -2939,7 +2952,7 @@ async function confirmPayment() {
 async function deleteBilling(id) {
   const data = await dbGet('billing', {});
   const item = data.find(x => x.id === id);
-  confirmDelete(`💰 ${item?.client || 'Cobrança'} — R$ ${parseFloat(item?.value||0).toFixed(2).replace('.',',')}`, async () => {
+  confirmDelete(`💰 ${item?.client || 'Cobrança'} — R$ ${parseFloat(item?.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`, async () => {
     await dbDelete('billing', id);
     showToast('🗑️ Cobrança removida', 'success');
     loadBilling();
@@ -2962,13 +2975,13 @@ function calcBillingUpdated(value, dueDate, multa, juros) {
 function chargeWhatsApp(client, value, dueDate, multa, juros) {
   const calc = calcBillingUpdated(value, dueDate, multa, juros);
   let msg = `Olá ${client}! 👋\n\nVocê tem uma cobrança com a *CJ FireSecure*.\n\n`;
-  msg += `💰 Valor original: R$ ${calc.original.toFixed(2).replace('.',',')}\n`;
+  msg += `💰 Valor original: R$ ${calc.original.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
   msg += `📅 Vencimento: ${dueDate ? new Date(dueDate+'T12:00:00').toLocaleDateString('pt-BR') : '—'}\n`;
   if (calc.daysLate > 0) {
     msg += `\n⚠️ *Em atraso: ${calc.daysLate} dia(s)*\n`;
-    msg += `🚨 Multa (${multa||2}%): R$ ${calc.multa.toFixed(2).replace('.',',')}\n`;
-    msg += `📈 Juros (${juros||1}% a.m.): R$ ${calc.juros.toFixed(2).replace('.',',')}\n`;
-    msg += `\n💵 *Total atualizado: R$ ${calc.total.toFixed(2).replace('.',',')}*\n`;
+    msg += `🚨 Multa (${multa||2}%): R$ ${calc.multa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
+    msg += `📈 Juros (${juros||1}% a.m.): R$ ${calc.juros.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}\n`;
+    msg += `\n💵 *Total atualizado: R$ ${calc.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}*\n`;
   }
   msg += `\nPor favor, entre em contato para regularizar. Obrigado! 🔥\n*(34) 99706-0025*`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
@@ -3089,7 +3102,7 @@ function renderProducts(list) {
         <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:12px 14px;">
           <div style="flex:1;"><div style="font-weight:600;font-size:13px;">${p.name}</div><div style="color:var(--sub);font-size:10px;">por ${p.unit || 'un'}</div></div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="editPrice(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price})" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer;">R$ ${parseFloat(p.price || 0).toFixed(2).replace('.', ',')}</button>
+            <button onclick="editPrice(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price})" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer;">R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</button>
             <button onclick="editProduct(${p.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
             <button onclick="deleteProduct(${p.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
           </div>
@@ -3950,10 +3963,10 @@ async function openClientHistory(clientId, clientName) {
   document.getElementById('clientHistoryContent').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;">
       <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:16px;color:var(--primary);">${clientOrders.length}</div><div style="color:var(--sub);font-size:10px;">Pedidos</div></div>
-      <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:14px;color:var(--secondary);">R$${totalGasto.toFixed(0)}</div><div style="color:var(--sub);font-size:10px;">Total</div></div>
+      <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:14px;color:var(--secondary);">R$${fmtInt(totalGasto)}</div><div style="color:var(--sub);font-size:10px;">Total</div></div>
       <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:16px;color:var(--success);">${clientExtintores.length}</div><div style="color:var(--sub);font-size:10px;">Extintores</div></div>
     </div>
-    ${clientOrders.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">📋 Pedidos</div>${clientOrders.map(o=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;"><div><div style="font-weight:700;font-size:12px;">APP-${String(o.id).padStart(3,'0')} · ${o.type}</div><div style="color:var(--sub);font-size:10px;">${o.created_at?new Date(o.created_at).toLocaleDateString('pt-BR'):'—'}</div></div><div style="font-weight:800;color:var(--secondary);">R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')}</div></div></div>`).join('')}` : ''}
+    ${clientOrders.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">📋 Pedidos</div>${clientOrders.map(o=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;"><div><div style="font-weight:700;font-size:12px;">APP-${String(o.id).padStart(3,'0')} · ${o.type}</div><div style="color:var(--sub);font-size:10px;">${o.created_at?new Date(o.created_at).toLocaleDateString('pt-BR'):'—'}</div></div><div style="font-weight:800;color:var(--secondary);">R$ ${parseFloat(o.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div></div></div>`).join('')}` : ''}
     ${clientExtintores.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">🧯 Extintores</div>${clientExtintores.map(e=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:700;font-size:12px;">${e.numero_serie} · ${e.tipo} ${e.capacidade}</div><div style="color:var(--sub);font-size:10px;">Próx: ${e.proxima_inspecao||'—'}</div></div><span class="badge badge-${e.status==='Ativo'?'success':'warning'}">${e.status||'Ativo'}</span></div></div>`).join('')}` : ''}
     ${clientInspecoes.length > 0 ? `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">📋 Inspeções</div>${clientInspecoes.map(i=>`<div class="card" style="padding:10px 12px;"><div style="display:flex;justify-content:space-between;"><div><div style="font-weight:700;font-size:12px;">${i.data_inspecao||'—'}</div><div style="color:var(--sub);font-size:10px;">${i.extintor_id||'—'}</div></div><span class="badge badge-${i.resultado==='Aprovado'?'success':'danger'}">${i.resultado||'—'}</span></div></div>`).join('')}` : ''}
     ${clientOrders.length===0&&clientExtintores.length===0?'<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum histórico ainda.</div>':''}
@@ -4265,7 +4278,7 @@ async function finishPreview() {
     <div style="background:${item._duplicate ? '#f0a50011' : 'var(--card)'};border:1px solid ${item._duplicate ? '#f0a50044' : 'var(--border)'};border-radius:8px;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
       <div>
         <div style="font-weight:700;color:${item._duplicate ? 'var(--sub)' : 'var(--text)'};">${item.name}</div>
-        <div style="color:var(--sub);font-size:11px;">${importType === 'clients' ? (item.city || item.cnpj || '—') : `${item.category} · R$ ${parseFloat(item.price||0).toFixed(2).replace('.',',')}`}</div>
+        <div style="color:var(--sub);font-size:11px;">${importType === 'clients' ? (item.city || item.cnpj || '—') : `${item.category} · R$ ${parseFloat(item.price||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`}</div>
       </div>
       <span style="font-size:11px;font-weight:700;color:${item._duplicate ? 'var(--warning)' : 'var(--success)'};">${item._duplicate ? '⏭️ Existe' : '✅ Novo'}</span>
     </div>`).join('') +
@@ -4387,13 +4400,13 @@ async function runGlobalSearch() {
     .forEach(c => results.push({ icon:'👥', title: c.name, sub: `Cliente · ${c.city||'—'}`, action: `navigate('clients')` }));
 
   orders.filter(o => o.client?.toLowerCase().includes(q) || String(o.id).includes(q))
-    .forEach(o => results.push({ icon:'📋', title: `APP-${String(o.id).padStart(3,'0')} · ${o.client}`, sub: `${o.type} · R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')}`, action: `navigate('orders')` }));
+    .forEach(o => results.push({ icon:'📋', title: `APP-${String(o.id).padStart(3,'0')} · ${o.client}`, sub: `${o.type} · R$ ${parseFloat(o.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`, action: `navigate('orders')` }));
 
   extintores.filter(e => e.numero_serie?.toLowerCase().includes(q) || e.client_name?.toLowerCase().includes(q))
     .forEach(e => results.push({ icon:'🧯', title: e.numero_serie, sub: `${e.tipo} ${e.capacidade} · ${e.client_name||'—'}`, action: `navigate('extintores')` }));
 
   billing.filter(b => b.client?.toLowerCase().includes(q) || b.service?.toLowerCase().includes(q))
-    .forEach(b => results.push({ icon:'💰', title: b.client, sub: `${b.service||'—'} · R$ ${parseFloat(b.value||0).toFixed(2).replace('.',',')}`, action: `navigate('billing')` }));
+    .forEach(b => results.push({ icon:'💰', title: b.client, sub: `${b.service||'—'} · R$ ${parseFloat(b.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`, action: `navigate('billing')` }));
 
   if (!results.length) { res.innerHTML = '<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum resultado encontrado.</div>'; return; }
 
@@ -4472,9 +4485,9 @@ async function generateMonthlyReport() {
 
     <!-- Cards de resumo -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
-      <div style="background:#e8f5e9;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#22c55e;">R$ ${faturamento.toFixed(2).replace('.',',')}</div><div style="font-size:10px;color:#555;">Faturamento</div></div>
-      <div style="background:#e3f2fd;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#1976d2;">R$ ${recebido.toFixed(2).replace('.',',')}</div><div style="font-size:10px;color:#555;">Recebido</div></div>
-      <div style="background:#fff8e1;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#f0a500;">R$ ${pendente.toFixed(2).replace('.',',')}</div><div style="font-size:10px;color:#555;">Pendente</div></div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#22c55e;">R$ ${faturamento.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div><div style="font-size:10px;color:#555;">Faturamento</div></div>
+      <div style="background:#e3f2fd;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#1976d2;">R$ ${recebido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div><div style="font-size:10px;color:#555;">Recebido</div></div>
+      <div style="background:#fff8e1;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#f0a500;">R$ ${pendente.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div><div style="font-size:10px;color:#555;">Pendente</div></div>
       <div style="background:#fce4ec;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#e8210a;">${pedidos.length}</div><div style="font-size:10px;color:#555;">Pedidos</div></div>
     </div>
 
@@ -4490,7 +4503,7 @@ async function generateMonthlyReport() {
     <div style="font-size:11px;font-weight:700;color:#e8210a;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Pedidos do Mês</div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:10px;">
       <thead><tr style="background:#e8210a;color:#fff;"><th style="padding:5px 8px;text-align:left;">Cliente</th><th style="padding:5px;text-align:right;">Valor</th><th style="padding:5px;text-align:center;">Status</th></tr></thead>
-      <tbody>${pedidos.map((o,i)=>`<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:5px 8px;">APP-${String(o.id).padStart(3,'0')} · ${o.client}</td><td style="padding:5px;text-align:right;">R$ ${parseFloat(o.value||0).toFixed(2).replace('.',',')}</td><td style="padding:5px;text-align:center;">${o.order_status||'Em Aberto'}</td></tr>`).join('')}</tbody>
+      <tbody>${pedidos.map((o,i)=>`<tr style="background:${i%2===0?'#fff':'#f9f9f9'};"><td style="padding:5px 8px;">APP-${String(o.id).padStart(3,'0')} · ${o.client}</td><td style="padding:5px;text-align:right;">R$ ${parseFloat(o.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</td><td style="padding:5px;text-align:center;">${o.order_status||'Em Aberto'}</td></tr>`).join('')}</tbody>
     </table>` : ''}
 
     <div style="border-top:1px solid #ddd;padding-top:8px;text-align:center;color:#999;font-size:9px;margin-top:8px;">
@@ -4688,9 +4701,9 @@ async function loadExpenses() {
   const fixos   = items.filter(e => e.type === 'Fixo').reduce((s,e)  => s + parseFloat(e.amount||0), 0);
   const variaveis = items.filter(e => e.type !== 'Fixo').reduce((s,e) => s + parseFloat(e.amount||0), 0);
   const total   = fixos + variaveis;
-  document.getElementById('expTotalFixed').textContent = 'R$ ' + fixos.toFixed(2).replace('.',',');
-  document.getElementById('expTotalVar').textContent   = 'R$ ' + variaveis.toFixed(2).replace('.',',');
-  document.getElementById('expTotalAll').textContent   = 'R$ ' + total.toFixed(2).replace('.',',');
+  document.getElementById('expTotalFixed').textContent = 'R$ ' + fixos.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('expTotalVar').textContent   = 'R$ ' + variaveis.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('expTotalAll').textContent   = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 
   if (!items.length) {
     // Verifica se tem templates para oferecer importação
@@ -4725,7 +4738,7 @@ async function loadExpenses() {
 
   Object.entries(groups).forEach(([cat, list]) => {
     const catTotal = list.reduce((s,e) => s + parseFloat(e.amount||0), 0);
-    html += `<div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;">${cat} · R$ ${catTotal.toFixed(2).replace('.',',')}</div>`;
+    html += `<div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;">${cat} · R$ ${catTotal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>`;
     list.forEach(e => {
       const dateStr = e.expense_date ? new Date(e.expense_date + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
       const badge = e.type === 'Fixo'
@@ -4748,7 +4761,7 @@ async function loadExpenses() {
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             ${paidBtn}
-            <div style="font-weight:800;font-size:15px;color:${isFixo && e.paid ? 'var(--success)' : 'var(--primary)'};">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</div>
+            <div style="font-weight:800;font-size:15px;color:${isFixo && e.paid ? 'var(--success)' : 'var(--primary)'};">R$ ${parseFloat(e.amount||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
             <button onclick="openExpenseForm(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="background:none;border:none;font-size:16px;cursor:pointer;">✏️</button>
             <button onclick="deleteExpense(${e.id})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
           </div>
@@ -4867,7 +4880,7 @@ async function loadTemplatesList() {
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
       <div>
         <div style="font-weight:700;font-size:13px;">${t.name}</div>
-        <div style="color:var(--sub);font-size:11px;">${t.category || '—'} · R$ ${parseFloat(t.amount||0).toFixed(2).replace('.',',')}</div>
+        <div style="color:var(--sub);font-size:11px;">${t.category || '—'} · R$ ${parseFloat(t.amount||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="openTemplateForm(${JSON.stringify(t).replace(/"/g,'&quot;')})" style="background:none;border:none;font-size:16px;cursor:pointer;">✏️</button>
@@ -4981,9 +4994,9 @@ async function loadObras() {
       const recebidoObra = pags.filter(p => p.obra_id === o.id && p.status === 'Pago').reduce((a, p) => a + parseFloat(p.value || 0), 0);
       return sum + Math.max(0, parseFloat(o.value || 0) - recebidoObra);
     }, 0);
-  document.getElementById('obrasTotalContratos').textContent = 'R$ ' + totalContratos.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  document.getElementById('obrasTotalRecebido').textContent  = 'R$ ' + totalRecebido.toFixed(0);
-  document.getElementById('obrasTotalPendente').textContent  = 'R$ ' + totalPendente.toFixed(0);
+  document.getElementById('obrasTotalContratos').textContent = 'R$ ' + fmtInt(totalContratos).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  document.getElementById('obrasTotalRecebido').textContent  = 'R$ ' + fmtInt(totalRecebido);
+  document.getElementById('obrasTotalPendente').textContent  = 'R$ ' + fmtInt(totalPendente);
   document.getElementById('obrasSubtitle').textContent = `${obras.length} obra(s) cadastrada(s)`;
 
   const filtered = obraFilterCurrent === 'Todos' ? obras : obras.filter(o => o.status === obraFilterCurrent);
@@ -5013,19 +5026,19 @@ async function loadObras() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
           <span style="background:${cor}22;color:${cor};border:1px solid ${cor}44;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">${o.status}</span>
-          <div style="font-weight:800;font-size:15px;color:${cor};">R$ ${total.toFixed(2).replace('.',',')}</div>
+          <div style="font-weight:800;font-size:15px;color:${cor};">R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
         </div>
       </div>
       <!-- Barra de progresso -->
       <div style="margin-top:10px;">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-bottom:4px;">
-          <span>✅ Recebido: R$ ${recebido.toFixed(2).replace('.',',')}</span>
+          <span>✅ Recebido: R$ ${recebido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
           <span>${pct}%</span>
         </div>
         <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
           <div style="background:${cor};width:${pct}%;height:100%;border-radius:4px;transition:width .4s;"></div>
         </div>
-        ${pendente > 0 ? `<div style="color:var(--secondary);font-size:11px;margin-top:4px;">⏳ Pendente: R$ ${pendente.toFixed(2).replace('.',',')}</div>` : ''}
+        ${pendente > 0 ? `<div style="color:var(--secondary);font-size:11px;margin-top:4px;">⏳ Pendente: R$ ${pendente.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>` : ''}
       </div>
       <!-- Ações -->
       <div style="display:flex;gap:8px;margin-top:10px;" onclick="event.stopPropagation()">
@@ -5145,9 +5158,9 @@ async function openObraPagamento(obraId) {
   document.getElementById('obraPagamentoResumo').innerHTML = `
     <div style="font-weight:700;font-size:13px;margin-bottom:8px;">${o.description} · ${o.city || ''}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin-bottom:10px;">
-      <div><div style="font-size:11px;color:var(--sub);">CONTRATO</div><div style="font-weight:800;color:#3b82f6;">R$ ${total.toFixed(2).replace('.',',')}</div></div>
-      <div><div style="font-size:11px;color:var(--sub);">RECEBIDO</div><div style="font-weight:800;color:var(--success);">R$ ${recebido.toFixed(2).replace('.',',')}</div></div>
-      <div><div style="font-size:11px;color:var(--sub);">PENDENTE</div><div style="font-weight:800;color:var(--secondary);">R$ ${restante.toFixed(2).replace('.',',')}</div></div>
+      <div><div style="font-size:11px;color:var(--sub);">CONTRATO</div><div style="font-weight:800;color:#3b82f6;">R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div></div>
+      <div><div style="font-size:11px;color:var(--sub);">RECEBIDO</div><div style="font-weight:800;color:var(--success);">R$ ${recebido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div></div>
+      <div><div style="font-size:11px;color:var(--sub);">PENDENTE</div><div style="font-weight:800;color:var(--secondary);">R$ ${restante.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div></div>
     </div>
     <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
       <div style="background:#22c55e;width:${pct}%;height:100%;border-radius:4px;"></div>
@@ -5174,8 +5187,8 @@ function previewObraPag() {
   const novoPendente = Math.max(0, total - novoRecebido);
   const novoPct      = total > 0 ? Math.min(100, Math.round(novoRecebido / total * 100)) : 0;
 
-  document.getElementById('previewRecebido').textContent = 'R$ ' + novoRecebido.toFixed(2).replace('.',',');
-  document.getElementById('previewPendente').textContent = 'R$ ' + novoPendente.toFixed(2).replace('.',',');
+  document.getElementById('previewRecebido').textContent = 'R$ ' + novoRecebido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('previewPendente').textContent = 'R$ ' + novoPendente.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('previewBarra').style.width    = novoPct + '%';
   document.getElementById('previewPct').textContent      = novoPct + '%' + (novoPct >= 100 ? ' 🎉 Obra quitada!' : '');
   document.getElementById('previewPct').style.color      = novoPct >= 100 ? 'var(--success)' : 'var(--secondary)';
@@ -5261,11 +5274,11 @@ async function openObraDetail(obraId) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
         <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;">
           <div style="font-size:11px;color:var(--sub);">CONTRATO</div>
-          <div style="font-weight:800;color:${cor};">R$ ${total.toFixed(2).replace('.',',')}</div>
+          <div style="font-weight:800;color:${cor};">R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
         </div>
         <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;">
           <div style="font-size:11px;color:var(--sub);">RECEBIDO</div>
-          <div style="font-weight:800;color:var(--success);">R$ ${recebido.toFixed(2).replace('.',',')} (${pct}%)</div>
+          <div style="font-weight:800;color:var(--success);">R$ ${recebido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} (${pct}%)</div>
         </div>
       </div>
       <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-top:10px;">
@@ -5280,16 +5293,16 @@ async function openObraDetail(obraId) {
       ${obraExpenses.map(e => `
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
           <span style="color:var(--text);">${e.name} <span style="color:var(--sub);">(${e.expense_date ? new Date(e.expense_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'})</span></span>
-          <span style="color:var(--primary);font-weight:700;">R$ ${parseFloat(e.amount||0).toFixed(2).replace('.',',')}</span>
+          <span style="color:var(--primary);font-weight:700;">R$ ${parseFloat(e.amount||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
         </div>`).join('')}
       <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div style="text-align:center;background:#e8210a11;border-radius:8px;padding:8px;">
           <div style="font-size:11px;color:var(--sub);">TOTAL CUSTOS</div>
-          <div style="font-weight:800;color:var(--primary);">R$ ${totalGastosObra.toFixed(2).replace('.',',')}</div>
+          <div style="font-weight:800;color:var(--primary);">R$ ${totalGastosObra.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
         </div>
         <div style="text-align:center;background:${margem>=0?'#22c55e11':'#e8210a11'};border-radius:8px;padding:8px;">
           <div style="font-size:11px;color:var(--sub);">MARGEM</div>
-          <div style="font-weight:800;color:${margem>=0?'var(--success)':'var(--primary)'};">${margem>=0?'+':''}R$ ${margem.toFixed(2).replace('.',',')}</div>
+          <div style="font-weight:800;color:${margem>=0?'var(--success)':'var(--primary)'};">${margem>=0?'+':''}R$ ${margem.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
         </div>
       </div>
     </div>` : ''}
@@ -5303,7 +5316,7 @@ async function openObraDetail(obraId) {
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div>
-            <div style="font-weight:800;font-size:14px;color:var(--success);">R$ ${parseFloat(p.value||0).toFixed(2).replace('.',',')}</div>
+            <div style="font-weight:800;font-size:14px;color:var(--success);">R$ ${parseFloat(p.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
           </div>
           <button onclick="deleteObraPagamento(${p.id},${obraId})" style="background:none;border:none;font-size:16px;cursor:pointer;">🗑️</button>
         </div>
@@ -5364,7 +5377,7 @@ async function loadCaixa() {
 
   const cor = saldo >= 0 ? '#22c55e' : 'var(--danger)';
   const saldoEl = document.getElementById('caixaSaldoAtual');
-  saldoEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toFixed(2).replace('.', ',');
+  saldoEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   saldoEl.style.color = cor;
 
   const cardEl = document.getElementById('caixaSaldoCard');
@@ -5373,17 +5386,56 @@ async function loadCaixa() {
     ? 'linear-gradient(135deg,#0d2137,#0a3d2e)'
     : 'linear-gradient(135deg,#1a0a04,#2d1008)';
 
-  document.getElementById('caixaSaldoInicial').textContent  = 'R$ ' + saldoInicial.toFixed(2).replace('.', ',');
-  document.getElementById('caixaTotalEntradas').textContent = 'R$ ' + totalEntradas.toFixed(2).replace('.', ',');
-  document.getElementById('caixaSaidasVar').textContent     = 'R$ ' + saidasVar.toFixed(2).replace('.', ',');
-  document.getElementById('caixaSaidasFixo').textContent    = 'R$ ' + saidasFixo.toFixed(2).replace('.', ',');
-  document.getElementById('caixaEntBilling').textContent    = 'R$ ' + entBilling.toFixed(2).replace('.', ',');
-  document.getElementById('caixaEntObras').textContent      = 'R$ ' + entObras.toFixed(2).replace('.', ',');
+  document.getElementById('caixaSaldoInicial').textContent  = 'R$ ' + saldoInicial.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('caixaTotalEntradas').textContent = 'R$ ' + totalEntradas.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('caixaSaidasVar').textContent     = 'R$ ' + saidasVar.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('caixaSaidasFixo').textContent    = 'R$ ' + saidasFixo.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('caixaEntBilling').textContent    = 'R$ ' + entBilling.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('caixaEntObras').textContent      = 'R$ ' + entObras.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Breakdown por forma de pagamento
+  const paidBilling = billing.filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at));
+  const methodMap = {
+    pix:     { label: 'PIX',     icon: '📱', color: '#3b82f6' },
+    dinheiro:{ label: 'Dinheiro',icon: '💵', color: '#22c55e' },
+    debito:  { label: 'Débito',  icon: '💳', color: '#f0a500' },
+    credito: { label: 'Crédito', icon: '💳', color: '#e8210a' }
+  };
+  const byMethod = {};
+  paidBilling.forEach(b => {
+    const m = b.payment_method || 'pix';
+    if (!byMethod[m]) byMethod[m] = { count: 0, total: 0, taxa: 0 };
+    byMethod[m].count++;
+    byMethod[m].total += parseFloat(b.value || 0);
+    byMethod[m].taxa  += parseFloat(b.tax_amount || 0);
+  });
+  const breakdownEl = document.getElementById('caixaPaymentBreakdown');
+  if (Object.keys(byMethod).length === 0) {
+    breakdownEl.innerHTML = '<div style="color:var(--sub);font-size:12px;text-align:center;padding:8px 0;">Nenhuma cobrança paga ainda.</div>';
+  } else {
+    breakdownEl.innerHTML = Object.entries(byMethod).map(([method, data]) => {
+      const info = methodMap[method] || { label: method, icon: '💰', color: '#22c55e' };
+      const liquido = data.total - data.taxa;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:8px;padding:8px 10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:16px;">${info.icon}</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:${info.color};">${info.label}</div>
+            <div style="font-size:10px;color:var(--sub);">${data.count} cobrança(s)${data.taxa > 0 ? ` · Taxa: R$ ${data.taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;font-size:13px;color:#22c55e;">R$ ${liquido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+          ${data.taxa > 0 ? `<div style="font-size:10px;color:var(--sub);">Bruto: R$ ${data.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
 
   // Atualiza card na home se existir
   const statEl = document.getElementById('statCaixa');
   if (statEl) {
-    statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + Math.abs(saldo).toFixed(0);
+    statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + fmtInt(Math.abs(saldo));
     statEl.style.color = cor;
   }
 }
