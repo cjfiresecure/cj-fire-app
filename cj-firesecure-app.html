@@ -880,6 +880,21 @@ textarea.input{resize:none;height:70px}
     <button class="btn btn-primary" id="templateSaveBtn" onclick="saveTemplate()">✓ Salvar</button>
   </div>
 </div>
+<!-- MODAL: Escolha de Rota -->
+<div class="modal-overlay" id="routeModal">
+  <div class="modal" style="max-height:unset;padding:28px 20px 32px;">
+    <div class="modal-header"><div class="modal-title">🗺️ Abrir Rota</div><button class="modal-close" onclick="closeModal('routeModal')">✕</button></div>
+    <div id="routeClientName" style="color:var(--sub);font-size:13px;margin-bottom:6px;"></div>
+    <div id="routeAddress" style="font-size:12px;color:var(--muted);margin-bottom:20px;"></div>
+    <button onclick="doOpenRoute('waze')" class="btn" style="background:#33ccff22;color:#33ccff;border:1px solid #33ccff44;margin-bottom:10px;font-size:15px;">
+      🔵 Waze
+    </button>
+    <button onclick="doOpenRoute('google')" class="btn" style="background:#4285f422;color:#4285f4;border:1px solid #4285f444;font-size:15px;">
+      🗺️ Google Maps
+    </button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="clientFormModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Novo Cliente</div><button class="modal-close" onclick="closeModal('clientFormModal')">✕</button></div>
@@ -893,8 +908,7 @@ textarea.input{resize:none;height:70px}
     <div class="field"><label class="label">Telefone / WhatsApp</label><input class="input" id="clientPhone" placeholder="Preenchido pelo CNPJ" /></div>
     <div class="field"><label class="label">E-mail</label><input class="input" id="clientEmail" placeholder="Preenchido pelo CNPJ" /></div>
     <div class="field"><label class="label">Cidade / Estado</label><input class="input" id="clientCity" placeholder="Preenchido pelo CNPJ" /></div>
-    <div class="field"><label class="label">Endereço</label><input class="input" id="clientAddress" placeholder="Preenchido pelo CNPJ" /></div>
-    <div class="field"><label class="label">Qtd. Equipamentos</label><input class="input" id="clientEquipments" type="number" placeholder="Ex: 8" /></div>
+    <div class="field"><label class="label">Endereço</label><input class="input" id="clientAddress" placeholder="Preenchido pelo CNPJ" /></div>    <div class="field"><label class="label">Qtd. Equipamentos</label><input class="input" id="clientEquipments" type="number" placeholder="Ex: 8" /></div>
     <div class="field"><label class="label">Próxima Visita</label><input class="input" id="clientNext" type="date" /></div>
     <div class="field"><label class="label">Tipo</label><select class="input" id="clientType"><option>Comércio</option><option>Residencial</option><option>Saúde</option><option>Educação</option><option>Indústria</option><option>Serviços</option></select></div>
     <button class="btn btn-primary" id="saveClientBtn" onclick="saveClient()">✓ Cadastrar Cliente</button>
@@ -1634,6 +1648,35 @@ function openClientForm() {
   btn.onclick = saveClient;
   document.querySelector('#clientFormModal .modal-title').textContent = 'Novo Cliente';
   openModal('clientFormModal');
+}
+
+// ============================================================
+// ROTA (texto — sem chave de API)
+// ============================================================
+function triggerClientGeocode() { /* sem geocodificação — rota por texto */ }
+
+// Estado temporário para o modal de rota
+let _routeData = {};
+
+function openRouteModal(clientId) {
+  const c = allClients.find(x => x.id === clientId);
+  if (!c) return;
+  const addr = [c.address, c.city, 'Brasil'].filter(Boolean).join(', ');
+  _routeData = { address: addr };
+  document.getElementById('routeClientName').textContent = c.name;
+  document.getElementById('routeAddress').textContent = c.address || 'Endereço não cadastrado';
+  openModal('routeModal');
+}
+
+function doOpenRoute(app) {
+  const { address } = _routeData;
+  closeModal('routeModal');
+  if (!address) { showToast('⚠️ Endereço não cadastrado', 'error'); return; }
+  if (app === 'waze') {
+    window.open(`https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`, '_blank');
+  } else {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
+  }
 }
 
 async function saveClient() {
@@ -3948,6 +3991,7 @@ async function viewNbrPDF(id) {
 // HISTÓRICO DO CLIENTE
 // ============================================================
 async function openClientHistory(clientId, clientName) {
+  const c = allClients.find(x => x.id === clientId);
   document.getElementById('clientHistoryTitle').textContent = `📋 ${clientName}`;
   document.getElementById('clientHistoryContent').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
   openModal('clientHistoryModal');
@@ -3961,6 +4005,7 @@ async function openClientHistory(clientId, clientName) {
   const clientInspecoes = inspecoes.filter(i => i.client_name?.toLowerCase() === clientName?.toLowerCase());
   const totalGasto = clientOrders.filter(o => o.type === 'Pedido').reduce((a, o) => a + parseFloat(o.value || 0), 0);
   document.getElementById('clientHistoryContent').innerHTML = `
+    ${c?.address ? `<button onclick="openRouteModal(${clientId})" style="width:100%;background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🗺️ Abrir Rota — ${c.address}</button>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;">
       <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:16px;color:var(--primary);">${clientOrders.length}</div><div style="color:var(--sub);font-size:10px;">Pedidos</div></div>
       <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:14px;color:var(--secondary);">R$${fmtInt(totalGasto)}</div><div style="color:var(--sub);font-size:10px;">Total</div></div>
