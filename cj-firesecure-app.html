@@ -1658,13 +1658,10 @@ function triggerClientGeocode() { /* sem geocodificação — rota por texto */ 
 // Estado temporário para o modal de rota
 let _routeData = {};
 
-function openRouteModal(clientId) {
-  const c = allClients.find(x => x.id === clientId);
-  if (!c) return;
-  const addr = [c.address, c.city, 'Brasil'].filter(Boolean).join(', ');
-  _routeData = { address: addr };
-  document.getElementById('routeClientName').textContent = c.name;
-  document.getElementById('routeAddress').textContent = c.address || 'Endereço não cadastrado';
+function openRouteModal(name, address) {
+  _routeData = { address: [address, 'Brasil'].filter(Boolean).join(', ') };
+  document.getElementById('routeClientName').textContent = name;
+  document.getElementById('routeAddress').textContent = address || 'Endereço não cadastrado';
   openModal('routeModal');
 }
 
@@ -4005,7 +4002,7 @@ async function openClientHistory(clientId, clientName) {
   const clientInspecoes = inspecoes.filter(i => i.client_name?.toLowerCase() === clientName?.toLowerCase());
   const totalGasto = clientOrders.filter(o => o.type === 'Pedido').reduce((a, o) => a + parseFloat(o.value || 0), 0);
   document.getElementById('clientHistoryContent').innerHTML = `
-    ${c?.address ? `<button onclick="openRouteModal(${clientId})" style="width:100%;background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🗺️ Abrir Rota — ${c.address}</button>` : ''}
+    ${c?.address ? `<button onclick="openRouteModal('${(c.name||'').replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}${c.city ? ', '+c.city.replace(/'/g,"\\'") : ''}')" style="width:100%;background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🗺️ Abrir Rota — ${c.address}</button>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;">
       <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:16px;color:var(--primary);">${clientOrders.length}</div><div style="color:var(--sub);font-size:10px;">Pedidos</div></div>
       <div class="stat-card" style="text-align:center;padding:10px;"><div style="font-weight:800;font-size:14px;color:var(--secondary);">R$${fmtInt(totalGasto)}</div><div style="color:var(--sub);font-size:10px;">Total</div></div>
@@ -4495,7 +4492,7 @@ async function loadVisitAgenda() {
             <div style="color:var(--sub);font-size:10px;">${d.toLocaleDateString('pt-BR')}</div>
           </div>
         </div>
-        ${c.address ? `<button onclick="openRouteModal(${c.id})" style="width:100%;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">🗺️ Abrir Rota — ${c.address}</button>` : ''}
+        ${c.address ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\\'")}','${c.address.replace(/'/g,"\\'")}${c.city ? ', '+c.city.replace(/'/g,"\\'") : ''}')" style="width:100%;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">🗺️ Abrir Rota — ${c.address}</button>` : ''}
       </div>`;
   }).join('');
 }
