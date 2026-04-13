@@ -1836,7 +1836,11 @@ function renderOrders() {
       <div style="font-weight:700;font-size:13px;">${o.client}</div>
       ${o.cnpj ? `<div style="color:var(--sub);font-size:11px;">CNPJ: ${o.cnpj}</div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
-        <div><div style="color:var(--sub);font-size:11px;">${o.payment || 'À vista'}</div><div style="color:var(--sub);font-size:10px;">📅 ${date}</div></div>
+        <div>
+          <div style="color:var(--sub);font-size:11px;">${o.payment || 'À vista'}</div>
+          <div style="color:var(--sub);font-size:10px;">📅 ${date}</div>
+          ${o.created_by ? `<div style="display:inline-flex;align-items:center;gap:4px;background:${o.created_by.toLowerCase().includes('caio')?'#e8210a18':'#f0a50018'};border:1px solid ${o.created_by.toLowerCase().includes('caio')?'#e8210a33':'#f0a50033'};border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;color:${o.created_by.toLowerCase().includes('caio')?'#e8210a':'#f0a500'};margin-top:5px;">👤 ${o.created_by}</div>` : ''}
+        </div>
         <div style="text-align:right;">
           <div style="font-weight:800;font-size:16px;">R$ ${parseFloat(o.value || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
           <span style="color:${o.type === 'Pedido' ? 'var(--success)' : 'var(--secondary)'};font-weight:800;font-size:13px;">${o.type}</span>
@@ -2255,6 +2259,7 @@ async function saveOrder() {
     surcharge: discountPct || 0,
     freight: freight || 0,
     installments: installments,
+    created_by: window.currentUser || '',
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
 
@@ -2498,6 +2503,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
           <div><div style="font-size:9px;color:#888;text-transform:uppercase;">Forma de Pagamento</div><div style="font-size:10px;font-weight:700;">${payment}</div></div>
           <div><div style="font-size:9px;color:#888;text-transform:uppercase;">Condição</div><div style="font-size:10px;font-weight:700;">${condicao}</div></div>
         </div>
+        ${extra.created_by ? `<div style="border-top:1px solid #eee;padding-top:6px;margin-top:6px;"><div style="font-size:9px;color:#888;text-transform:uppercase;">Vendedor / Responsável</div><div style="font-size:10px;font-weight:700;">${extra.created_by}</div></div>` : ''}
       </div>
     </div>
 
@@ -2567,7 +2573,7 @@ function generateOrderPDF() {
   buildPDF(selectedOrderClient, currentOrderType, orderItems,
     document.getElementById('orderPayment').value,
     showObs ? document.getElementById('orderObs').value : '',
-    { discount, surcharge: discountPct, freight, installments, order_date: document.getElementById('orderDate').value, showDiscount, showInstallments }
+    { discount, surcharge: discountPct, freight, installments, order_date: document.getElementById('orderDate').value, showDiscount, showInstallments, created_by: window.currentUser || '' }
   );
 }
 
@@ -2576,7 +2582,7 @@ function viewOrderPDF(id) {
   if (!o) return;
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
   buildPDF({ name: o.client, cnpj: o.cnpj, address: o.client_address, phone: o.client_phone, email: o.client_email, city: o.client_city }, o.type, items, o.payment, o.obs,
-    { discount: o.discount || 0, surcharge: o.surcharge || 0, freight: o.freight || 0, installments: o.installments || 1, order_date: o.order_date, id: o.id }
+    { discount: o.discount || 0, surcharge: o.surcharge || 0, freight: o.freight || 0, installments: o.installments || 1, order_date: o.order_date, id: o.id, created_by: o.created_by || '' }
   );
 }
 
@@ -3148,6 +3154,15 @@ function renderProducts(list) {
           </div>
         </div>`).join('');
   }).join('');
+}
+
+function filterProducts() {
+  const q = document.getElementById('productSearch').value.toLowerCase().trim();
+  if (!q) { renderProducts(allProducts); return; }
+  renderProducts(allProducts.filter(p =>
+    p.name?.toLowerCase().includes(q) ||
+    p.category?.toLowerCase().includes(q)
+  ));
 }
 
 let editingProductId = null;
@@ -4708,6 +4723,7 @@ async function doLogout() {
 
 function launchApp(email) {
   const userName = USER_NAMES[email] || email.split('@')[0];
+  window.currentUser = userName;
   document.getElementById('selectScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
   document.getElementById('homeUserName').textContent = userName;
