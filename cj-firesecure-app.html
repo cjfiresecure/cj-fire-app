@@ -3190,18 +3190,65 @@ async function editProduct(id) {
 async function saveProduct() {
   const name = document.getElementById('productName').value.trim();
   if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
-  const productData = { name, category: document.getElementById('productCategory').value, price: parseFloat(document.getElementById('productPrice').value) || 0, unit: document.getElementById('productUnit').value };
-  let result;
+  const category = document.getElementById('productCategory').value;
+  const productData = { name, category, price: parseFloat(document.getElementById('productPrice').value) || 0, unit: document.getElementById('productUnit').value };
+
+  // Categorias/nomes que NÃO vão pro estoque (são serviços)
+  const SERVICE_KEYWORDS = ['manutenção', 'manutencao', 'serviço', 'servico', 'teste hidrostático', 'teste hidrostatico', 'teste', 'hidrostático', 'hidrostatico'];
+  const isService = SERVICE_KEYWORDS.some(s => (category || '').toLowerCase().includes(s)) ||
+    SERVICE_KEYWORDS.some(s => name.toLowerCase().includes(s));
+
+  const allStock = await dbGet('stock', {});
+
   if (editingProductId) {
-    result = await dbUpdate('products', editingProductId, productData);
-    allProductsForOrder = []; // reset cache
-    editingProductId = null;
-  } else {
-    result = await dbInsert('products', productData);
+    // Buscando nome antigo do produto para atualizar no estoque
+    const oldProduct = allProducts.find(p => p.id === editingProductId);
+    const oldName = oldProduct?.name || '';
+
+    await dbUpdate('products', editingProductId, productData);
     allProductsForOrder = [];
+    editingProductId = null;
+
+    // Atualiza no estoque se nome mudou e não é serviço
+    if (!isService && oldName && oldName.toLowerCase().trim() !== name.toLowerCase().trim()) {
+      const stockItem = allStock.find(s => s.name?.toLowerCase().trim() === oldName.toLowerCase().trim());
+      if (stockItem) {
+        await dbUpdate('stock', stockItem.id, { name });
+        showToast('✅ Produto e estoque atualizados!', 'success');
+      } else {
+        // Não existia no estoque, cria com qty 0
+        const dupCheck = allStock.find(s => s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+        if (!dupCheck) {
+          await dbInsert('stock', { name, qty: 0, min_qty: 1, unit: productData.unit || 'un' });
+          showToast('✅ Produto atualizado e adicionado ao estoque (qtd 0)!', 'success');
+        } else {
+          showToast('✅ Produto atualizado!', 'success');
+        }
+      }
+    } else {
+      showToast('✅ Produto atualizado!', 'success');
+    }
+
+  } else {
+    // Novo produto
+    const result = await dbInsert('products', productData);
+    allProductsForOrder = [];
+
+    if (!isService && result && result[0]) {
+      const dupCheck = allStock.find(s => s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+      if (!dupCheck) {
+        await dbInsert('stock', { name, qty: 0, min_qty: 1, unit: productData.unit || 'un' });
+        showToast('✅ Produto salvo e adicionado ao estoque (qtd 0)!', 'success');
+      } else {
+        showToast('✅ Produto salvo! (já existia no estoque)', 'success');
+      }
+    } else {
+      showToast('✅ Produto salvo!', 'success');
+    }
   }
-  if (result !== false && result !== null) { closeModal('productFormModal'); showToast('✅ Produto salvo!', 'success'); loadProducts(); }
-  else showToast('❌ Erro ao salvar', 'error');
+
+  closeModal('productFormModal');
+  loadProducts();
 }
 
 async function deleteProduct(id) {
