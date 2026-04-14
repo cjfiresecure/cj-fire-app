@@ -169,6 +169,14 @@ textarea.input{resize:none;height:70px}
       </div>
     </div>
 
+    <!-- Alerta visitas atrasadas -->
+    <div id="homeVisitaAtrasadaAlert" style="display:none;background:#ef444418;border:1px solid #ef444488;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="document.getElementById('homeVisitAgenda').scrollIntoView({behavior:'smooth'})">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📍</span>
+        <div><div style="color:var(--danger);font-weight:800;font-size:13px;" id="homeVisitaAtrasadaText">Visitas atrasadas</div><div style="color:var(--sub);font-size:11px;">Toque para ver</div></div>
+      </div>
+    </div>
+
     <!-- Alerta cobranças vencidas -->
     <div id="homeBillingAlertVencido" style="display:none;background:#ef444418;border:1px solid #ef444488;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="navigate('billing')">
       <div style="display:flex;align-items:center;gap:8px;">
@@ -599,6 +607,39 @@ textarea.input{resize:none;height:70px}
 </div>
 
 <!-- MODALS -->
+
+<!-- MODAL: Marcar Visita -->
+<div class="modal-overlay" id="visitaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📍 Visita Realizada</div>
+      <button class="modal-close" onclick="closeModal('visitaModal')">✕</button>
+    </div>
+    <input type="hidden" id="visitaClientId" />
+    <div style="font-weight:700;font-size:14px;margin-bottom:4px;" id="visitaClientName"></div>
+    <div style="color:var(--sub);font-size:12px;margin-bottom:16px;">O que aconteceu na visita?</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button onclick="visitaAcao('pedido')" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        ✅ Fechou Pedido<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Abre formulário de pedido · próxima visita em 1 ano</div>
+      </button>
+      <button onclick="visitaAcao('orcamento')" style="background:#f0a50018;color:var(--secondary);border:1px solid #f0a50044;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        📋 Deixou Orçamento<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Abre formulário de orçamento · próxima visita em 1 ano</div>
+      </button>
+      <button onclick="visitaAcao('nao_quis')" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        ❌ Cliente Não Quis<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Próxima visita agendada para 6 meses</div>
+      </button>
+      <button onclick="visitaAcao('remarcar')" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
+        🔄 Remarcar<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Escolher nova data manualmente</div>
+      </button>
+    </div>
+    <!-- Input data remarcar -->
+    <div id="visitaRemarcarDiv" style="display:none;margin-top:12px;">
+      <label class="label">Nova data de visita</label>
+      <input type="date" class="input" id="visitaNovaData" />
+      <button onclick="confirmarRemarcar()" class="btn btn-primary" style="margin-top:10px;">✓ Confirmar Nova Data</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: Cadastro de Obra -->
 <div class="modal-overlay" id="obraFormModal">
@@ -1823,7 +1864,7 @@ function renderOrders() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="color:var(--sub);font-size:12px;font-weight:700;">${orderNum}</span>
-          <span style="color:${statusColor};font-size:11px;font-weight:700;background:${statusColor}18;padding:2px 8px;border-radius:20px;">${status}</span>
+          <span onclick="changeOrderStatus(${o.id})" style="color:${statusColor};font-size:11px;font-weight:700;background:${statusColor}18;padding:2px 8px;border-radius:20px;cursor:pointer;border:1px solid ${statusColor}44;" title="Toque para alterar status">${status} ✎</span>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button onclick="changeOrderStatus(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;">🔄</button>
@@ -1874,10 +1915,46 @@ async function changeOrderStatus(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   const statuses = ['Em Aberto', 'Concluído', 'Cancelado'];
-  document.getElementById('orderStatusContent').innerHTML = statuses.map(s => `
-    <button onclick="setOrderStatusDB(${id},'${s}')" style="background:${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--card)'};color:${(o.order_status||'Em Aberto')===s?'#fff':'var(--text)'};border:1px solid ${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--border)'};border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">${s}</button>
-  `).join('');
+  const isOrc = o.type === 'Orçamento';
+  document.getElementById('orderStatusContent').innerHTML = `
+    ${isOrc ? `<div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Converter para</div>
+    <button onclick="convertOrcToPedido(${id})" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:12px;">📋 Converter para Pedido</button>
+    <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Status</div>` : ''}
+    ${statuses.map(s => `
+    <button onclick="setOrderStatusDB(${id},'${s}')" style="background:${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--card)'};color:${(o.order_status||'Em Aberto')===s?'#fff':'var(--text)'};border:1px solid ${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--border)'};border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:6px;">${s}</button>
+  `).join('')}`;
   openModal('orderStatusModal');
+}
+
+async function convertOrcToPedido(id) {
+  const o = allOrders.find(x => x.id === id);
+  if (!o) return;
+  await dbUpdate('orders', id, { type: 'Pedido' });
+  // Atualiza estoque igual a um pedido novo
+  let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
+  await adjustStock(items, true);
+  // Cria cobrança se não tiver
+  const allBilling = await dbGet('billing', {});
+  const orderNum = `APP-${String(id).padStart(3,'0')}`;
+  const jaTemCobranca = allBilling.some(b => {
+    if (b.status === 'Pago') return false;
+    if (b.order_id && parseInt(b.order_id) === id) return true;
+    const m = (b.service || '').match(/APP-0*([1-9]\d*)/);
+    return m && parseInt(m[1]) === id;
+  });
+  if (!jaTemCobranca) {
+    const serviceDesc = `${orderNum} · Pedido - ${items.map(i => i.name).join(', ')}`;
+    await dbInsert('billing', {
+      client: o.client, service: serviceDesc,
+      value: parseFloat(o.value || 0),
+      due_date: o.order_date || null,
+      status: 'Pendente',
+      order_id: id
+    });
+  }
+  closeModal('orderStatusModal');
+  showToast('✅ Orçamento convertido para Pedido!', 'success');
+  loadOrders();
 }
 
 async function recriarCobranca(id) {
@@ -4529,39 +4606,132 @@ async function loadVisitAgenda() {
   const today = new Date(); today.setHours(0,0,0,0);
   const in60 = new Date(); in60.setDate(today.getDate() + 60);
 
+  // Inclui atrasadas também
   const upcoming = clients
-    .filter(c => { const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null; return d && d >= today && d <= in60; })
+    .filter(c => { const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null; return d && d <= in60; })
     .sort((a, b) => new Date(a.next_visit) - new Date(b.next_visit))
-    .slice(0, 5);
+    .slice(0, 8);
 
   const el = document.getElementById('homeVisitAgenda');
   if (!el) return;
   if (!upcoming.length) { el.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:8px 0;">Nenhuma visita nos próximos 60 dias.</div>'; return; }
 
+  // Banner visitas atrasadas na home
+  const atrasadas = upcoming.filter(c => new Date(c.next_visit + 'T12:00:00') < today);
+  const alertEl = document.getElementById('homeVisitaAtrasadaAlert');
+  if (alertEl) {
+    if (atrasadas.length > 0) {
+      alertEl.style.display = 'block';
+      document.getElementById('homeVisitaAtrasadaText').textContent = `${atrasadas.length} visita(s) atrasada(s) — reagende ou marque como visitada`;
+    } else {
+      alertEl.style.display = 'none';
+    }
+  }
+
   el.innerHTML = upcoming.map(c => {
     const d = new Date(c.next_visit + 'T12:00:00');
     const daysLeft = Math.ceil((d - today) / (1000*60*60*24));
-    const urgent = daysLeft <= 7;
+    const isOverdue = daysLeft < 0;
+    const urgent = daysLeft <= 7 && !isOverdue;
+    const borderClass = isOverdue ? 'danger-border' : urgent ? 'warning-border' : '';
+    const daysLabel = isOverdue ? `${Math.abs(daysLeft)}d atraso` : daysLeft === 0 ? 'Hoje!' : daysLeft + 'd';
+    const daysColor = isOverdue ? 'var(--danger)' : urgent ? 'var(--warning)' : 'var(--success)';
     return `
-      <div class="card ${urgent?'warning-border':''}" style="padding:10px 14px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${c.address?'8':'0'}px;">
+      <div class="card ${borderClass}" style="padding:10px 14px;${isOverdue?'background:linear-gradient(135deg,#1a1d27,#1f0a0a);':''}">
+        ${isOverdue ? '<div style="background:#ef444422;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:var(--danger);margin-bottom:6px;">🚨 VISITA ATRASADA</div>' : ''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <div>
             <div style="font-weight:700;font-size:13px;">${c.name}</div>
             <div style="color:var(--sub);font-size:11px;">${c.city||'—'} · ${c.equipments||0} equipamentos</div>
           </div>
           <div style="text-align:right;">
-            <div style="color:${urgent?'var(--warning)':'var(--success)'};font-weight:800;font-size:12px;">${daysLeft === 0 ? 'Hoje!' : daysLeft + 'd'}</div>
+            <div style="color:${daysColor};font-weight:800;font-size:12px;">${daysLabel}</div>
             <div style="color:var(--sub);font-size:10px;">${d.toLocaleDateString('pt-BR')}</div>
           </div>
         </div>
-        ${c.address ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\\'")}','${c.address.replace(/'/g,"\\'")}${c.city ? ', '+c.city.replace(/'/g,"\\'") : ''}')" style="width:100%;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">🗺️ Abrir Rota — ${c.address}</button>` : ''}
+        <div style="display:flex;gap:6px;">
+          ${c.address ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\\'")}','${c.address.replace(/'/g,"\\'")}${c.city ? ', '+c.city.replace(/'/g,"\\'") : ''}')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🗺️ Rota</button>` : ''}
+          <button onclick="abrirVisitaModal(${c.id},'${c.name.replace(/'/g,"\\'")}')" style="flex:2;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">✅ Marcar como Visitado</button>
+        </div>
       </div>`;
   }).join('');
 }
 
 // ============================================================
-// RELATÓRIO MENSAL PDF
+// VISITAS — Modal de ação pós-visita
 // ============================================================
+function abrirVisitaModal(clientId, clientName) {
+  document.getElementById('visitaClientId').value = clientId;
+  document.getElementById('visitaClientName').textContent = clientName;
+  document.getElementById('visitaRemarcarDiv').style.display = 'none';
+  openModal('visitaModal');
+}
+
+async function visitaAcao(acao) {
+  const clientId = parseInt(document.getElementById('visitaClientId').value);
+  const clientName = document.getElementById('visitaClientName').textContent;
+
+  if (acao === 'remarcar') {
+    document.getElementById('visitaRemarcarDiv').style.display = 'block';
+    // Define data mínima como hoje
+    document.getElementById('visitaNovaData').min = new Date().toISOString().split('T')[0];
+    return;
+  }
+
+  // Agenda próxima visita automaticamente
+  const nextVisit = new Date();
+  if (acao === 'nao_quis') {
+    nextVisit.setMonth(nextVisit.getMonth() + 6);
+  } else {
+    nextVisit.setFullYear(nextVisit.getFullYear() + 1);
+  }
+  const nextVisitStr = nextVisit.toISOString().split('T')[0];
+  await dbUpdate('clients', clientId, { next_visit: nextVisitStr });
+
+  closeModal('visitaModal');
+
+  if (acao === 'nao_quis') {
+    showToast(`✅ Visita registrada! Próxima visita agendada para ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+    loadHomeData();
+    return;
+  }
+
+  // Abre novo pedido ou orçamento com cliente pré-selecionado
+  showToast(`✅ Próxima visita agendada para ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+  // Pequeno delay pra toast aparecer antes de abrir o form
+  setTimeout(() => {
+    openNewOrder(acao === 'pedido' ? 'Pedido' : 'Orçamento', clientId);
+  }, 400);
+  loadHomeData();
+}
+
+async function confirmarRemarcar() {
+  const clientId = parseInt(document.getElementById('visitaClientId').value);
+  const novaData = document.getElementById('visitaNovaData').value;
+  if (!novaData) { showToast('⚠️ Escolha uma data', 'error'); return; }
+  await dbUpdate('clients', clientId, { next_visit: novaData });
+  closeModal('visitaModal');
+  showToast(`✅ Visita remarcada para ${new Date(novaData+'T12:00:00').toLocaleDateString('pt-BR')}!`, 'success');
+  loadHomeData();
+}
+
+async function openNewOrder(type, clientId) {
+  // Navega para pedidos e abre form com cliente pré-selecionado
+  navigate('orders');
+  await new Promise(r => setTimeout(r, 300));
+  openOrderForm(type);
+  if (clientId) {
+    const clients = await dbGet('clients', {});
+    const c = clients.find(x => x.id === clientId);
+    if (c) {
+      selectedOrderClient = c;
+      document.getElementById('orderClientSearch').value = c.name;
+      document.getElementById('orderClientSelected').style.display = 'block';
+      document.getElementById('orderClientSelectedName').textContent = c.name;
+      document.getElementById('orderClientSelectedCnpj').textContent = c.cnpj || '';
+    }
+  }
+}
 async function generateMonthlyReport() {
   showToast('⏳ Gerando relatório...', 'success');
   const [orders, billing, clients, inspecoes] = await Promise.all([
