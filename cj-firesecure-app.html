@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;--primary:#e8210a;--secondary:#f0a500;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--text:#f1f5f9;--sub:#94a3b8;--muted:#6b7280}
@@ -337,6 +338,7 @@ textarea.input{resize:none;height:70px}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div style="font-size:14px;font-weight:800;color:var(--primary);">📋 Inspeção NBR 12962</div>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button onclick="openQrScannerNbr()" style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;" title="Ler QR Code do extintor">📷</button>
           <span style="color:var(--sub);font-size:11px;" id="nbrStepLabel">Histórico</span>
           <button onclick="showNbrList()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;" id="nbrHistBtn">📋 Histórico</button>
         </div>
@@ -1352,6 +1354,39 @@ textarea.input{resize:none;height:70px}
 </div>
 
 <!-- QR READER MODAL -->
+<div class="modal-overlay" id="qrNbrModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📷 Ler QR Code do Extintor</div>
+      <button class="modal-close" onclick="closeQrNbrModal()">✕</button>
+    </div>
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="color:var(--sub);font-size:12px;margin-bottom:14px;">Aponte a câmera para o QR Code colado no extintor. O app vai iniciar a inspeção automaticamente.</div>
+
+      <!-- Área de vídeo da câmera -->
+      <div id="qrNbrVideoWrap" style="display:none;position:relative;border-radius:12px;overflow:hidden;margin-bottom:12px;background:#000;">
+        <video id="qrNbrVideo" style="width:100%;max-height:260px;object-fit:cover;" autoplay playsinline muted></video>
+        <canvas id="qrNbrCanvas" style="display:none;"></canvas>
+        <!-- Mira -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+          <div style="width:180px;height:180px;border:3px solid #3b82f6;border-radius:12px;box-shadow:0 0 0 9999px #00000066;"></div>
+        </div>
+      </div>
+
+      <button id="qrNbrCamBtn" onclick="startQrNbrCamera()" style="background:var(--primary);color:#fff;border:none;border-radius:12px;padding:14px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;">📷 Abrir Câmera</button>
+      <button id="qrNbrStopBtn" onclick="stopQrNbrCamera()" style="display:none;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;">⏹ Parar Câmera</button>
+
+      <!-- Fallback: foto -->
+      <input type="file" id="qrNbrFileInput" accept="image/*" capture="environment" style="display:none;" onchange="readQrNbrFromFile(this)" />
+      <button onclick="document.getElementById('qrNbrFileInput').click()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:12px;padding:10px;font-size:12px;cursor:pointer;width:100%;margin-bottom:12px;">📁 Ou tirar foto do QR Code</button>
+
+      <div style="color:var(--sub);font-size:11px;margin-bottom:8px;">— ou busque pelo número de série —</div>
+      <input class="input" id="qrNbrSerieSearch" placeholder="Ex: EXT-2024-001" oninput="searchQrNbrBySerie()" />
+      <div id="qrNbrSearchResult" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="qrReaderModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">📷 Ler QR Code</div><button class="modal-close" onclick="closeModal('qrReaderModal')">✕</button></div>
@@ -3642,6 +3677,138 @@ function shareQR() {
 }
 
 function openQrReader() { openModal('qrReaderModal'); document.getElementById('qrSearchResult').innerHTML = ''; document.getElementById('qrSerieSearch').value = ''; }
+
+function openQrScannerNbr() {
+  document.getElementById('qrNbrSearchResult').innerHTML = '';
+  document.getElementById('qrNbrSerieSearch').value = '';
+  document.getElementById('qrNbrVideoWrap').style.display = 'none';
+  document.getElementById('qrNbrCamBtn').style.display = 'block';
+  document.getElementById('qrNbrStopBtn').style.display = 'none';
+  openModal('qrNbrModal');
+}
+
+function closeQrNbrModal() {
+  stopQrNbrCamera();
+  closeModal('qrNbrModal');
+}
+
+let _qrNbrStream = null;
+let _qrNbrScanInterval = null;
+
+async function startQrNbrCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    _qrNbrStream = stream;
+    const video = document.getElementById('qrNbrVideo');
+    video.srcObject = stream;
+    document.getElementById('qrNbrVideoWrap').style.display = 'block';
+    document.getElementById('qrNbrCamBtn').style.display = 'none';
+    document.getElementById('qrNbrStopBtn').style.display = 'block';
+    // Inicia leitura contínua
+    _qrNbrScanInterval = setInterval(() => scanQrNbrFrame(video), 300);
+  } catch(e) {
+    showToast('❌ Sem permissão para câmera. Use a opção de foto.', 'error');
+  }
+}
+
+function stopQrNbrCamera() {
+  if (_qrNbrScanInterval) { clearInterval(_qrNbrScanInterval); _qrNbrScanInterval = null; }
+  if (_qrNbrStream) { _qrNbrStream.getTracks().forEach(t => t.stop()); _qrNbrStream = null; }
+  document.getElementById('qrNbrVideoWrap').style.display = 'none';
+  document.getElementById('qrNbrCamBtn').style.display = 'block';
+  document.getElementById('qrNbrStopBtn').style.display = 'none';
+}
+
+function scanQrNbrFrame(video) {
+  if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+  const canvas = document.getElementById('qrNbrCanvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  try {
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code && code.data) {
+      stopQrNbrCamera();
+      handleQrNbrResult(code.data);
+    }
+  } catch(e) {}
+}
+
+function readQrNbrFromFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('qrNbrCanvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      try {
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code && code.data) {
+          handleQrNbrResult(code.data);
+        } else {
+          showToast('❌ QR Code não encontrado na imagem. Tente novamente.', 'error');
+        }
+      } catch(err) {
+        showToast('❌ Erro ao ler QR Code.', 'error');
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function handleQrNbrResult(qrData) {
+  closeQrNbrModal();
+  showToast('✅ QR Code lido! Carregando extintor...', 'success');
+
+  // QR Code contém o número de série do extintor
+  // Busca o extintor pelo número de série
+  const extintores = await dbGet('extintores', {});
+  const ext = extintores.find(e =>
+    e.numero_serie && (
+      e.numero_serie === qrData ||
+      qrData.includes(e.numero_serie) ||
+      e.numero_serie.includes(qrData)
+    )
+  );
+
+  if (!ext) {
+    showToast('⚠️ Extintor não encontrado. Busque pelo número de série.', 'error');
+    // Abre modal com o resultado no campo de busca
+    setTimeout(() => {
+      openQrScannerNbr();
+      document.getElementById('qrNbrSerieSearch').value = qrData;
+      searchQrNbrBySerie();
+    }, 500);
+    return;
+  }
+
+  // Extintor encontrado → inicia inspeção direto
+  showToast(`🎯 ${ext.tipo} · ${ext.numero_serie} — Iniciando inspeção!`, 'success');
+  setTimeout(() => startNbrForExtintor(ext.id), 600);
+}
+
+function searchQrNbrBySerie() {
+  const q = document.getElementById('qrNbrSerieSearch').value.toLowerCase();
+  const resEl = document.getElementById('qrNbrSearchResult');
+  if (!q) { resEl.innerHTML = ''; return; }
+  const found = allExtintores.filter(e => e.numero_serie?.toLowerCase().includes(q) || e.client_name?.toLowerCase().includes(q));
+  if (!found.length) { resEl.innerHTML = '<div style="color:var(--sub);text-align:center;font-size:13px;padding:10px;">Não encontrado</div>'; return; }
+  resEl.innerHTML = found.map(e => `
+    <div class="card" style="cursor:pointer;text-align:left;border-color:#3b82f644;" onclick="closeQrNbrModal();startNbrForExtintor(${e.id});">
+      <div style="font-weight:700;color:var(--primary);">${e.numero_serie}</div>
+      <div style="font-size:12px;color:var(--sub);">${e.tipo} · ${e.capacidade} · ${e.client_name || '—'}</div>
+      <div style="font-size:11px;color:#3b82f6;font-weight:700;margin-top:4px;">📋 Toque para iniciar inspeção</div>
+    </div>`).join('');
+}
 
 function readQRFromImage(input) {
   showToast('📷 Imagem capturada! Buscando...', 'success');
