@@ -461,6 +461,12 @@ textarea.input{resize:none;height:70px}
   <!-- ESTOQUE -->
   <div id="screen-stock" class="screen">
     <div class="page-header"><div class="page-title">Estoque</div><button class="btn btn-primary btn-sm" onclick="openStockForm()">+ Entrada</button></div>
+    <input class="input" id="stockSearch" placeholder="🔍 Buscar item..." oninput="filterStock()" style="margin-bottom:10px;" />
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;">
+      <button class="filter-tab active" id="stockSortName" onclick="setStockSort('name',this)">A-Z</button>
+      <button class="filter-tab" id="stockSortQty" onclick="setStockSort('qty',this)">Menor Qtd</button>
+      <button class="filter-tab" id="stockSortLow" onclick="setStockSort('low',this)">⚠️ Críticos</button>
+    </div>
     <div id="stockList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
@@ -484,7 +490,7 @@ textarea.input{resize:none;height:70px}
 
   <!-- ALERTAS -->
   <div id="screen-notifications" class="screen">
-    <div class="page-header"><div><div class="page-title">Alertas</div><div style="color:var(--sub);font-size:12px;">Vencimentos 30 e 7 dias</div></div></div>
+    <div class="page-header"><div><div class="page-title">🔔 Alertas</div><div style="color:var(--sub);font-size:12px;">Cobranças, visitas e extintores</div></div></div>
     <div id="notificationsList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
@@ -1222,7 +1228,18 @@ textarea.input{resize:none;height:70px}
     <div class="modal-header"><div class="modal-title">Novo Produto</div><button class="modal-close" onclick="closeModal('productFormModal')">✕</button></div>
     <div class="field"><label class="label">Nome</label><input class="input" id="productName" placeholder="Ex: Recarga Extintor PQS 4kg" /></div>
     <div class="field"><label class="label">Categoria <span style="color:var(--secondary);font-weight:400;text-transform:none;font-size:10px;">— pode digitar nova</span></label><input class="input" id="productCategory" placeholder="Ex: Extintores" list="categorySuggestions" /><datalist id="categorySuggestions"><option>Extintores</option><option>Sinalização</option><option>Hidrante</option><option>Alarme</option><option>Sprinkler</option><option>Manutenção</option><option>Peças</option></datalist></div>
-    <div class="field"><label class="label">Preço (R$)</label><input class="input" id="productPrice" type="number" step="0.01" placeholder="0,00" /></div>
+    <div class="field"><label class="label">Preço de Venda (R$)</label><input class="input" id="productPrice" type="number" step="0.01" placeholder="0,00" oninput="calcProductMargin()" /></div>
+    <div class="field"><label class="label">Custo (R$) <span style="color:var(--sub);font-weight:400;text-transform:none;font-size:10px;">— apenas você vê isso</span></label><input class="input" id="productCost" type="number" step="0.01" placeholder="0,00" oninput="calcProductMargin()" /></div>
+    <div id="productMarginPreview" style="display:none;background:#22c55e11;border:1px solid #22c55e33;border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;">
+        <span style="color:var(--sub);">Margem por item</span>
+        <span style="color:#22c55e;font-weight:800;" id="productMarginValue">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
+        <span style="color:var(--sub);">Margem %</span>
+        <span style="color:#22c55e;font-weight:800;" id="productMarginPct">—</span>
+      </div>
+    </div>
     <div class="field"><label class="label">Unidade</label><select class="input" id="productUnit"><option>un</option><option>serv.</option><option>ponto</option><option>m</option></select></div>
     <button class="btn btn-primary" onclick="saveProduct()">✓ Cadastrar</button>
   </div>
@@ -1608,9 +1625,9 @@ async function loadHomeData() {
     const totalGastos = monthExpenses.reduce((a, e) => a + parseFloat(e.amount || 0), 0);
     const resultado = recebido - totalGastos;
 
-    document.getElementById('monthRevenue').textContent = 'R$' + fmtInt(recebido);
-    document.getElementById('monthPending').textContent = 'R$' + fmtInt(pendente);
-    document.getElementById('monthExpenses').textContent = 'R$' + fmtInt(totalGastos);
+    document.getElementById('monthRevenue').textContent  = 'R$ ' + recebido.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0});
+    document.getElementById('monthPending').textContent  = 'R$ ' + pendente.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0});
+    document.getElementById('monthExpenses').textContent = 'R$ ' + totalGastos.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0});
     const resEl = document.getElementById('monthResult');
     resEl.textContent = (resultado >= 0 ? '+' : '') + 'R$' + fmtInt(resultado);
     resEl.style.color = resultado >= 0 ? 'var(--success)' : 'var(--primary)';
@@ -2801,27 +2818,71 @@ async function sharePDF() {
 // ============================================================
 // STOCK
 // ============================================================
+let _allStock = [];
+let _stockSort = 'name';
+
 async function loadStock() {
   try {
-    const data = await dbGet('stock', { order: 'name' });
-    if (!data.length) { document.getElementById('stockList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Estoque vazio.</div>'; return; }
-    document.getElementById('stockList').innerHTML = data.map(item => {
-      const low = parseInt(item.qty) <= parseInt(item.min_qty || 0);
-      const pct = Math.min(100, Math.round((item.qty / Math.max(item.min_qty * 2, 1)) * 100));
-      return `<div class="card ${low ? 'danger-border' : ''}">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div><div style="font-weight:600;font-size:13px;">${item.name}</div><div style="color:var(--sub);font-size:10px;">Mínimo: ${item.min_qty || 0}</div></div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="font-weight:800;font-size:16px;color:${low ? 'var(--danger)' : 'var(--success)'};">${item.qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit || 'un'}</span></div>
-            <button onclick="editStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
-            <button onclick="deleteStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
-          </div>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${low ? 'var(--danger)' : 'var(--success)'};"></div></div>
-        ${low ? '<div style="color:var(--danger);font-size:11px;font-weight:600;margin-top:4px;">⚠️ Repor estoque</div>' : ''}
-      </div>`;
-    }).join('');
+    _allStock = await dbGet('stock', {});
+    renderStock();
   } catch(e) { console.error('loadStock:', e); document.getElementById('stockList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:30px;">Erro ao carregar estoque.</div>'; }
+}
+
+function setStockSort(sort, el) {
+  _stockSort = sort;
+  document.querySelectorAll('#screen-stock .filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderStock();
+}
+
+function filterStock() { renderStock(); }
+
+function renderStock() {
+  const q = (document.getElementById('stockSearch')?.value || '').toLowerCase().trim();
+  let data = [..._allStock];
+
+  if (q) data = data.filter(i => i.name?.toLowerCase().includes(q));
+
+  if (_stockSort === 'qty') data.sort((a, b) => parseInt(a.qty) - parseInt(b.qty));
+  else if (_stockSort === 'low') data = data.filter(i => parseInt(i.qty) <= parseInt(i.min_qty || 0)).sort((a, b) => parseInt(a.qty) - parseInt(b.qty));
+  else data.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+
+  const totalItems = _allStock.length;
+  const criticalCount = _allStock.filter(i => parseInt(i.qty) <= parseInt(i.min_qty || 0)).length;
+
+  if (!data.length) {
+    document.getElementById('stockList').innerHTML = `
+      <div style="text-align:center;padding:16px 0 8px;color:var(--sub);font-size:12px;">${totalItems} itens · <span style="color:var(--danger);font-weight:700;">${criticalCount} críticos</span></div>
+      <div style="color:var(--sub);text-align:center;padding:20px;">${q ? 'Nenhum resultado para "'+q+'"' : 'Estoque vazio.'}</div>`;
+    return;
+  }
+
+  document.getElementById('stockList').innerHTML = `
+    <div style="color:var(--sub);font-size:11px;margin-bottom:10px;">${totalItems} itens no estoque · <span style="color:${criticalCount>0?'var(--danger)':'var(--success)'};font-weight:700;">${criticalCount} críticos</span></div>` +
+  data.map(item => {
+    const qty = parseInt(item.qty);
+    const min = parseInt(item.min_qty || 0);
+    const low = qty <= min;
+    const zero = qty === 0;
+    const pct = min > 0 ? Math.min(100, Math.round((qty / (min * 2)) * 100)) : qty > 0 ? 100 : 0;
+    const borderColor = zero ? '#ef444455' : low ? '#f59e0b55' : '#22c55e33';
+    const qtyColor = zero ? 'var(--danger)' : low ? 'var(--warning)' : 'var(--success)';
+    return `<div class="card" style="border-color:${borderColor};">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;">${item.name}</div>
+          <div style="color:var(--sub);font-size:10px;">Mínimo: ${min}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-weight:800;font-size:16px;color:${qtyColor};">${qty} <span style="font-size:10px;font-weight:400;color:var(--sub);">${item.unit || 'un'}</span></div>
+          <button onclick="editStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
+          <button onclick="deleteStock(${item.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${qtyColor};"></div></div>
+      ${zero ? '<div style="color:var(--danger);font-size:11px;font-weight:700;margin-top:4px;">🔴 Sem estoque!</div>' : low ? '<div style="color:var(--warning);font-size:11px;font-weight:600;margin-top:4px;">⚠️ Estoque baixo</div>' : ''}
+    </div>`;
+  }).join('');
 }
 
 let editingStockId = null;
@@ -3223,19 +3284,116 @@ async function saveBilling() {
 // ============================================================
 async function loadNotifications() {
   try {
-    const data = await dbGet('clients', { filter: 'status.eq.Vencendo,status.eq.Vencido' });
-    if (!data.length) { document.getElementById('notificationsList').innerHTML = '<div style="color:var(--sub);text-align:center;padding:20px;">✅ Nenhum vencimento próximo!</div>'; return; }
-    document.getElementById('notificationsList').innerHTML = data.map(c => `
-      <div class="card ${c.status === 'Vencido' ? 'danger-border' : 'warning-border'}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div><div style="font-size:11px;font-weight:800;color:${c.status === 'Vencido' ? 'var(--danger)' : 'var(--warning)'};margin-bottom:4px;">${c.status === 'Vencido' ? '🚨 VENCIDO' : '⚠️ VENCENDO'}</div><div style="font-weight:700;font-size:13px;">${c.name}</div>${c.phone ? `<div style="color:var(--sub);font-size:11px;">📞 ${c.phone}</div>` : ''}</div>
-          <span class="badge badge-${c.status === 'Vencido' ? 'danger' : 'warning'}">${c.status}</span>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;">📲 WhatsApp</button>
-          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="openOrderFormForClient('${c.name.replace(/'/g,"\\'")}','')">+ Pedido</button>
-        </div>
-      </div>`).join('');
+    const [clients, billing, extintores] = await Promise.all([
+      dbGet('clients', {}),
+      dbGet('billing', {}),
+      dbGet('extintores', {})
+    ]);
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in7  = new Date(); in7.setDate(today.getDate() + 7);
+    const in30 = new Date(); in30.setDate(today.getDate() + 30);
+    const in3  = new Date(); in3.setDate(today.getDate() + 3);
+
+    // Cobranças vencidas
+    const cobVencidas = billing.filter(b => {
+      if (b.status === 'Pago') return false;
+      const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
+      return d && d < today;
+    });
+    // Cobranças vencendo em 3 dias
+    const cobVencendo = billing.filter(b => {
+      if (b.status === 'Pago' || b.status === 'Vencido') return false;
+      const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
+      return d && d >= today && d <= in3;
+    });
+    // Visitas atrasadas
+    const visitasAtrasadas = clients.filter(c => {
+      const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null;
+      return d && d < today;
+    });
+    // Extintores vencendo em 30 dias
+    const extVencendo = extintores.filter(e => {
+      const d = e.proxima_inspecao ? new Date(e.proxima_inspecao + 'T12:00:00') : null;
+      return d && d <= in30;
+    });
+    // Clientes vencendo/vencidos
+    const clientesAlerta = clients.filter(c => c.status === 'Vencido' || c.status === 'Vencendo');
+
+    const sections = [];
+
+    if (cobVencidas.length) {
+      sections.push(`
+        <div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">🚨 Cobranças Vencidas (${cobVencidas.length})</div>
+        ${cobVencidas.map(b => `
+          <div class="card danger-border" style="margin-bottom:8px;">
+            <div style="font-weight:700;font-size:13px;">${b.client}</div>
+            <div style="color:var(--sub);font-size:11px;">${b.service || '—'}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <div style="color:var(--danger);font-size:11px;font-weight:700;">📅 ${b.due_date ? new Date(b.due_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+              <div style="font-weight:800;color:var(--danger);">R$ ${parseFloat(b.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+            </div>
+            <button onclick="navigate('billing')" style="width:100%;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">Ver Cobrança</button>
+          </div>`).join('')}`);
+    }
+
+    if (cobVencendo.length) {
+      sections.push(`
+        <div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">⏰ Vencendo em 3 dias (${cobVencendo.length})</div>
+        ${cobVencendo.map(b => `
+          <div class="card warning-border" style="margin-bottom:8px;">
+            <div style="font-weight:700;font-size:13px;">${b.client}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div style="color:var(--warning);font-size:11px;font-weight:700;">📅 ${b.due_date ? new Date(b.due_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+              <div style="font-weight:800;color:var(--warning);">R$ ${parseFloat(b.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+            </div>
+          </div>`).join('')}`);
+    }
+
+    if (visitasAtrasadas.length) {
+      sections.push(`
+        <div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">📍 Visitas Atrasadas (${visitasAtrasadas.length})</div>
+        ${visitasAtrasadas.map(c => `
+          <div class="card danger-border" style="margin-bottom:8px;">
+            <div style="font-weight:700;font-size:13px;">${c.name}</div>
+            <div style="color:var(--sub);font-size:11px;">${c.city || '—'}</div>
+            <div style="color:var(--danger);font-size:11px;font-weight:700;margin-top:4px;">📅 ${c.next_visit ? new Date(c.next_visit+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+            <button onclick="abrirVisitaModal(${c.id},'${c.name.replace(/'/g,"\\'")}');navigate('home')" style="width:100%;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">✅ Marcar como Visitado</button>
+          </div>`).join('')}`);
+    }
+
+    if (extVencendo.length) {
+      sections.push(`
+        <div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">🧯 Extintores Vencendo em 30 dias (${extVencendo.length})</div>
+        ${extVencendo.map(e => `
+          <div class="card warning-border" style="margin-bottom:8px;">
+            <div style="font-weight:700;font-size:13px;">${e.numero_serie}</div>
+            <div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.capacidade} · ${e.client_name || '—'}</div>
+            <div style="color:var(--warning);font-size:11px;font-weight:700;margin-top:4px;">📅 ${e.proxima_inspecao ? new Date(e.proxima_inspecao+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+          </div>`).join('')}`);
+    }
+
+    if (clientesAlerta.length) {
+      sections.push(`
+        <div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">👥 Clientes com Inspeção Vencendo (${clientesAlerta.length})</div>
+        ${clientesAlerta.map(c => `
+          <div class="card ${c.status === 'Vencido' ? 'danger-border' : 'warning-border'}" style="margin-bottom:8px;">
+            <div style="font-weight:700;font-size:13px;">${c.name}</div>
+            <div style="color:var(--sub);font-size:11px;">${c.city || '—'} · ${c.equipments || 0} equipamentos</div>
+            <span class="badge badge-${c.status === 'Vencido' ? 'danger' : 'warning'}" style="margin-top:6px;">${c.status}</span>
+          </div>`).join('')}`);
+    }
+
+    if (!sections.length) {
+      document.getElementById('notificationsList').innerHTML = `
+        <div style="text-align:center;padding:40px 20px;">
+          <div style="font-size:50px;margin-bottom:12px;">✅</div>
+          <div style="font-weight:700;font-size:16px;color:var(--success);">Tudo em dia!</div>
+          <div style="color:var(--sub);font-size:13px;margin-top:6px;">Nenhuma cobrança vencida, visita atrasada ou extintor vencendo.</div>
+        </div>`;
+    } else {
+      document.getElementById('notificationsList').innerHTML = sections.join('');
+    }
   } catch(e) { console.error(e); }
 }
 
@@ -3256,16 +3414,44 @@ function renderProducts(list) {
   document.getElementById('productsList').innerHTML = cats.map(cat => {
     const items = list.filter(p => p.category === cat);
     return `<div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin:14px 0 8px;">${cat}</div>` +
-      items.map(p => `
+      items.map(p => {
+        const hasCost = p.cost && p.cost > 0;
+        const margin = hasCost ? (p.price - p.cost) : null;
+        const marginPct = hasCost && p.price > 0 ? ((margin / p.price) * 100).toFixed(0) : null;
+        return `
         <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:12px 14px;">
-          <div style="flex:1;"><div style="font-weight:600;font-size:13px;">${p.name}</div><div style="color:var(--sub);font-size:10px;">por ${p.unit || 'un'}</div></div>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:13px;">${p.name}</div>
+            <div style="color:var(--sub);font-size:10px;">por ${p.unit || 'un'}</div>
+            ${hasCost ? `<div style="color:${margin>=0?'#22c55e':'var(--danger)'};font-size:10px;font-weight:700;margin-top:2px;">Margem: R$ ${margin.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} (${marginPct}%)</div>` : ''}
+          </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <button onclick="editPrice(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.price})" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer;">R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</button>
             <button onclick="editProduct(${p.id})" style="background:none;border:none;cursor:pointer;font-size:16px;">✏️</button>
             <button onclick="deleteProduct(${p.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
   }).join('');
+}
+
+function calcProductMargin() {
+  const price = parseFloat(document.getElementById('productPrice').value) || 0;
+  const cost  = parseFloat(document.getElementById('productCost').value)  || 0;
+  const preview = document.getElementById('productMarginPreview');
+  if (price > 0 && cost > 0) {
+    const margin = price - cost;
+    const pct = ((margin / price) * 100).toFixed(1);
+    document.getElementById('productMarginValue').textContent = (margin >= 0 ? '+ ' : '') + 'R$ ' + margin.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('productMarginPct').textContent = pct + '%';
+    preview.style.background = margin >= 0 ? '#22c55e11' : '#ef444411';
+    preview.style.borderColor = margin >= 0 ? '#22c55e33' : '#ef444433';
+    document.getElementById('productMarginValue').style.color = margin >= 0 ? '#22c55e' : 'var(--danger)';
+    document.getElementById('productMarginPct').style.color   = margin >= 0 ? '#22c55e' : 'var(--danger)';
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
 }
 
 function filterProducts() {
@@ -3284,7 +3470,9 @@ function openProductForm() {
   document.getElementById('productName').value = '';
   document.getElementById('productCategory').value = '';
   document.getElementById('productPrice').value = '';
+  document.getElementById('productCost').value = '';
   document.getElementById('productUnit').value = 'un';
+  document.getElementById('productMarginPreview').style.display = 'none';
   document.querySelector('#productFormModal .modal-title').textContent = 'Novo Produto';
   document.querySelector('#productFormModal .btn-primary').textContent = '✓ Cadastrar';
   openModal('productFormModal');
@@ -3308,7 +3496,10 @@ async function editProduct(id) {
   document.getElementById('productName').value = p.name || '';
   document.getElementById('productCategory').value = p.category || '';
   document.getElementById('productPrice').value = p.price || '';
+  document.getElementById('productCost').value = p.cost || '';
   document.getElementById('productUnit').value = p.unit || 'un';
+  document.getElementById('productMarginPreview').style.display = 'none';
+  calcProductMargin();
   document.querySelector('#productFormModal .modal-title').textContent = '✏️ Editar Produto';
   document.querySelector('#productFormModal .btn-primary').textContent = '✓ Salvar Alterações';
   openModal('productFormModal');
@@ -3318,7 +3509,7 @@ async function saveProduct() {
   const name = document.getElementById('productName').value.trim();
   if (!name) { showToast('⚠️ Informe o nome', 'error'); return; }
   const category = document.getElementById('productCategory').value;
-  const productData = { name, category, price: parseFloat(document.getElementById('productPrice').value) || 0, unit: document.getElementById('productUnit').value };
+  const productData = { name, category, price: parseFloat(document.getElementById('productPrice').value) || 0, cost: parseFloat(document.getElementById('productCost').value) || 0, unit: document.getElementById('productUnit').value };
 
   // Categorias/nomes que NÃO vão pro estoque (são serviços)
   const SERVICE_KEYWORDS = ['manutenção', 'manutencao', 'serviço', 'servico', 'teste hidrostático', 'teste hidrostatico', 'teste', 'hidrostático', 'hidrostatico'];
@@ -5462,7 +5653,7 @@ async function loadObras() {
     const cor      = STATUS_COLOR[o.status] || '#3b82f6';
 
     return `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;" onclick="openObraDetail(${o.id})">
+    <div style="background:var(--card);border:1px solid ${cor}44;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;" onclick="openObraDetail(${o.id})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div style="flex:1;">
           <div style="font-weight:700;font-size:14px;">${o.client}</div>
