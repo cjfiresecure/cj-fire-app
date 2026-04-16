@@ -239,7 +239,28 @@ textarea.input{resize:none;height:70px}
       <button class="menu-item" onclick="navigate('expenses')" style="border-color:#22c55e44;"><div style="font-size:28px;">💸</div><div style="font-weight:700;color:#22c55e;">Gastos</div><div style="color:var(--sub);font-size:11px;">Controle de custos</div></button>
       <button class="menu-item" onclick="navigate('obras')" style="border-color:#3b82f644;"><div style="font-size:28px;">🏗️</div><div style="font-weight:700;color:#3b82f6;">Obras</div><div style="color:var(--sub);font-size:11px;">Serviços de mão de obra</div></button>
       <button class="menu-item" onclick="navigate('caixa')" style="border-color:#22c55e44;"><div style="font-size:28px;">💳</div><div style="font-weight:700;color:#22c55e;">Caixa</div><div style="color:var(--sub);font-size:11px;">Saldo em tempo real</div></button>
+      <button class="menu-item" onclick="navigate('frota')" style="border-color:#e8210a44;"><div style="font-size:28px;">🚒</div><div style="font-weight:700;color:var(--primary);">Minha Frota</div><div style="color:var(--sub);font-size:11px;">Extintores em campo</div></button>
     </div>
+  </div>
+
+  <!-- MINHA FROTA -->
+  <div id="screen-frota" class="screen">
+    <div class="page-header">
+      <div><div class="page-title">🚒 Minha Frota</div><div style="color:var(--sub);font-size:12px;">Extintores próprios e em campo</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openFrotaForm()">+ Tipo</button>
+    </div>
+    <!-- Resumo -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div class="stat-card" style="text-align:center;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">TOTAL PRÓPRIOS</div><div style="font-size:22px;font-weight:900;color:var(--secondary);" id="frotaTotal">0</div></div>
+      <div class="stat-card" style="text-align:center;border-color:#ef444455;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">EM CAMPO</div><div style="font-size:22px;font-weight:900;color:var(--danger);" id="frotaCampo">0</div></div>
+      <div class="stat-card" style="text-align:center;border-color:#22c55e44;grid-column:1/-1;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">DISPONÍVEIS</div><div style="font-size:22px;font-weight:900;color:var(--success);" id="frotaDisp">0</div></div>
+    </div>
+    <!-- Extintores em campo -->
+    <div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📍 Em Campo (clientes)</div>
+    <div id="frotaCampoList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
+    <!-- Minha frota cadastrada -->
+    <div style="color:var(--sub);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">🧯 Minha Frota Cadastrada</div>
+    <div id="frotaList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
   <!-- GASTOS -->
@@ -598,6 +619,57 @@ textarea.input{resize:none;height:70px}
 </div>
 
 <!-- MODALS -->
+
+<!-- MODAL: Frota -->
+<div class="modal-overlay" id="frotaFormModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="frotaFormTitle">🧯 Tipo de Extintor</div><button class="modal-close" onclick="closeModal('frotaFormModal')">✕</button></div>
+    <input type="hidden" id="frotaEditId" />
+    <div class="field"><label class="label">Tipo / Descrição *</label><input class="input" id="frotaTipo" placeholder="Ex: Pó ABC 4kg, CO2 6kg..." /></div>
+    <div class="field"><label class="label">Quantidade Total (minha frota)</label>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick="frotaAdjustQty('frotaQtyInput',-1)" style="width:40px;height:40px;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:50%;font-size:20px;font-weight:700;cursor:pointer;">−</button>
+        <input type="number" class="input" id="frotaQtyInput" value="1" min="0" style="text-align:center;font-size:18px;font-weight:700;width:80px;" />
+        <button onclick="frotaAdjustQty('frotaQtyInput',1)" style="width:40px;height:40px;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:50%;font-size:20px;font-weight:700;cursor:pointer;">+</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveFrota()">✓ Salvar</button>
+  </div>
+</div>
+
+<!-- MODAL: Extintores Deixados no Cliente -->
+<div class="modal-overlay" id="extintoresCampoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🧯 Extintores da CJ no cliente?</div>
+      <button class="modal-close" onclick="closeModal('extintoresCampoModal')">✕</button>
+    </div>
+    <input type="hidden" id="ecClientId" />
+    <input type="hidden" id="ecClientName" />
+    <div style="color:var(--sub);font-size:13px;margin-bottom:16px;">Você deixou algum extintor da <span style="color:var(--primary);font-weight:700;">CJ FireSecure</span> neste cliente?</div>
+
+    <div id="ecStep1">
+      <div style="display:flex;gap:10px;">
+        <button onclick="ecResponder(true)" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:12px;padding:16px;font-size:15px;font-weight:700;cursor:pointer;">✅ Sim</button>
+        <button onclick="ecResponder(false)" style="flex:1;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:15px;font-weight:700;cursor:pointer;">❌ Não</button>
+      </div>
+    </div>
+
+    <div id="ecStep2" style="display:none;">
+      <div style="color:var(--sub);font-size:12px;margin-bottom:12px;">Quantos extintores foram deixados?</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px;">
+        <button onclick="ecAdjust(-1)" style="width:48px;height:48px;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:50%;font-size:24px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+        <div style="text-align:center;">
+          <div style="font-size:42px;font-weight:900;color:var(--primary);" id="ecQty">1</div>
+          <div style="color:var(--sub);font-size:11px;">extintor(es)</div>
+        </div>
+        <button onclick="ecAdjust(1)" style="width:48px;height:48px;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:50%;font-size:24px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+      </div>
+      <button onclick="ecConfirmar()" class="btn btn-primary">✅ Confirmar</button>
+      <button onclick="document.getElementById('ecStep2').style.display='none';document.getElementById('ecStep1').style.display='block';" style="width:100%;background:none;border:none;color:var(--sub);font-size:13px;cursor:pointer;margin-top:8px;">← Voltar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: Marcar Visita -->
 <div class="modal-overlay" id="visitaModal">
@@ -1509,7 +1581,7 @@ function navigate(screen) {
 }
 
 function loadScreen(s) {
-  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, obras: loadObras, caixa: loadCaixa,
+  const map = { clients: loadClients, orders: loadOrders, stock: loadStock, billing: loadBilling, notifications: loadNotifications, products: loadProducts, suppliers: loadSuppliers, home: loadHomeData, extintores: loadExtintores, nbr: showNbrList, obras: loadObras, caixa: loadCaixa, frota: loadFrota,
     expenses: () => {
       const now = new Date();
       expenseCurrentMonth = now.getMonth();
@@ -2535,6 +2607,12 @@ async function saveOrder() {
 
         closeModal('orderFormModal');
         showToast('✅ Pedido criado · Cobrança e estoque atualizados!', 'success');
+
+        // Pergunta se deixou extintor da CJ no cliente
+        const temManutencao = orderItems.some(i => /manutenção|manutencao|recarga/i.test(i.name));
+        if (temManutencao && selectedOrderClient?.id) {
+          setTimeout(() => openExtintoresCampoModal(selectedOrderClient.id, selectedOrderClient.name), 600);
+        }
       } else {
         // Orçamento — sem cobrança, sem baixa de estoque
         closeModal('orderFormModal');
@@ -2684,7 +2762,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
     <!-- RODAPÉ -->
     ${obs ? `<div style="border:1px solid #ddd;margin-bottom:8px;">
       <div style="background:#555;color:#fff;padding:4px 8px;font-size:11px;font-weight:700;text-transform:uppercase;">Observações</div>
-      <div style="padding:8px;font-size:10px;line-height:1.6;color:#444;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;max-width:100%;">${obs}</div>
+      <div style="padding:8px;font-size:10px;line-height:1.6;color:#444;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;max-width:100%;display:block;">${obs.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
     </div>` : ''}
     <div style="border-top:2px solid #e8210a;padding-top:8px;text-align:center;color:#999;font-size:9px;">
       CJ FireSecure Ltda · CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025 · cjextintores28@gmail.com · Segurança contra incêndio
@@ -3286,6 +3364,172 @@ async function saveBilling() {
 // ============================================================
 // NOTIFICATIONS
 // ============================================================
+// ============================================================
+// MINHA FROTA — Extintores próprios
+// ============================================================
+let _frotaEditId = null;
+
+function openFrotaForm(id = null) {
+  _frotaEditId = id;
+  document.getElementById('frotaEditId').value = id || '';
+  document.getElementById('frotaTipo').value = '';
+  document.getElementById('frotaQtyInput').value = '1';
+  document.querySelector('#frotaFormModal .modal-title').textContent = id ? '✏️ Editar Extintor' : '🧯 Novo Tipo de Extintor';
+  if (id) {
+    dbGet('minha_frota', {}).then(data => {
+      const item = data.find(x => x.id === id);
+      if (item) {
+        document.getElementById('frotaTipo').value = item.tipo || '';
+        document.getElementById('frotaQtyInput').value = item.qty_total || 1;
+      }
+    });
+  }
+  openModal('frotaFormModal');
+}
+
+function frotaAdjustQty(inputId, delta) {
+  const el = document.getElementById(inputId);
+  el.value = Math.max(0, parseInt(el.value || 0) + delta);
+}
+
+async function saveFrota() {
+  const tipo = document.getElementById('frotaTipo').value.trim();
+  if (!tipo) { showToast('⚠️ Informe o tipo', 'error'); return; }
+  const qty_total = parseInt(document.getElementById('frotaQtyInput').value) || 0;
+  if (_frotaEditId) {
+    await dbUpdate('minha_frota', _frotaEditId, { tipo, qty_total });
+  } else {
+    await dbInsert('minha_frota', { tipo, qty_total, qty_campo: 0 });
+  }
+  closeModal('frotaFormModal');
+  showToast('✅ Frota salva!', 'success');
+  loadFrota();
+}
+
+async function deleteFrota(id) {
+  const data = await dbGet('minha_frota', {});
+  const item = data.find(x => x.id === id);
+  confirmDelete(`🧯 ${item?.tipo || 'Extintor'}`, async () => {
+    await dbDelete('minha_frota', id);
+    showToast('🗑️ Removido', 'success');
+    loadFrota();
+  });
+}
+
+async function loadFrota() {
+  try {
+    const [frota, clientes] = await Promise.all([
+      dbGet('minha_frota', {}),
+      dbGet('clients', {})
+    ]);
+
+    // Conta total em campo (soma extintores_campo de todos os clientes)
+    let totalCampo = 0;
+    const clientesComExtintores = clientes.filter(c => c.extintores_campo > 0);
+    clientesComExtintores.forEach(c => { totalCampo += parseInt(c.extintores_campo || 0); });
+
+    const totalFrota = frota.reduce((s, f) => s + parseInt(f.qty_total || 0), 0);
+    const disponivel = Math.max(0, totalFrota - totalCampo);
+
+    document.getElementById('frotaTotal').textContent = totalFrota;
+    document.getElementById('frotaCampo').textContent = totalCampo;
+    document.getElementById('frotaDisp').textContent = disponivel;
+
+    // Lista em campo
+    const campoEl = document.getElementById('frotaCampoList');
+    if (!clientesComExtintores.length) {
+      campoEl.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:8px 0;">Nenhum extintor em campo.</div>';
+    } else {
+      campoEl.innerHTML = clientesComExtintores.map(c => `
+        <div class="card" style="margin-bottom:8px;padding:12px 14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:700;font-size:13px;">${c.name}</div>
+              <div style="color:var(--sub);font-size:11px;">${c.city||'—'}</div>
+              <div style="color:var(--sub);font-size:10px;">Deixados em: ${c.extintores_campo_data ? new Date(c.extintores_campo_data).toLocaleDateString('pt-BR') : '—'}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <div style="font-size:26px;font-weight:900;color:var(--danger);">${c.extintores_campo}</div>
+              <button onclick="recolherExtintores(${c.id},'${c.name.replace(/'/g,"\\'")}',${c.extintores_campo})" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolher</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    // Lista frota cadastrada
+    const frotaEl = document.getElementById('frotaList');
+    if (!frota.length) {
+      frotaEl.innerHTML = '<div style="color:var(--sub);font-size:12px;text-align:center;padding:16px;">Nenhum tipo cadastrado ainda.<br>Toque em "+ Tipo" para começar.</div>';
+    } else {
+      frotaEl.innerHTML = frota.map(f => {
+        const disp = Math.max(0, parseInt(f.qty_total || 0));
+        return `<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:12px 14px;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${f.tipo}</div>
+            <div style="color:var(--sub);font-size:11px;">${f.qty_total} no total</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="openFrotaForm(${f.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--secondary);">✏️</button>
+            <button onclick="deleteFrota(${f.id})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--danger);">🗑️</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { console.error('loadFrota:', e); }
+}
+
+async function recolherExtintores(clientId, clientName, qtdAtual) {
+  if (!confirm(`Confirmar recolhimento de ${qtdAtual} extintor(es) de ${clientName}?`)) return;
+  await dbUpdate('clients', clientId, { extintores_campo: 0, extintores_campo_data: null });
+  showToast(`✅ ${qtdAtual} extintor(es) recolhido(s) de ${clientName}!`, 'success');
+  loadFrota();
+}
+
+// ============================================================
+// EXTINTORES EM CAMPO — Modal pós-pedido
+// ============================================================
+let _ecQty = 1;
+let _ecPendingClientId = null;
+let _ecPendingClientName = null;
+
+function openExtintoresCampoModal(clientId, clientName) {
+  _ecPendingClientId = clientId;
+  _ecPendingClientName = clientName;
+  _ecQty = 1;
+  document.getElementById('ecClientId').value = clientId;
+  document.getElementById('ecClientName').value = clientName;
+  document.getElementById('ecQty').textContent = '1';
+  document.getElementById('ecStep1').style.display = 'block';
+  document.getElementById('ecStep2').style.display = 'none';
+  openModal('extintoresCampoModal');
+}
+
+function ecResponder(sim) {
+  if (!sim) { closeModal('extintoresCampoModal'); return; }
+  document.getElementById('ecStep1').style.display = 'none';
+  document.getElementById('ecStep2').style.display = 'block';
+}
+
+function ecAdjust(delta) {
+  _ecQty = Math.max(1, _ecQty + delta);
+  document.getElementById('ecQty').textContent = _ecQty;
+}
+
+async function ecConfirmar() {
+  const clientId = parseInt(document.getElementById('ecClientId').value);
+  const today = new Date().toISOString().split('T')[0];
+  // Soma com extintores já em campo (caso já tenha)
+  const clients = await dbGet('clients', {});
+  const c = clients.find(x => x.id === clientId);
+  const jaEmCampo = parseInt(c?.extintores_campo || 0);
+  await dbUpdate('clients', clientId, {
+    extintores_campo: jaEmCampo + _ecQty,
+    extintores_campo_data: today
+  });
+  closeModal('extintoresCampoModal');
+  showToast(`✅ ${_ecQty} extintor(es) registrado(s) em campo!`, 'success');
+}
+
 let _alertFilter = 'todos';
 let _alertData = null;
 
