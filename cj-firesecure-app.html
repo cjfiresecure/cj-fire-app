@@ -133,6 +133,9 @@ textarea.input{resize:none;height:70px}
         </div>
         <button onclick="openGlobalSearch()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;">🔍</button>
         <button onclick="toggleTheme()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;" id="themeBtn">🌙</button>
+        <button onclick="navigate('notifications')" style="position:relative;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;" id="bellBtn">
+          🔔<span id="alertBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:900;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;line-height:14px;"></span>
+        </button>
         <button onclick="exportBackup()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;">💾</button>
         <button onclick="doLogout()" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;" title="Sair">🚪</button>
       </div>
@@ -162,38 +165,7 @@ textarea.input{resize:none;height:70px}
       </div>
     </div>
 
-    <!-- Alerta extintores vencendo -->
-    <div id="homeExtintorAlert" style="display:none;background:#f59e0b18;border:1px solid #f59e0b44;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="navigate('extintores')">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:20px;">⚠️</span>
-        <div><div style="color:var(--warning);font-weight:700;font-size:13px;" id="homeExtintorAlertText">Extintores vencendo</div><div style="color:var(--sub);font-size:11px;">Toque para ver</div></div>
-      </div>
-    </div>
-
-    <!-- Alerta visitas atrasadas -->
-    <div id="homeVisitaAtrasadaAlert" style="display:none;background:#ef444418;border:1px solid #ef444488;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="document.getElementById('homeVisitAgenda').scrollIntoView({behavior:'smooth'})">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:20px;">📍</span>
-        <div><div style="color:var(--danger);font-weight:800;font-size:13px;" id="homeVisitaAtrasadaText">Visitas atrasadas</div><div style="color:var(--sub);font-size:11px;">Toque para ver</div></div>
-      </div>
-    </div>
-
-    <!-- Alerta cobranças vencidas -->
-    <div id="homeBillingAlertVencido" style="display:none;background:#ef444418;border:1px solid #ef444488;border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="navigate('billing')">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:20px;">🚨</span>
-        <div><div style="color:var(--danger);font-weight:800;font-size:13px;" id="homeBillingVencidoText">Cobranças vencidas</div><div style="color:var(--sub);font-size:11px;">Toque para ver e cobrar</div></div>
-      </div>
-    </div>
-
-    <!-- Alerta cobranças vencendo em 3 dias -->
-    <div id="homeBillingAlertVencendo" style="display:none;background:#f59e0b18;border:1px solid #f59e0b88;border-radius:12px;padding:12px 14px;margin-bottom:14px;cursor:pointer;" onclick="navigate('billing')">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:20px;">⏰</span>
-        <div><div style="color:var(--warning);font-weight:800;font-size:13px;" id="homeBillingVencendoText">Cobranças vencendo</div><div style="color:var(--sub);font-size:11px;">Vence nos próximos 3 dias</div></div>
-      </div>
-    </div>
-
+    <!-- Acesso Rápido -->
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Acesso Rápido</div>
     <div class="quick-grid">
       <div class="quick-btn" onclick="navigate('obras')"><span class="icon">🏗️</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Obras</span></div>
@@ -201,13 +173,6 @@ textarea.input{resize:none;height:70px}
       <div class="quick-btn" onclick="navigate('nbr')"><span class="icon">📋</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Inspeção</span></div>
       <div class="quick-btn" onclick="navigate('billing')"><span class="icon">💰</span><span style="color:var(--sub);font-size:10px;font-weight:600;">Cobranças</span></div>
     </div>
-
-    <!-- Agenda de Visitas -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">📅 Próximas Visitas</div>
-      <button onclick="generateMonthlyReport()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">📊 Relatório</button>
-    </div>
-    <div id="homeVisitAgenda"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
 
     <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px;">Últimos Clientes</div>
     <div id="homeRecentClients"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
@@ -490,7 +455,25 @@ textarea.input{resize:none;height:70px}
 
   <!-- ALERTAS -->
   <div id="screen-notifications" class="screen">
-    <div class="page-header"><div><div class="page-title">🔔 Alertas</div><div style="color:var(--sub);font-size:12px;">Cobranças, visitas e extintores</div></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div><div class="page-title">🔔 Alertas</div><div style="color:var(--sub);font-size:12px;">Todas as pendências em um lugar</div></div>
+      <button onclick="generateMonthlyReport()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">📊 Relatório</button>
+    </div>
+    <!-- Filtros de categoria -->
+    <div class="filter-tabs" style="margin-bottom:8px;">
+      <button class="filter-tab active" onclick="setAlertFilter('todos',this)">Todos</button>
+      <button class="filter-tab" onclick="setAlertFilter('cobrancas',this)">💰 Cobranças</button>
+      <button class="filter-tab" onclick="setAlertFilter('visitas',this)">📍 Visitas</button>
+      <button class="filter-tab" onclick="setAlertFilter('extintores',this)">🧯 Extintores</button>
+      <button class="filter-tab" onclick="setAlertFilter('clientes',this)">👥 Clientes</button>
+    </div>
+    <!-- Filtro de cidade -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center;">
+      <span style="color:var(--sub);font-size:10px;font-weight:700;white-space:nowrap;">🏙️ Cidade:</span>
+      <select id="alertCityFilter" class="input" style="flex:1;padding:6px 10px;font-size:12px;" onchange="renderAlertList()">
+        <option value="">Todas</option>
+      </select>
+    </div>
     <div id="notificationsList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
   </div>
 
@@ -1632,37 +1615,28 @@ async function loadHomeData() {
     resEl.textContent = (resultado >= 0 ? '+' : '') + 'R$' + fmtInt(resultado);
     resEl.style.color = resultado >= 0 ? 'var(--success)' : 'var(--primary)';
 
-    // Alertas de extintores vencendo
-    const in30 = new Date(); in30.setDate(in30.getDate() + 30);
-    const vencendo = extintores.filter(e => {
-      const p = e.proxima_inspecao ? new Date(e.proxima_inspecao) : null;
-      return p && p <= in30;
-    });
-    if (vencendo.length > 0) {
-      document.getElementById('homeExtintorAlert').style.display = 'block';
-      document.getElementById('homeExtintorAlertText').textContent = `${vencendo.length} extintor(es) com inspeção vencendo em 30 dias`;
-    }
-
-    // Alertas de cobranças
-    const todayB = new Date(); todayB.setHours(0,0,0,0);
-    const in3 = new Date(); in3.setDate(todayB.getDate() + 3);
-    const billingVencidas = billing.filter(b => {
-      if (b.status === 'Pago') return false;
-      const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
-      return d && d < todayB;
-    });
-    const billingVencendo = billing.filter(b => {
-      if (b.status === 'Pago' || b.status === 'Vencido') return false;
-      const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
-      return d && d >= todayB && d <= in3;
-    });
-    if (billingVencidas.length > 0) {
-      document.getElementById('homeBillingAlertVencido').style.display = 'block';
-      document.getElementById('homeBillingVencidoText').textContent = `${billingVencidas.length} cobrança(s) vencida(s) — total R$ ${billingVencidas.reduce((s,b)=>s+parseFloat(b.value||0),0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-    }
-    if (billingVencendo.length > 0) {
-      document.getElementById('homeBillingAlertVencendo').style.display = 'block';
-      document.getElementById('homeBillingVencendoText').textContent = `${billingVencendo.length} cobrança(s) vence(m) nos próximos 3 dias`;
+    // Alertas — calcula total e atualiza badge do sininho
+    const todayB2 = new Date(); todayB2.setHours(0,0,0,0);
+    const in3B = new Date(); in3B.setDate(todayB2.getDate() + 3);
+    const in30B = new Date(); in30B.setDate(todayB2.getDate() + 30);
+    let totalAlertas = 0;
+    totalAlertas += billing.filter(b => { if (b.status === 'Pago') return false; const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null; return d && d < todayB2; }).length;
+    totalAlertas += billing.filter(b => { if (b.status === 'Pago' || b.status === 'Vencido') return false; const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null; return d && d >= todayB2 && d <= in3B; }).length;
+    totalAlertas += allClientsFull.filter(c => { const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null; return d && d < todayB2; }).length;
+    const allExtintoresB = await dbGet('extintores', {});
+    totalAlertas += allExtintoresB.filter(e => { const d = e.proxima_inspecao ? new Date(e.proxima_inspecao + 'T12:00:00') : null; return d && d <= in30B; }).length;
+    const badgeEl = document.getElementById('alertBadge');
+    if (badgeEl) {
+      if (totalAlertas > 0) {
+        badgeEl.textContent = totalAlertas > 99 ? '99+' : totalAlertas;
+        badgeEl.style.display = 'inline-block';
+        document.getElementById('bellBtn').style.borderColor = '#ef444444';
+        document.getElementById('bellBtn').style.background = '#ef444418';
+      } else {
+        badgeEl.style.display = 'none';
+        document.getElementById('bellBtn').style.borderColor = '';
+        document.getElementById('bellBtn').style.background = '';
+      }
     }
 
     // Últimos clientes
@@ -1670,8 +1644,6 @@ async function loadHomeData() {
       ? '<div style="color:var(--sub);text-align:center;padding:20px;">Nenhum cliente ainda.</div>'
       : clients.map(c => `<div class="card" onclick="openClientHistory(${c.id},'${c.name.replace(/'/g,"\\'")}')"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-weight:700;font-size:13px;">${c.name}</div><div style="color:var(--sub);font-size:11px;">📅 ${c.next_visit || '—'}</div></div><div style="display:flex;align-items:center;gap:8px;"><span class="badge badge-${c.status === 'Em dia' ? 'success' : c.status === 'Vencendo' ? 'warning' : 'danger'}">${c.status || 'Em dia'}</span><span style="color:var(--sub);font-size:16px;">›</span></div></div></div>`).join('');
 
-    // Agenda de visitas
-    loadVisitAgenda();
   } catch(e) { console.error(e); }
 }
 
@@ -1874,7 +1846,10 @@ let allOrders = [], orderFilter = 'Todos', orderStatusFilter = 'Todos', orderDat
 async function loadOrders() {
   document.getElementById('ordersList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
   try {
-    allOrders = await dbGet('orders', { order: 'created_at', asc: false });
+    [allOrders, allProductsForOrder] = await Promise.all([
+      dbGet('orders', { order: 'created_at', asc: false }),
+      dbGet('products', {})
+    ]);
     const pedidos = allOrders.filter(o => o.type === 'Pedido');
     const orcs = allOrders.filter(o => o.type === 'Orçamento');
     document.getElementById('ordersCountPedido').textContent = pedidos.length + ' pedidos';
@@ -1911,6 +1886,34 @@ function renderOrders() {
     const status = o.order_status || 'Em Aberto';
     const statusColor = status === 'Concluído' ? 'var(--success)' : status === 'Cancelado' ? 'var(--danger)' : 'var(--secondary)';
     const date = o.created_at ? new Date(o.created_at).toLocaleDateString('pt-BR') : '—';
+
+    // Calcula margem usando custo dos produtos
+    let marginHtml = '';
+    try {
+      const items = JSON.parse(o.items || '[]');
+      let totalCusto = 0;
+      let todosTemCusto = items.length > 0;
+      items.forEach(item => {
+        const prod = allProductsForOrder.find(p => p.name?.toLowerCase().trim() === item.name?.toLowerCase().trim());
+        if (prod && prod.cost > 0) {
+          totalCusto += prod.cost * (item.qty || 1);
+        } else {
+          todosTemCusto = false;
+        }
+      });
+      const receita = parseFloat(o.value || 0);
+      if (totalCusto > 0 && receita > 0) {
+        const margem = receita - totalCusto;
+        const margemPct = ((margem / receita) * 100).toFixed(0);
+        const margemColor = margem >= 0 ? '#22c55e' : 'var(--danger)';
+        const label = todosTemCusto ? 'Margem' : 'Margem est.';
+        marginHtml = `<div style="background:${margemColor}11;border:1px solid ${margemColor}33;border-radius:8px;padding:5px 10px;margin-top:7px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:var(--sub);font-size:10px;font-weight:600;">📊 ${label}${!todosTemCusto ? ' *' : ''}</span>
+          <span style="color:${margemColor};font-size:12px;font-weight:800;">R$ ${margem.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} (${margemPct}%)</span>
+        </div>`;
+      }
+    } catch(e) {}
+
     return `
     <div class="card ${status === 'Cancelado' ? 'danger-border' : status === 'Concluído' ? 'success-border' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -1939,6 +1942,7 @@ function renderOrders() {
           <span style="color:${o.type === 'Pedido' ? 'var(--success)' : 'var(--secondary)'};font-weight:800;font-size:13px;">${o.type}</span>
         </div>
       </div>
+      ${marginHtml}
     </div>`;
   }).join('');
 }
@@ -3282,6 +3286,16 @@ async function saveBilling() {
 // ============================================================
 // NOTIFICATIONS
 // ============================================================
+let _alertFilter = 'todos';
+let _alertData = null;
+
+function setAlertFilter(f, el) {
+  _alertFilter = f;
+  document.querySelectorAll('#screen-notifications .filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderAlertList();
+}
+
 async function loadNotifications() {
   try {
     const [clients, billing, extintores] = await Promise.all([
@@ -3291,41 +3305,106 @@ async function loadNotifications() {
     ]);
 
     const today = new Date(); today.setHours(0,0,0,0);
-    const in7  = new Date(); in7.setDate(today.getDate() + 7);
-    const in30 = new Date(); in30.setDate(today.getDate() + 30);
     const in3  = new Date(); in3.setDate(today.getDate() + 3);
+    const in30 = new Date(); in30.setDate(today.getDate() + 30);
+    const nowMonth = today.getMonth(); // 0-indexed
+    const nowYear  = today.getFullYear();
 
-    // Cobranças vencidas
+    // Cobranças vencidas e vencendo
     const cobVencidas = billing.filter(b => {
       if (b.status === 'Pago') return false;
       const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
       return d && d < today;
     });
-    // Cobranças vencendo em 3 dias
     const cobVencendo = billing.filter(b => {
       if (b.status === 'Pago' || b.status === 'Vencido') return false;
       const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
       return d && d >= today && d <= in3;
     });
-    // Visitas atrasadas
+
+    // Visitas atrasadas (qualquer cliente com next_visit < hoje)
     const visitasAtrasadas = clients.filter(c => {
       const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null;
       return d && d < today;
+    }).sort((a, b) => new Date(a.next_visit) - new Date(b.next_visit));
+
+    // Visitas próximas (hoje até 60 dias)
+    const in60 = new Date(); in60.setDate(today.getDate() + 60);
+    const visitasProximas = clients.filter(c => {
+      const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null;
+      return d && d >= today && d <= in60;
+    }).sort((a, b) => new Date(a.next_visit) - new Date(b.next_visit));
+
+    // Extintores vencendo em 30 dias ou já vencidos
+    const extVencidos = extintores.filter(e => {
+      const d = e.proxima_inspecao ? new Date(e.proxima_inspecao + 'T12:00:00') : null;
+      return d && d < today;
     });
-    // Extintores vencendo em 30 dias
     const extVencendo = extintores.filter(e => {
       const d = e.proxima_inspecao ? new Date(e.proxima_inspecao + 'T12:00:00') : null;
-      return d && d <= in30;
+      return d && d >= today && d <= in30;
     });
-    // Clientes vencendo/vencidos
+
+    // Clientes com status vencendo/vencido (inspeção)
     const clientesAlerta = clients.filter(c => c.status === 'Vencido' || c.status === 'Vencendo');
 
-    const sections = [];
+    // Lógica de vencimento por mês para manutenção extintor/hidrostático
+    // Se o mês da next_visit já passou (mês atual > mês da visita do ano vigente) = Vencido
+    // Aplica apenas para clientes com equipamentos de manutenção
+    clients.forEach(c => {
+      if (!c.next_visit || !c.equipments) return;
+      const nv = new Date(c.next_visit + 'T12:00:00');
+      const nvMonth = nv.getMonth();
+      const nvYear  = nv.getFullYear();
+      // Se a data de visita é no passado (mês anterior do mesmo ano ou ano anterior)
+      if (nvYear < nowYear || (nvYear === nowYear && nvMonth < nowMonth)) {
+        if (!clientesAlerta.find(x => x.id === c.id)) clientesAlerta.push(c);
+      }
+    });
 
+    // Coleta cidades únicas para o filtro
+    const cidades = new Set();
+    visitasAtrasadas.forEach(c => { if (c.city) cidades.add(c.city.split(' - ')[0].trim()); });
+    visitasProximas.forEach(c => { if (c.city) cidades.add(c.city.split(' - ')[0].trim()); });
+    clientesAlerta.forEach(c => { if (c.city) cidades.add(c.city.split(' - ')[0].trim()); });
+    extVencidos.forEach(e => { if (e.client_name) {} }); // extintores por cliente
+
+    // Popula select de cidades
+    const citySelect = document.getElementById('alertCityFilter');
+    if (citySelect) {
+      const currentCity = citySelect.value;
+      citySelect.innerHTML = '<option value="">Todas</option>' +
+        [...cidades].sort().map(c => `<option value="${c}" ${c === currentCity ? 'selected' : ''}>${c}</option>`).join('');
+    }
+
+    // Salva dados para re-render ao filtrar
+    _alertData = { cobVencidas, cobVencendo, visitasAtrasadas, visitasProximas, extVencidos, extVencendo, clientesAlerta };
+    renderAlertList();
+
+  } catch(e) { console.error(e); }
+}
+
+function renderAlertList() {
+  if (!_alertData) return;
+  const { cobVencidas, cobVencendo, visitasAtrasadas, visitasProximas, extVencidos, extVencendo, clientesAlerta } = _alertData;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cityFilter = (document.getElementById('alertCityFilter')?.value || '').toLowerCase().trim();
+  const filterByCity = (item, nameField = 'city') => {
+    if (!cityFilter) return true;
+    const city = (item[nameField] || '').toLowerCase();
+    return city.includes(cityFilter);
+  };
+
+  const sections = [];
+  const f = _alertFilter;
+
+  // COBRANÇAS
+  if (f === 'todos' || f === 'cobrancas') {
+    const cvFilt = cobVencidas.filter(b => !cityFilter); // cobranças não têm cidade, mostra sempre
+    const cvnFilt = cobVencendo.filter(b => !cityFilter);
     if (cobVencidas.length) {
-      sections.push(`
-        <div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">🚨 Cobranças Vencidas (${cobVencidas.length})</div>
-        ${cobVencidas.map(b => `
+      sections.push(`<div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">🚨 Cobranças Vencidas (${cobVencidas.length})</div>` +
+        cobVencidas.map(b => `
           <div class="card danger-border" style="margin-bottom:8px;">
             <div style="font-weight:700;font-size:13px;">${b.client}</div>
             <div style="color:var(--sub);font-size:11px;">${b.service || '—'}</div>
@@ -3334,68 +3413,120 @@ async function loadNotifications() {
               <div style="font-weight:800;color:var(--danger);">R$ ${parseFloat(b.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
             </div>
             <button onclick="navigate('billing')" style="width:100%;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">Ver Cobrança</button>
-          </div>`).join('')}`);
+          </div>`).join(''));
     }
-
     if (cobVencendo.length) {
-      sections.push(`
-        <div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">⏰ Vencendo em 3 dias (${cobVencendo.length})</div>
-        ${cobVencendo.map(b => `
+      sections.push(`<div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">⏰ Vencendo em 3 dias (${cobVencendo.length})</div>` +
+        cobVencendo.map(b => `
           <div class="card warning-border" style="margin-bottom:8px;">
             <div style="font-weight:700;font-size:13px;">${b.client}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
               <div style="color:var(--warning);font-size:11px;font-weight:700;">📅 ${b.due_date ? new Date(b.due_date+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
               <div style="font-weight:800;color:var(--warning);">R$ ${parseFloat(b.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
             </div>
-          </div>`).join('')}`);
+          </div>`).join(''));
     }
+  }
 
-    if (visitasAtrasadas.length) {
-      sections.push(`
-        <div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">📍 Visitas Atrasadas (${visitasAtrasadas.length})</div>
-        ${visitasAtrasadas.map(c => `
-          <div class="card danger-border" style="margin-bottom:8px;">
-            <div style="font-weight:700;font-size:13px;">${c.name}</div>
-            <div style="color:var(--sub);font-size:11px;">${c.city || '—'}</div>
-            <div style="color:var(--danger);font-size:11px;font-weight:700;margin-top:4px;">📅 ${c.next_visit ? new Date(c.next_visit+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
-            <button onclick="abrirVisitaModal(${c.id},'${c.name.replace(/'/g,"\\'")}');navigate('home')" style="width:100%;background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px;">✅ Marcar como Visitado</button>
-          </div>`).join('')}`);
-    }
+  // VISITAS
+  if (f === 'todos' || f === 'visitas') {
+    const vaFilt = visitasAtrasadas.filter(c => filterByCity(c));
+    const vpFilt = visitasProximas.filter(c => filterByCity(c));
 
-    if (extVencendo.length) {
-      sections.push(`
-        <div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">🧯 Extintores Vencendo em 30 dias (${extVencendo.length})</div>
-        ${extVencendo.map(e => `
-          <div class="card warning-border" style="margin-bottom:8px;">
-            <div style="font-weight:700;font-size:13px;">${e.numero_serie}</div>
-            <div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.capacidade} · ${e.client_name || '—'}</div>
-            <div style="color:var(--warning);font-size:11px;font-weight:700;margin-top:4px;">📅 ${e.proxima_inspecao ? new Date(e.proxima_inspecao+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
-          </div>`).join('')}`);
-    }
-
-    if (clientesAlerta.length) {
-      sections.push(`
-        <div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;">👥 Clientes com Inspeção Vencendo (${clientesAlerta.length})</div>
-        ${clientesAlerta.map(c => `
-          <div class="card ${c.status === 'Vencido' ? 'danger-border' : 'warning-border'}" style="margin-bottom:8px;">
-            <div style="font-weight:700;font-size:13px;">${c.name}</div>
-            <div style="color:var(--sub);font-size:11px;">${c.city || '—'} · ${c.equipments || 0} equipamentos</div>
-            <span class="badge badge-${c.status === 'Vencido' ? 'danger' : 'warning'}" style="margin-top:6px;">${c.status}</span>
-          </div>`).join('')}`);
-    }
-
-    if (!sections.length) {
-      document.getElementById('notificationsList').innerHTML = `
-        <div style="text-align:center;padding:40px 20px;">
-          <div style="font-size:50px;margin-bottom:12px;">✅</div>
-          <div style="font-weight:700;font-size:16px;color:var(--success);">Tudo em dia!</div>
-          <div style="color:var(--sub);font-size:13px;margin-top:6px;">Nenhuma cobrança vencida, visita atrasada ou extintor vencendo.</div>
+    const visitaCard = (c, isOverdue) => {
+      const d = new Date(c.next_visit + 'T12:00:00');
+      const daysLeft = Math.ceil((d - today) / (1000*60*60*24));
+      const daysLabel = isOverdue ? `${Math.abs(daysLeft)}d atraso` : daysLeft === 0 ? 'Hoje!' : `${daysLeft}d`;
+      const cor = isOverdue ? 'var(--danger)' : daysLeft <= 7 ? 'var(--warning)' : 'var(--success)';
+      const addr = c.address ? `${c.address}${c.city ? ', ' + c.city : ''}` : (c.city || '');
+      return `
+        <div class="card ${isOverdue ? 'danger-border' : daysLeft <= 7 ? 'warning-border' : ''}" style="margin-bottom:8px;${isOverdue?'background:linear-gradient(135deg,#1a1d27,#1f0a0a);':''}">
+          ${isOverdue ? '<div style="background:#ef444422;border-radius:5px;padding:3px 8px;font-size:10px;font-weight:700;color:var(--danger);margin-bottom:6px;display:inline-block;">🚨 ATRASADA</div>' : ''}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="flex:1;">
+              <div style="font-weight:700;font-size:13px;">${c.name}</div>
+              <div style="color:var(--sub);font-size:11px;">${c.city||'—'} · ${c.equipments||0} equip.</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="color:${cor};font-weight:800;font-size:12px;">${daysLabel}</div>
+              <div style="color:var(--sub);font-size:10px;">${d.toLocaleDateString('pt-BR')}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            ${addr ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\'")}','${addr.replace(/'/g,"\'")}')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🗺️ Rota</button>` : ''}
+            <button onclick="abrirVisitaModal(${c.id},'${c.name.replace(/'/g,"\'")}');navigate('home')" style="flex:2;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">✅ Visitado</button>
+          </div>
         </div>`;
-    } else {
-      document.getElementById('notificationsList').innerHTML = sections.join('');
+    };
+
+    if (vaFilt.length) {
+      sections.push(`<div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">📍 Visitas Atrasadas (${vaFilt.length})</div>` +
+        vaFilt.map(c => visitaCard(c, true)).join(''));
     }
-  } catch(e) { console.error(e); }
+    if (vpFilt.length) {
+      sections.push(`<div style="color:var(--success);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">📅 Próximas Visitas (${vpFilt.length})</div>` +
+        vpFilt.map(c => visitaCard(c, false)).join(''));
+    }
+  }
+
+  // EXTINTORES
+  if (f === 'todos' || f === 'extintores') {
+    const evdFilt = extVencidos.filter(e => !cityFilter || (e.client_name || '').toLowerCase().includes(cityFilter));
+    const evnFilt = extVencendo.filter(e => !cityFilter || (e.client_name || '').toLowerCase().includes(cityFilter));
+    if (evdFilt.length) {
+      sections.push(`<div style="color:var(--danger);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">🔴 Extintores Vencidos (${evdFilt.length})</div>` +
+        evdFilt.map(e => `
+          <div class="card danger-border" style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div><div style="font-weight:700;font-size:13px;">${e.numero_serie}</div><div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.capacidade}</div><div style="color:var(--sub);font-size:11px;">${e.client_name||'—'}</div></div>
+              <div style="text-align:right;"><div style="color:var(--danger);font-size:11px;font-weight:700;">📅 ${e.proxima_inspecao ? new Date(e.proxima_inspecao+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div></div>
+            </div>
+          </div>`).join(''));
+    }
+    if (evnFilt.length) {
+      sections.push(`<div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">⚠️ Extintores Vencendo em 30 dias (${evnFilt.length})</div>` +
+        evnFilt.map(e => `
+          <div class="card warning-border" style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div><div style="font-weight:700;font-size:13px;">${e.numero_serie}</div><div style="color:var(--sub);font-size:11px;">${e.tipo} · ${e.capacidade}</div><div style="color:var(--sub);font-size:11px;">${e.client_name||'—'}</div></div>
+              <div style="text-align:right;"><div style="color:var(--warning);font-size:11px;font-weight:700;">📅 ${e.proxima_inspecao ? new Date(e.proxima_inspecao+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div></div>
+            </div>
+          </div>`).join(''));
+    }
+  }
+
+  // CLIENTES
+  if (f === 'todos' || f === 'clientes') {
+    const caFilt = clientesAlerta.filter(c => filterByCity(c));
+    if (caFilt.length) {
+      sections.push(`<div style="color:var(--warning);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">👥 Clientes com Inspeção Vencendo (${caFilt.length})</div>` +
+        caFilt.map(c => `
+          <div class="card ${c.status === 'Vencido' ? 'danger-border' : 'warning-border'}" style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:700;font-size:13px;">${c.name}</div>
+                <div style="color:var(--sub);font-size:11px;">${c.city||'—'} · ${c.equipments||0} equip.</div>
+                ${c.next_visit ? `<div style="color:var(--sub);font-size:10px;">Última visita: ${new Date(c.next_visit+'T12:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+              </div>
+              <span class="badge badge-${c.status === 'Vencido' ? 'danger' : 'warning'}">${c.status||'Vencendo'}</span>
+            </div>
+            ${c.address || c.city ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\'")}','${(c.address||'').replace(/'/g,"\'")}${c.city?', '+c.city.replace(/'/g,"\'"):''}')" style="width:100%;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;margin-top:8px;">🗺️ Ir ao Cliente</button>` : ''}
+          </div>`).join(''));
+    }
+  }
+
+  if (!sections.length) {
+    document.getElementById('notificationsList').innerHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:50px;margin-bottom:12px;">✅</div>
+        <div style="font-weight:700;font-size:16px;color:var(--success);">Tudo em dia!</div>
+        <div style="color:var(--sub);font-size:13px;margin-top:6px;">Nenhum alerta para os filtros selecionados.</div>
+      </div>`;
+  } else {
+    document.getElementById('notificationsList').innerHTML = sections.join('');
+  }
 }
+
 
 // ============================================================
 // PRODUCTS
