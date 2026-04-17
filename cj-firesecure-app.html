@@ -1956,7 +1956,8 @@ function renderOrders() {
   document.getElementById('ordersList').innerHTML = list.map((o, idx) => {
     const orderNum = 'APP-' + String(o.id).padStart(3, '0');
     const status = o.order_status || 'Em Aberto';
-    const statusColor = status === 'Concluído' ? 'var(--success)' : status === 'Cancelado' ? 'var(--danger)' : 'var(--secondary)';
+    const STATUS_COLORS = { 'Em Aberto': 'var(--secondary)', 'Em Andamento': '#3b82f6', 'Aguardando Receber': '#a855f7', 'Concluído': 'var(--success)', 'Cancelado': 'var(--danger)' };
+    const statusColor = STATUS_COLORS[status] || 'var(--secondary)';
     const date = o.created_at ? new Date(o.created_at).toLocaleDateString('pt-BR') : '—';
 
     // Calcula margem usando custo dos produtos
@@ -1987,7 +1988,7 @@ function renderOrders() {
     } catch(e) {}
 
     return `
-    <div class="card ${status === 'Cancelado' ? 'danger-border' : status === 'Concluído' ? 'success-border' : ''}">
+    <div class="card ${status === 'Cancelado' ? 'danger-border' : status === 'Concluído' ? 'success-border' : status === 'Em Andamento' ? '' : status === 'Aguardando Receber' ? '' : ''}" style="${status === 'Em Andamento' ? 'border-color:#3b82f644;' : status === 'Aguardando Receber' ? 'border-color:#a855f744;' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="color:var(--sub);font-size:12px;font-weight:700;">${orderNum}</span>
@@ -2015,6 +2016,8 @@ function renderOrders() {
         </div>
       </div>
       ${marginHtml}
+      ${status === 'Em Andamento' ? `
+      <button onclick="recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="width:100%;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;">📥 Extintores Recolhidos → Aguardando Receber</button>` : ''}
     </div>`;
   }).join('');
 }
@@ -2042,15 +2045,18 @@ function setOrderDateFilter(f, el) {
 async function changeOrderStatus(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
-  const statuses = ['Em Aberto', 'Concluído', 'Cancelado'];
+  const statuses = ['Em Aberto', 'Em Andamento', 'Aguardando Receber', 'Concluído', 'Cancelado'];
   const isOrc = o.type === 'Orçamento';
   document.getElementById('orderStatusContent').innerHTML = `
     ${isOrc ? `<div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Converter para</div>
     <button onclick="convertOrcToPedido(${id})" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:12px;">📋 Converter para Pedido</button>
     <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Status</div>` : ''}
-    ${statuses.map(s => `
-    <button onclick="setOrderStatusDB(${id},'${s}')" style="background:${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--card)'};color:${(o.order_status||'Em Aberto')===s?'#fff':'var(--text)'};border:1px solid ${(o.order_status||'Em Aberto')===s?'var(--primary)':'var(--border)'};border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:6px;">${s}</button>
-  `).join('')}`;
+    ${statuses.map(s => {
+      const cur = o.order_status || 'Em Aberto';
+      const colors = { 'Em Aberto': '#f0a500', 'Em Andamento': '#3b82f6', 'Aguardando Receber': '#a855f7', 'Concluído': '#22c55e', 'Cancelado': '#ef4444' };
+      const c = colors[s] || '#f0a500';
+      return `<button onclick="setOrderStatusDB(${id},'${s}')" style="background:${cur===s?c+'33':'var(--card)'};color:${cur===s?c:'var(--text)'};border:1px solid ${cur===s?c+'88':'var(--border)'};border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-bottom:6px;display:flex;align-items:center;gap:8px;"><span>${cur===s?'●':'○'}</span>${s}</button>`;
+    }).join('')}`;
   openModal('orderStatusModal');
 }
 
@@ -3243,7 +3249,11 @@ async function confirmPayment() {
   const related = orders.find(o => o.id === orderId);
   if (related && pendentes === 0) {
     await dbUpdate('orders', related.id, { order_status: 'Concluído' });
-    showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
+    const prevStatus = related.order_status;
+    const msg = prevStatus === 'Aguardando Receber'
+      ? `✅ Pago! Pedido ${orderNum} concluído! 🎉`
+      : `✅ Pago! Pedido ${orderNum} concluído! 🎉`;
+    showToast(msg, 'success');
   } else {
     const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
@@ -3396,14 +3406,21 @@ async function saveFrota() {
   const tipo = document.getElementById('frotaTipo').value.trim();
   if (!tipo) { showToast('⚠️ Informe o tipo', 'error'); return; }
   const qty_total = parseInt(document.getElementById('frotaQtyInput').value) || 0;
-  if (_frotaEditId) {
-    await dbUpdate('minha_frota', _frotaEditId, { tipo, qty_total });
-  } else {
-    await dbInsert('minha_frota', { tipo, qty_total, qty_campo: 0 });
+  try {
+    if (_frotaEditId) {
+      const ok = await dbUpdate('minha_frota', _frotaEditId, { tipo, qty_total });
+      if (ok === false) throw new Error('update failed');
+    } else {
+      const result = await dbInsert('minha_frota', { tipo, qty_total, qty_campo: 0 });
+      if (!result) throw new Error('insert failed');
+    }
+    closeModal('frotaFormModal');
+    showToast('✅ Frota salva!', 'success');
+    loadFrota();
+  } catch(e) {
+    console.error('saveFrota error:', e);
+    showToast('❌ Erro ao salvar. Verifique se o SQL foi executado no Supabase.', 'error');
   }
-  closeModal('frotaFormModal');
-  showToast('✅ Frota salva!', 'success');
-  loadFrota();
 }
 
 async function deleteFrota(id) {
@@ -3515,10 +3532,21 @@ function ecAdjust(delta) {
   document.getElementById('ecQty').textContent = _ecQty;
 }
 
+async function recolhidoExtintor(orderId, clientName) {
+  // Muda pedido para Aguardando Receber
+  await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber' });
+  // Zera extintores em campo do cliente
+  const clients = await dbGet('clients', {});
+  const c = clients.find(x => x.name?.toLowerCase().trim() === clientName.toLowerCase().trim());
+  if (c) await dbUpdate('clients', c.id, { extintores_campo: 0, extintores_campo_data: null });
+  showToast('📥 Extintores recolhidos! Pedido → Aguardando Receber', 'success');
+  loadOrders();
+  loadFrota();
+}
+
 async function ecConfirmar() {
   const clientId = parseInt(document.getElementById('ecClientId').value);
   const today = new Date().toISOString().split('T')[0];
-  // Soma com extintores já em campo (caso já tenha)
   const clients = await dbGet('clients', {});
   const c = clients.find(x => x.id === clientId);
   const jaEmCampo = parseInt(c?.extintores_campo || 0);
@@ -3526,8 +3554,15 @@ async function ecConfirmar() {
     extintores_campo: jaEmCampo + _ecQty,
     extintores_campo_data: today
   });
+  // Muda o pedido mais recente em aberto desse cliente para "Em Andamento"
+  const orders = await dbGet('orders', {});
+  const pedidoAberto = orders
+    .filter(o => o.client?.toLowerCase().trim() === (c?.name || '').toLowerCase().trim() && (o.order_status === 'Em Aberto' || !o.order_status) && o.type === 'Pedido')
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  if (pedidoAberto) await dbUpdate('orders', pedidoAberto.id, { order_status: 'Em Andamento' });
   closeModal('extintoresCampoModal');
-  showToast(`✅ ${_ecQty} extintor(es) registrado(s) em campo!`, 'success');
+  showToast(`✅ ${_ecQty} extintor(es) em campo! Pedido → Em Andamento`, 'success');
+  if (pedidoAberto) loadOrders();
 }
 
 let _alertFilter = 'todos';
