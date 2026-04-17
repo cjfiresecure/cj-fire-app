@@ -3407,19 +3407,25 @@ async function saveFrota() {
   if (!tipo) { showToast('⚠️ Informe o tipo', 'error'); return; }
   const qty_total = parseInt(document.getElementById('frotaQtyInput').value) || 0;
   try {
-    if (_frotaEditId) {
-      const ok = await dbUpdate('minha_frota', _frotaEditId, { tipo, qty_total });
-      if (ok === false) throw new Error('update failed');
-    } else {
-      const result = await dbInsert('minha_frota', { tipo, qty_total, qty_campo: 0 });
-      if (!result) throw new Error('insert failed');
+    // Testa diretamente via fetch para ver o erro exato
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/minha_frota`, {
+      method: 'POST',
+      headers: { ...H(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ tipo, qty_total, qty_campo: 0 })
+    });
+    const result = await r.json();
+    if (!r.ok) {
+      console.error('Frota error:', r.status, result);
+      const msg = result?.message || result?.error || result?.hint || JSON.stringify(result);
+      showToast(`❌ ${r.status}: ${msg.substring(0,80)}`, 'error');
+      return;
     }
     closeModal('frotaFormModal');
     showToast('✅ Frota salva!', 'success');
     loadFrota();
   } catch(e) {
-    console.error('saveFrota error:', e);
-    showToast('❌ Erro ao salvar. Verifique se o SQL foi executado no Supabase.', 'error');
+    console.error('saveFrota:', e);
+    showToast('❌ Erro de conexão: ' + e.message, 'error');
   }
 }
 
