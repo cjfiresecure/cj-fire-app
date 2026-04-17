@@ -1988,20 +1988,22 @@ function renderOrders() {
     } catch(e) {}
 
     return `
-    <div class="card ${status === 'Cancelado' ? 'danger-border' : status === 'Concluído' ? 'success-border' : status === 'Em Andamento' ? '' : status === 'Aguardando Receber' ? '' : ''}" style="${status === 'Em Andamento' ? 'border-color:#3b82f644;' : status === 'Aguardando Receber' ? 'border-color:#a855f744;' : ''}">
+    <div class="card ${status === 'Cancelado' ? 'danger-border' : status === 'Concluído' ? 'success-border' : ''}" style="${status === 'Em Andamento' ? 'border-color:#3b82f644;' : status === 'Aguardando Receber' ? 'border-color:#a855f744;' : ''}">
+      <!-- Header: número + status clicável + ações -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="color:var(--sub);font-size:12px;font-weight:700;">${orderNum}</span>
           <span onclick="changeOrderStatus(${o.id})" style="color:${statusColor};font-size:11px;font-weight:700;background:${statusColor}18;padding:2px 8px;border-radius:20px;cursor:pointer;border:1px solid ${statusColor}44;" title="Toque para alterar status">${status} ✎</span>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button onclick="changeOrderStatus(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;">🔄</button>
           <button onclick="editOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--secondary);">✏️</button>
           <button onclick="viewOrderPDF(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--sub);">📄</button>
           ${o.type === 'Pedido' ? `<button onclick="recriarCobranca(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;" title="Recriar cobrança">💰</button>` : ''}
           <button onclick="deleteOrder(${o.id})" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--danger);">🗑️</button>
         </div>
       </div>
+
+      <!-- Cliente e dados -->
       <div style="font-weight:700;font-size:13px;">${o.client}</div>
       ${o.cnpj ? `<div style="color:var(--sub);font-size:11px;">CNPJ: ${o.cnpj}</div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
@@ -2015,9 +2017,24 @@ function renderOrders() {
           <span style="color:${o.type === 'Pedido' ? 'var(--success)' : 'var(--secondary)'};font-weight:800;font-size:13px;">${o.type}</span>
         </div>
       </div>
+
       ${marginHtml}
-      ${status === 'Em Andamento' ? `
-      <button onclick="recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="width:100%;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;">📥 Extintores Recolhidos → Aguardando Receber</button>` : ''}
+
+      <!-- Botões de ação rápida por status -->
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        ${o.type === 'Orçamento' ? `
+          <button onclick="convertOrcToPedidoRapido(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Virou Pedido</button>
+        ` : ''}
+        ${status === 'Em Andamento' ? `
+          <button onclick="recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="flex:1;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
+        ` : ''}
+        ${status === 'Aguardando Receber' ? `
+          <button onclick="setOrderStatusDB(${o.id},'Concluído')" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
+        ` : ''}
+        ${(status === 'Em Aberto' || !status) && o.type === 'Pedido' ? `
+          <button onclick="setOrderStatusDB(${o.id},'Em Andamento')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">🔵 Em Andamento</button>
+        ` : ''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -2058,6 +2075,11 @@ async function changeOrderStatus(id) {
       return `<button onclick="setOrderStatusDB(${id},'${s}')" style="background:${cur===s?c+'33':'var(--card)'};color:${cur===s?c:'var(--text)'};border:1px solid ${cur===s?c+'88':'var(--border)'};border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-bottom:6px;display:flex;align-items:center;gap:8px;"><span>${cur===s?'●':'○'}</span>${s}</button>`;
     }).join('')}`;
   openModal('orderStatusModal');
+}
+
+async function convertOrcToPedidoRapido(id) {
+  if (!confirm('Confirmar conversão para Pedido?')) return;
+  await convertOrcToPedido(id);
 }
 
 async function convertOrcToPedido(id) {
