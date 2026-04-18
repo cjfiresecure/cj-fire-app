@@ -1227,7 +1227,7 @@ textarea.input{resize:none;height:70px}
 <div class="modal-overlay" id="pdfModal">
   <div class="modal" style="max-height:95vh;">
     <div class="modal-header"><div class="modal-title">📄 Pedido/Orçamento</div><button class="modal-close" onclick="closeModal('pdfModal')">✕</button></div>
-    <div id="pdfContent" style="background:#fff;border-radius:12px;padding:16px;color:#000;font-family:Arial,sans-serif;font-size:12px;position:relative;">
+    <div id="pdfContent" style="background:#fff;border-radius:12px;padding:16px;color:#000;font-family:Arial,sans-serif;font-size:12px;position:relative;width:100%;max-width:600px;overflow:hidden;">
       <div style="position:absolute;inset:0;background-image:url('https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png');background-repeat:no-repeat;background-position:center center;background-size:240px;opacity:0.07;pointer-events:none;border-radius:12px;"></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:14px;">
@@ -1587,7 +1587,7 @@ function navigate(screen) {
 async function reloadSafe(fn) {
   const scrollY = window.scrollY || 0;
   await fn();
-  requestAnimationFrame(() => window.scrollTo(0, scrollY));
+  setTimeout(() => window.scrollTo({ top: scrollY, behavior: 'instant' }), 50);
 }
 
 function loadScreen(s) {
@@ -2051,7 +2051,6 @@ function filterOrders() { renderOrders(); }
 // Recarrega pedidos preservando a posição de scroll da página
 async function loadOrdersSafe() {
   const scrollY = window.scrollY || window.pageYOffset || 0;
-  // Não mostra loading spinner, atualiza silenciosamente
   try {
     [allOrders, allProductsForOrder] = await Promise.all([
       dbGet('orders', { order: 'created_at', asc: false }),
@@ -2064,8 +2063,8 @@ async function loadOrdersSafe() {
     document.getElementById('ordersCountOrc').textContent = orcs.length + ' orçamentos';
     document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     renderOrders();
-    // Restaura posição de scroll após renderização
-    requestAnimationFrame(() => { window.scrollTo(0, scrollY); });
+    // Restaura scroll após DOM renderizar (setTimeout garante que o paint terminou)
+    setTimeout(() => window.scrollTo({ top: scrollY, behavior: 'instant' }), 50);
   } catch(e) { console.error('loadOrdersSafe:', e); }
 }
 function setOrderFilter(f, el) {
@@ -2113,6 +2112,14 @@ async function convertOrcToPedidoRapido(id) {
   // Vai direto pra Em Andamento
   await dbUpdate('orders', id, { order_status: 'Em Andamento' });
   loadOrdersSafe();
+  // Pergunta se deixou extintor da CJ no cliente (igual ao saveOrder)
+  let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
+  const temManutencao = items.some(i => /manutenção|manutencao|recarga/i.test(i.name));
+  if (temManutencao) {
+    const clients = await dbGet('clients', {});
+    const c = clients.find(x => x.name?.toLowerCase().trim() === o.client?.toLowerCase().trim());
+    if (c) setTimeout(() => openExtintoresCampoModal(c.id, c.name), 700);
+  }
 }
 
 async function confirmarConcluir(id) {
@@ -2828,9 +2835,9 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
     </div>` : ''}
 
     <!-- RODAPÉ -->
-    ${obs ? `<div style="border:1px solid #ddd;margin-bottom:8px;">
+    ${obs ? `<div style="border:1px solid #ddd;margin-bottom:8px;page-break-inside:avoid;">
       <div style="background:#555;color:#fff;padding:4px 8px;font-size:11px;font-weight:700;text-transform:uppercase;">Observações</div>
-      <div style="padding:8px;font-size:10px;line-height:1.6;color:#444;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;max-width:100%;display:block;">${obs.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div style="padding:8px;font-size:10px;line-height:1.7;color:#444;word-break:break-word;overflow-wrap:anywhere;white-space:normal;width:100%;display:block;">${obs.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>')}</div>
     </div>` : ''}
     <div style="border-top:2px solid #e8210a;padding-top:8px;text-align:center;color:#999;font-size:9px;">
       CJ FireSecure Ltda · CNPJ: 48.794.963/0001-30 · Tel: (34) 99706-0025 · cjextintores28@gmail.com · Segurança contra incêndio
@@ -3605,8 +3612,9 @@ async function recolhidoExtintor(orderId, clientName) {
   await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber' });
   const clients = await dbGet('clients', {});
   const c = clients.find(x => x.name?.toLowerCase().trim() === clientName.toLowerCase().trim());
+  const qtdRecolhida = c ? parseInt(c.extintores_campo || 0) : 0;
   if (c) await dbUpdate('clients', c.id, { extintores_campo: 0, extintores_campo_data: null });
-  showToast('📥 Recolhido! Pedido → Aguardando Receber', 'success');
+  showToast(`📥 ${qtdRecolhida > 0 ? qtdRecolhida + ' extintor(es) recolhido(s)! ' : ''}Pedido → Aguardando Receber`, 'success');
   loadOrdersSafe();
   loadFrota();
 }
