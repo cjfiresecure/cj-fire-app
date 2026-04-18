@@ -1587,7 +1587,7 @@ function navigate(screen) {
 async function reloadSafe(fn) {
   const scrollY = window.scrollY || 0;
   await fn();
-  setTimeout(() => window.scrollTo({ top: scrollY, behavior: 'instant' }), 50);
+  setTimeout(() => window.scrollTo({ top: scrollY, behavior: 'instant' }), 120);
 }
 
 function loadScreen(s) {
@@ -1755,6 +1755,7 @@ function renderClients(list) {
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="color:var(--sub);font-size:11px;">📅 <span style="color:var(--text);font-weight:600;">${c.next_visit || '—'}</span></div>
         <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openRouteModal('${c.name.replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}${c.city?', '+c.city.replace(/'/g,"\\'"):''}')">🗺️</button>
           <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="openClientHistory(${c.id},'${c.name.replace(/'/g,"\\'")}')">📋 Histórico</button>
           <button class="btn btn-primary btn-sm" onclick="openOrderFormForClient('${c.name.replace(/'/g,"\\'")}','${c.cnpj||''}')">+ Pedido</button>
           <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="editClient(${c.id})">✏️</button>
@@ -1806,20 +1807,25 @@ function triggerClientGeocode() { /* sem geocodificação — rota por texto */ 
 let _routeData = {};
 
 function openRouteModal(name, address) {
-  _routeData = { address: [address, 'Brasil'].filter(Boolean).join(', ') };
+  // Se tiver endereço, usa endereço + "Brasil"; senão usa o nome da empresa como busca
+  const hasAddress = address && address.trim().length > 0;
+  const query = hasAddress ? [address.trim(), 'Brasil'].join(', ') : name.trim();
+  _routeData = { query, name, hasAddress };
   document.getElementById('routeClientName').textContent = name;
-  document.getElementById('routeAddress').textContent = address || 'Endereço não cadastrado';
+  document.getElementById('routeAddress').textContent = hasAddress
+    ? address
+    : '📍 Sem endereço — buscando pelo nome da empresa';
   openModal('routeModal');
 }
 
 function doOpenRoute(app) {
-  const { address } = _routeData;
+  const { query } = _routeData;
   closeModal('routeModal');
-  if (!address) { showToast('⚠️ Endereço não cadastrado', 'error'); return; }
+  if (!query) { showToast('⚠️ Sem dados para navegar', 'error'); return; }
   if (app === 'waze') {
-    window.open(`https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`, '_blank');
+    window.open(`https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`, '_blank');
   } else {
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`, '_blank');
   }
 }
 
@@ -2064,7 +2070,7 @@ async function loadOrdersSafe() {
     document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     renderOrders();
     // Restaura scroll após DOM renderizar (setTimeout garante que o paint terminou)
-    setTimeout(() => window.scrollTo({ top: scrollY, behavior: 'instant' }), 50);
+    setTimeout(() => window.scrollTo({ top: scrollY, behavior: 'instant' }), 120);
   } catch(e) { console.error('loadOrdersSafe:', e); }
 }
 function setOrderFilter(f, el) {
@@ -2108,7 +2114,7 @@ async function convertOrcToPedidoRapido(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   if (!confirm(`Confirmar: "${o.client}" virou Pedido?`)) return;
-  await convertOrcToPedido(id);
+  await convertOrcToPedido(id, true); // skipReload=true, loadOrdersSafe já é chamado abaixo
   // Vai direto pra Em Andamento
   await dbUpdate('orders', id, { order_status: 'Em Andamento' });
   loadOrdersSafe();
@@ -2129,7 +2135,7 @@ async function confirmarConcluir(id) {
   await setOrderStatusDB(id, 'Concluído');
 }
 
-async function convertOrcToPedido(id) {
+async function convertOrcToPedido(id, skipReload = false) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   await dbUpdate('orders', id, { type: 'Pedido' });
@@ -2157,7 +2163,7 @@ async function convertOrcToPedido(id) {
   }
   closeModal('orderStatusModal');
   showToast('✅ Orçamento convertido para Pedido!', 'success');
-  loadOrders();
+  if (!skipReload) loadOrdersSafe();
 }
 
 async function recriarCobranca(id) {
@@ -3327,7 +3333,7 @@ async function confirmPayment() {
     const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
   }
-  loadBilling();
+  reloadSafe(loadBilling);
 }
 async function deleteBilling(id) {
   const data = await dbGet('billing', {});
@@ -3637,7 +3643,7 @@ async function ecConfirmar() {
   if (pedidoAberto) await dbUpdate('orders', pedidoAberto.id, { order_status: 'Em Andamento' });
   closeModal('extintoresCampoModal');
   showToast(`✅ ${_ecQty} extintor(es) em campo! Pedido → Em Andamento`, 'success');
-  if (pedidoAberto) loadOrders();
+  if (pedidoAberto) loadOrdersSafe();
 }
 
 let _alertFilter = 'todos';
@@ -3807,7 +3813,7 @@ function renderAlertList() {
             </div>
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;">
-            ${addr ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\'")}','${addr.replace(/'/g,"\'")}')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🗺️ Rota</button>` : ''}
+            <button onclick="openRouteModal('${c.name.replace(/'/g,"\'")}','${addr.replace(/'/g,"\'")}')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🗺️ Rota</button>
             <button onclick="abrirVisitaModal(${c.id},'${c.name.replace(/'/g,"\'")}');navigate('home')" style="flex:2;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">✅ Visitado</button>
           </div>
         </div>`;
@@ -4306,7 +4312,7 @@ async function saveExtintor() {
   if (editingExtintorId) { result = await dbUpdate('extintores', editingExtintorId, data); editingExtintorId = null; }
   else result = await dbInsert('extintores', data);
   btn.textContent = '✓ Cadastrar Extintor'; btn.disabled = false;
-  if (result !== false && result !== null) { closeModal('extintorFormModal'); showToast('✅ Extintor salvo!', 'success'); loadExtintores(); }
+  if (result !== false && result !== null) { closeModal('extintorFormModal'); showToast('✅ Extintor salvo!', 'success'); reloadSafe(loadExtintores); }
   else showToast('❌ Erro ao salvar', 'error');
 }
 
@@ -5493,7 +5499,7 @@ async function loadVisitAgenda() {
           </div>
         </div>
         <div style="display:flex;gap:6px;">
-          ${c.address ? `<button onclick="openRouteModal('${c.name.replace(/'/g,"\\'")}','${c.address.replace(/'/g,"\\'")}${c.city ? ', '+c.city.replace(/'/g,"\\'") : ''}')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🗺️ Rota</button>` : ''}
+          <button onclick="openRouteModal('${c.name.replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}${c.city ? ', '+c.city.replace(/'/g,"\\'") : ''}')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f633;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🗺️ Rota</button>
           <button onclick="abrirVisitaModal(${c.id},'${c.name.replace(/'/g,"\\'")}')" style="flex:2;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">✅ Marcar como Visitado</button>
         </div>
       </div>`;
@@ -5964,7 +5970,7 @@ async function saveExpense() {
   if (ok) {
     closeModal('expenseFormModal');
     showToast(editId ? '✅ Gasto atualizado!' : '✅ Gasto lançado!', 'success');
-    loadExpenses();
+    reloadSafe(loadExpenses);
   } else {
     showToast('❌ Erro ao salvar', 'error');
   }
@@ -5973,7 +5979,7 @@ async function saveExpense() {
 async function toggleExpensePaid(id, paid) {
   await dbUpdate('expenses', id, { paid });
   showToast(paid ? '✅ Marcado como pago!' : '↩️ Marcado como não pago', 'success');
-  loadExpenses();
+  reloadSafe(loadExpenses);
 }
 
 async function deleteExpense(id) {
@@ -6242,7 +6248,7 @@ async function saveObra() {
       ? '✅ Obra finalizada! Aguardando recebimento.'
       : editId ? '✅ Obra atualizada!' : '✅ Obra cadastrada!';
     showToast(msg, 'success');
-    loadObras();
+    reloadSafe(loadObras);
   } else showToast('❌ Erro ao salvar', 'error');
 }
 
