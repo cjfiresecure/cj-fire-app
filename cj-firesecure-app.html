@@ -213,6 +213,8 @@ textarea.input{resize:none;height:70px}
     <div class="filter-tabs" style="margin-bottom:8px;">
       <div class="filter-tab active" onclick="setOrderStatusFilter('Todos',this)">Todos</div>
       <div class="filter-tab" onclick="setOrderStatusFilter('Em Aberto',this)">Em Aberto</div>
+      <div class="filter-tab" onclick="setOrderStatusFilter('Em Andamento',this)">🔵 Andamento</div>
+      <div class="filter-tab" onclick="setOrderStatusFilter('Aguardando Receber',this)">🟣 Aguardando</div>
       <div class="filter-tab" onclick="setOrderStatusFilter('Concluído',this)">Concluído</div>
       <div class="filter-tab" onclick="setOrderStatusFilter('Cancelado',this)">Cancelado</div>
     </div>
@@ -1577,7 +1579,15 @@ function navigate(screen) {
   if (el) el.classList.add('active');
   const nav = document.getElementById('nav-' + screen);
   if (nav) nav.classList.add('active');
+  window.scrollTo(0, 0); // só reseta scroll ao NAVEGAR entre telas
   loadScreen(screen);
+}
+
+// Recarrega qualquer função preservando scroll (usar em ações do usuário)
+async function reloadSafe(fn) {
+  const scrollY = window.scrollY || 0;
+  await fn();
+  requestAnimationFrame(() => window.scrollTo(0, scrollY));
 }
 
 function loadScreen(s) {
@@ -1849,7 +1859,7 @@ async function saveClient() {
   });
   btn.textContent = '✓ Cadastrar Cliente';
   btn.disabled = false;
-  if (result) { closeModal('clientFormModal'); showToast('✅ Cliente cadastrado!', 'success'); loadClients(); }
+  if (result) { closeModal('clientFormModal'); showToast('✅ Cliente cadastrado!', 'success'); reloadSafe(loadClients); }
   else showToast('❌ Erro ao salvar. Tente novamente.', 'error');
 }
 
@@ -2023,16 +2033,13 @@ function renderOrders() {
       <!-- Botões de ação rápida por status -->
       <div style="display:flex;gap:6px;margin-top:10px;">
         ${o.type === 'Orçamento' ? `
-          <button onclick="convertOrcToPedidoRapido(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Virou Pedido</button>
+          <button onclick="event.stopPropagation();convertOrcToPedidoRapido(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Virou Pedido</button>
         ` : ''}
         ${status === 'Em Andamento' ? `
-          <button onclick="recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="flex:1;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
+          <button onclick="event.stopPropagation();recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="flex:1;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
         ` : ''}
         ${status === 'Aguardando Receber' ? `
-          <button onclick="setOrderStatusDB(${o.id},'Concluído')" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
-        ` : ''}
-        ${(status === 'Em Aberto' || !status) && o.type === 'Pedido' ? `
-          <button onclick="setOrderStatusDB(${o.id},'Em Andamento')" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">🔵 Em Andamento</button>
+          <button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
         ` : ''}
       </div>
     </div>`;
@@ -2040,6 +2047,27 @@ function renderOrders() {
 }
 
 function filterOrders() { renderOrders(); }
+
+// Recarrega pedidos preservando a posição de scroll da página
+async function loadOrdersSafe() {
+  const scrollY = window.scrollY || window.pageYOffset || 0;
+  // Não mostra loading spinner, atualiza silenciosamente
+  try {
+    [allOrders, allProductsForOrder] = await Promise.all([
+      dbGet('orders', { order: 'created_at', asc: false }),
+      allProductsForOrder.length ? allProductsForOrder : dbGet('products', {})
+    ]);
+    const pedidos = allOrders.filter(o => o.type === 'Pedido');
+    const orcs = allOrders.filter(o => o.type === 'Orçamento');
+    document.getElementById('ordersCountPedido').textContent = pedidos.length + ' pedidos';
+    document.getElementById('ordersTotalPedido').textContent = 'R$ ' + pedidos.reduce((a, o) => a + parseFloat(o.value || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('ordersCountOrc').textContent = orcs.length + ' orçamentos';
+    document.getElementById('ordersTotalOrc').textContent = 'R$ ' + orcs.reduce((a, o) => a + parseFloat(o.value || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    renderOrders();
+    // Restaura posição de scroll após renderização
+    requestAnimationFrame(() => { window.scrollTo(0, scrollY); });
+  } catch(e) { console.error('loadOrdersSafe:', e); }
+}
 function setOrderFilter(f, el) {
   orderFilter = f;
   el.closest('.filter-tabs').querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
@@ -2078,8 +2106,20 @@ async function changeOrderStatus(id) {
 }
 
 async function convertOrcToPedidoRapido(id) {
-  if (!confirm('Confirmar conversão para Pedido?')) return;
+  const o = allOrders.find(x => x.id === id);
+  if (!o) return;
+  if (!confirm(`Confirmar: "${o.client}" virou Pedido?`)) return;
   await convertOrcToPedido(id);
+  // Vai direto pra Em Andamento
+  await dbUpdate('orders', id, { order_status: 'Em Andamento' });
+  loadOrdersSafe();
+}
+
+async function confirmarConcluir(id) {
+  const o = allOrders.find(x => x.id === id);
+  if (!o) return;
+  if (!confirm(`Confirmar conclusão do pedido de "${o.client}"?`)) return;
+  await setOrderStatusDB(id, 'Concluído');
 }
 
 async function convertOrcToPedido(id) {
@@ -2174,7 +2214,7 @@ async function setOrderStatusDB(id, status) {
   await dbUpdate('orders', id, { order_status: status });
   closeModal('orderStatusModal');
   showToast(`✅ Status: ${status}`, 'success');
-  loadOrders();
+  loadOrdersSafe();
 }
 
 async function deleteOrder(id) {
@@ -3033,7 +3073,7 @@ async function saveStock() {
   } else {
     result = await dbInsert('stock', stockData);
   }
-  if (result !== false && result !== null) { closeModal('stockFormModal'); showToast('✅ Estoque salvo!', 'success'); loadStock(); }
+  if (result !== false && result !== null) { closeModal('stockFormModal'); showToast('✅ Estoque salvo!', 'success'); reloadSafe(loadStock); }
   else showToast('❌ Erro ao salvar', 'error');
 }
 
@@ -3247,13 +3287,13 @@ async function confirmPayment() {
   // Lógica de atualização do pedido
   const allBilling = await dbGet('billing', {});
   const b = allBilling.find(x => x.id === id);
-  if (!b) { showToast('✅ Pago!', 'success'); loadBilling(); return; }
+  if (!b) { showToast('✅ Pago!', 'success'); reloadSafe(loadBilling); return; }
 
   let orderId = b.order_id ? parseInt(b.order_id) : null;
   let orderNum = null;
   if (!orderId || orderId === 0) {
     const match = (b.service || '').match(/APP-0*([1-9]\d*)/);
-    if (!match) { showToast('✅ Pago!', 'success'); loadBilling(); return; }
+    if (!match) { showToast('✅ Pago!', 'success'); reloadSafe(loadBilling); return; }
     orderId = parseInt(match[1]);
   }
   orderNum = `APP-${String(orderId).padStart(3,'0')}`;
@@ -3561,14 +3601,13 @@ function ecAdjust(delta) {
 }
 
 async function recolhidoExtintor(orderId, clientName) {
-  // Muda pedido para Aguardando Receber
+  if (!confirm(`Confirmar recolhimento dos extintores de "${clientName}"?`)) return;
   await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber' });
-  // Zera extintores em campo do cliente
   const clients = await dbGet('clients', {});
   const c = clients.find(x => x.name?.toLowerCase().trim() === clientName.toLowerCase().trim());
   if (c) await dbUpdate('clients', c.id, { extintores_campo: 0, extintores_campo_data: null });
-  showToast('📥 Extintores recolhidos! Pedido → Aguardando Receber', 'success');
-  loadOrders();
+  showToast('📥 Recolhido! Pedido → Aguardando Receber', 'success');
+  loadOrdersSafe();
   loadFrota();
 }
 
