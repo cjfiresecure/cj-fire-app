@@ -1807,7 +1807,6 @@ function triggerClientGeocode() { /* sem geocodificação — rota por texto */ 
 let _routeData = {};
 
 function openRouteModal(name, address) {
-  // Se tiver endereço, usa endereço + "Brasil"; senão usa o nome da empresa como busca
   const hasAddress = address && address.trim().length > 0;
   const query = hasAddress ? [address.trim(), 'Brasil'].join(', ') : name.trim();
   _routeData = { query, name, hasAddress };
@@ -2114,7 +2113,7 @@ async function convertOrcToPedidoRapido(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   if (!confirm(`Confirmar: "${o.client}" virou Pedido?`)) return;
-  await convertOrcToPedido(id, true); // skipReload=true, loadOrdersSafe já é chamado abaixo
+  await convertOrcToPedido(id, true);
   // Vai direto pra Em Andamento
   await dbUpdate('orders', id, { order_status: 'Em Andamento' });
   loadOrdersSafe();
@@ -2139,10 +2138,8 @@ async function convertOrcToPedido(id, skipReload = false) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
   await dbUpdate('orders', id, { type: 'Pedido' });
-  // Atualiza estoque igual a um pedido novo
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
   await adjustStock(items, true);
-  // Cria cobrança se não tiver
   const allBilling = await dbGet('billing', {});
   const orderNum = `APP-${String(id).padStart(3,'0')}`;
   const jaTemCobranca = allBilling.some(b => {
@@ -2878,82 +2875,86 @@ function viewOrderPDF(id) {
   );
 }
 
+// Gera o objeto jsPDF com corte inteligente de página (evita cortar no meio do texto)
+async function _buildPDFObject() {
+  const content = document.getElementById('pdfContent');
+  const canvas = await html2canvas(content, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const pdfWidth  = pdf.internal.pageSize.getWidth();
+  const pageHMm   = pdf.internal.pageSize.getHeight();
+  const totalHMm  = (canvas.height * pdfWidth) / canvas.width;
+
+  if (totalHMm <= pageHMm) {
+    // Conteúdo cabe numa só página
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, totalHMm);
+    return pdf;
+  }
+
+  // Corte inteligente: varre pixels para encontrar linhas em branco
+  const pageHPx = Math.floor(pageHMm * canvas.width / pdfWidth);
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = canvas.width;
+  offscreen.height = canvas.height;
+  offscreen.getContext('2d').drawImage(canvas, 0, 0);
+  const ctx = offscreen.getContext('2d');
+
+  // Monta lista de pontos de quebra de página
+  const breaks = [0];
+  let pos = 0;
+  while (pos + pageHPx < canvas.height) {
+    const natural = pos + pageHPx;
+    let breakAt = natural;
+
+    // Varre até 80px para cima buscando linha quase branca
+    for (let dy = 0; dy <= 80; dy++) {
+      const y = natural - dy;
+      if (y <= pos + Math.floor(pageHPx * 0.55)) break; // não sobe mais que 45% da página
+      const row = ctx.getImageData(0, y, canvas.width, 1).data;
+      let dark = 0;
+      for (let i = 0; i < row.length; i += 4) {
+        if (row[i] < 230 || row[i + 1] < 230 || row[i + 2] < 230) dark++;
+      }
+      if (dark < 10) { breakAt = y; break; }
+    }
+
+    breaks.push(breakAt);
+    pos = breakAt;
+  }
+
+  // Renderiza cada página com seu offset correto
+  breaks.forEach((startPx, i) => {
+    if (i > 0) pdf.addPage();
+    const startMm = startPx * pdfWidth / canvas.width;
+    pdf.addImage(imgData, 'JPEG', 0, -startMm, pdfWidth, totalHMm);
+  });
+
+  return pdf;
+}
+
 async function printPDF() {
   showToast('⏳ Gerando PDF...', 'success');
   try {
-    const content = document.getElementById('pdfContent');
-    const canvas = await html2canvas(content, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    if (pdfHeight <= pageHeight) {
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    } else {
-      let page = 0;
-      let remaining = pdfHeight;
-      while (remaining > 0) {
-        if (page > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, -page * pageHeight, pdfWidth, pdfHeight);
-        remaining -= pageHeight;
-        page++;
-      }
-    }
+    const pdf = await _buildPDFObject();
     pdf.save('CJ-FireSecure-Pedido.pdf');
     showToast('✅ PDF baixado!', 'success');
   } catch(e) {
     console.error(e);
-    // Fallback para impressão do navegador
     const c = document.getElementById('pdfContent').innerHTML;
     const w = window.open('', '_blank');
     w.document.write('<html><head><title>CJ FireSecure</title><style>body{font-family:Arial,sans-serif;margin:20px;}</style></head><body>' + c + '</body></html>');
     w.document.close(); w.print();
   }
 }
+
 async function sharePDF() {
   showToast('⏳ Gerando PDF...', 'success');
   try {
-    const content = document.getElementById('pdfContent');
-
-    // Gera imagem do conteúdo com html2canvas
-    const canvas = await html2canvas(content, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false
-    });
-
-    // Converte para PDF usando jsPDF
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    // Se maior que A4, divide em páginas
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    if (pdfHeight <= pageHeight) {
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    } else {
-      let yPos = 0;
-      let remaining = pdfHeight;
-      let page = 0;
-      while (remaining > 0) {
-        if (page > 0) pdf.addPage();
-        const sliceHeight = Math.min(pageHeight, remaining);
-        pdf.addImage(imgData, 'JPEG', 0, -page * pageHeight, pdfWidth, pdfHeight);
-        remaining -= pageHeight;
-        page++;
-      }
-    }
-
-    // Gera o blob do PDF
+    const pdf = await _buildPDFObject();
     const pdfBlob = pdf.output('blob');
     const pdfFile = new File([pdfBlob], 'CJ-FireSecure-Pedido.pdf', { type: 'application/pdf' });
 
-    // Tenta compartilhar via Web Share API
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
       await navigator.share({
         title: 'CJ FireSecure - Pedido/Orçamento',
@@ -2961,7 +2962,6 @@ async function sharePDF() {
         files: [pdfFile]
       });
     } else {
-      // Fallback: baixa o PDF
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
@@ -2970,10 +2970,8 @@ async function sharePDF() {
       URL.revokeObjectURL(url);
       showToast('📥 PDF baixado! Compartilhe pelo WhatsApp', 'success');
     }
-
   } catch(e) {
     console.error('PDF error:', e);
-    // Fallback: abre WhatsApp com texto
     window.open('https://wa.me/?text=Segue+o+pedido/orçamento+da+CJ+FireSecure+🔥%0ATel%3A+(34)+99706-0025', '_blank');
   }
 }
