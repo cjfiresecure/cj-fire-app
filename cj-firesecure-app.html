@@ -2040,9 +2040,25 @@ function renderOrders() {
         ${o.type === 'Orçamento' ? `
           <button onclick="event.stopPropagation();convertOrcToPedidoRapido(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Virou Pedido</button>
         ` : ''}
-        ${status === 'Em Andamento' ? `
-          <button onclick="event.stopPropagation();recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="flex:1;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
-        ` : ''}
+        ${status === 'Em Andamento' ? (() => {
+          const _clientCampo = allClients.find(c => c.name?.toLowerCase().trim() === o.client?.toLowerCase().trim());
+          const _qtdCampo = _clientCampo ? parseInt(_clientCampo.extintores_campo || 0) : 0;
+          const _dataCampo = _clientCampo?.extintores_campo_data ? new Date(_clientCampo.extintores_campo_data + 'T12:00:00').toLocaleDateString('pt-BR') : null;
+          return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+            ${_qtdCampo > 0 ? `<div style="display:flex;align-items:center;justify-content:space-between;background:#ef444414;border:1px solid #ef444440;border-radius:8px;padding:6px 10px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:22px;font-weight:900;color:var(--danger);line-height:1;">${_qtdCampo}</span>
+                <div style="display:flex;flex-direction:column;gap:1px;">
+                  <span style="font-size:11px;color:var(--text);font-weight:700;">🧯 extintor${_qtdCampo > 1 ? 'es' : ''} em campo</span>
+                  ${_dataCampo ? `<span style="font-size:10px;color:var(--sub);">Deixados em: ${_dataCampo}</span>` : ''}
+                </div>
+              </div>
+            </div>` : `<div style="display:flex;align-items:center;justify-content:center;background:#6b728014;border:1px solid #6b728030;border-radius:8px;padding:5px 10px;">
+              <span style="font-size:10px;color:var(--muted);">🧯 Nenhum extintor registrado em campo</span>
+            </div>`}
+            <button onclick="event.stopPropagation();recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="width:100%;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
+          </div>`;
+        })() : ''}
         ${status === 'Aguardando Receber' ? `
           <button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
         ` : ''}
