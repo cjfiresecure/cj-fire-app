@@ -3593,7 +3593,18 @@ async function loadFrota() {
 async function recolherExtintores(clientId, clientName, qtdAtual) {
   if (!confirm(`Confirmar recolhimento de ${qtdAtual} extintor(es) de ${clientName}?`)) return;
   await dbUpdate('clients', clientId, { extintores_campo: 0, extintores_campo_data: null });
-  showToast(`✅ ${qtdAtual} extintor(es) recolhido(s) de ${clientName}!`, 'success');
+  // Avança o pedido mais recente em andamento para Aguardando Receber
+  const orders = await dbGet('orders', {});
+  const pedidoAndamento = orders
+    .filter(o => o.client?.toLowerCase().trim() === clientName.toLowerCase().trim() && o.order_status === 'Em Andamento')
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  if (pedidoAndamento) {
+    await dbUpdate('orders', pedidoAndamento.id, { order_status: 'Aguardando Receber' });
+    showToast(`📥 ${qtdAtual} extintor(es) recolhido(s)! Pedido → Aguardando Receber`, 'success');
+    loadOrdersSafe();
+  } else {
+    showToast(`✅ ${qtdAtual} extintor(es) recolhido(s) de ${clientName}!`, 'success');
+  }
   loadFrota();
 }
 
