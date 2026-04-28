@@ -2146,8 +2146,43 @@ async function convertOrcToPedidoRapido(id) {
 async function confirmarConcluir(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
-  if (!confirm(`Confirmar conclusão do pedido de "${o.client}"?`)) return;
-  await setOrderStatusDB(id, 'Concluído');
+
+  // Busca cobrança vinculada a este pedido
+  const allBilling = await dbGet('billing', {});
+  const billing = allBilling.find(b => {
+    if (b.status === 'Pago') return false;
+    if (b.order_id && parseInt(b.order_id) === id) return true;
+    const m = (b.service || '').match(/APP-0*([1-9]\d*)/);
+    return m && parseInt(m[1]) === id;
+  });
+
+  // Configura contexto como pedido
+  _pmContext = 'order';
+  _pmOrderId = id;
+  _pmMethod = null;
+  _pmInstallments = 1;
+  _pmTaxRate = 0;
+
+  if (billing) {
+    // Garante que o billing está em _billingData para showPmResumo funcionar
+    if (!_billingData.find(b => b.id === billing.id)) {
+      _billingData = [..._billingData, billing];
+    }
+    _pmBillingId = billing.id;
+    _pmFallbackValue = parseFloat(billing.value || 0);
+    document.getElementById('pmBillingId').value = billing.id;
+  } else {
+    // Sem cobrança: usa valor do próprio pedido
+    _pmBillingId = null;
+    _pmFallbackValue = parseFloat(o.value || 0);
+    document.getElementById('pmBillingId').value = '';
+  }
+
+  document.getElementById('pmValorOriginal').textContent = 'R$ ' + _pmFallbackValue.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('pmStep1').style.display = 'block';
+  document.getElementById('pmStep2').style.display = 'none';
+  document.getElementById('pmStep3').style.display = 'none';
+  openModal('paymentMethodModal');
 }
 
 async function convertOrcToPedido(id, skipReload = false) {
@@ -3238,12 +3273,18 @@ let _pmBillingId = null;
 let _pmMethod = null;
 let _pmInstallments = 1;
 let _pmTaxRate = 0;
+let _pmContext = 'billing'; // 'billing' ou 'order'
+let _pmOrderId = null;      // id do pedido quando chamado da aba Pedidos
+let _pmFallbackValue = 0;   // valor do pedido quando não há cobrança vinculada
 
 function markPaid(id) {
   const billing = _billingData.find(b => b.id === id);
   if (!billing) return;
   _pmBillingId = id;
   _pmMethod = null;
+  _pmContext = 'billing';
+  _pmOrderId = null;
+  _pmFallbackValue = parseFloat(billing.value || 0);
   document.getElementById('pmBillingId').value = id;
   document.getElementById('pmValorOriginal').textContent = 'R$ ' + parseFloat(billing.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('pmStep1').style.display = 'block';
@@ -3273,7 +3314,7 @@ function selectInstallments(n) {
 
 function showPmResumo() {
   const billing = _billingData.find(b => b.id === _pmBillingId);
-  const bruto = parseFloat(billing?.value || 0);
+  const bruto = billing ? parseFloat(billing.value || 0) : _pmFallbackValue;
   const taxa = bruto * _pmTaxRate / 100;
   const liquido = bruto - taxa;
   const metodoLabel = {
@@ -3294,10 +3335,31 @@ async function confirmPayment() {
   const btn = document.getElementById('pmConfirmBtn');
   btn.textContent = '⏳ Salvando...'; btn.disabled = true;
 
-  const billing = _billingData.find(b => b.id === id);
-  const bruto = parseFloat(billing?.value || 0);
-  const taxa = bruto * _pmTaxRate / 100;
   const paidAt = new Date().toISOString();
+
+  // Caso especial: chamado pelo botão "Concluir" do pedido sem cobrança vinculada
+  if (!id && _pmContext === 'order' && _pmOrderId) {
+    const taxa = _pmFallbackValue * _pmTaxRate / 100;
+    await dbUpdate('orders', _pmOrderId, {
+      order_status: 'Concluído',
+      paid_at: paidAt,
+      payment_method: _pmMethod,
+      card_installments: _pmMethod === 'credito' ? _pmInstallments : null,
+      tax_rate: _pmTaxRate,
+      tax_amount: parseFloat(taxa.toFixed(2))
+    });
+    closeModal('paymentMethodModal');
+    btn.textContent = '✅ Confirmar Pagamento'; btn.disabled = false;
+    const orderNum = `APP-${String(_pmOrderId).padStart(3,'0')}`;
+    const taxMsg = taxa > 0 ? ` · Taxa: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
+    showToast(`✅ Pedido ${orderNum} concluído! 🎉${taxMsg}`, 'success');
+    reloadSafe(loadOrdersSafe);
+    return;
+  }
+
+  const billing = _billingData.find(b => b.id === id);
+  const bruto = billing ? parseFloat(billing.value || 0) : _pmFallbackValue;
+  const taxa = bruto * _pmTaxRate / 100;
 
   await dbUpdate('billing', id, {
     status: 'Pago',
@@ -3311,21 +3373,27 @@ async function confirmPayment() {
   closeModal('paymentMethodModal');
   btn.textContent = '✅ Confirmar Pagamento'; btn.disabled = false;
 
-  // Lógica de atualização do pedido
-  const allBilling = await dbGet('billing', {});
-  const b = allBilling.find(x => x.id === id);
-  if (!b) { showToast('✅ Pago!', 'success'); reloadSafe(loadBilling); return; }
+  // Localiza o pedido vinculado
+  const allBillingFresh = await dbGet('billing', {});
+  const b = allBillingFresh.find(x => x.id === id);
 
-  let orderId = b.order_id ? parseInt(b.order_id) : null;
-  let orderNum = null;
-  if (!orderId || orderId === 0) {
-    const match = (b.service || '').match(/APP-0*([1-9]\d*)/);
-    if (!match) { showToast('✅ Pago!', 'success'); reloadSafe(loadBilling); return; }
-    orderId = parseInt(match[1]);
+  let orderId = _pmContext === 'order' ? _pmOrderId : null;
+  if (!orderId && b) {
+    orderId = b.order_id ? parseInt(b.order_id) : null;
+    if (!orderId || orderId === 0) {
+      const match = (b.service || '').match(/APP-0*([1-9]\d*)/);
+      if (match) orderId = parseInt(match[1]);
+    }
   }
-  orderNum = `APP-${String(orderId).padStart(3,'0')}`;
 
-  const orderBillings = allBilling.filter(x => {
+  if (!orderId) {
+    showToast('✅ Pago!', 'success');
+    reloadSafe(_pmContext === 'order' ? loadOrdersSafe : loadBilling);
+    return;
+  }
+
+  const orderNum = `APP-${String(orderId).padStart(3,'0')}`;
+  const orderBillings = allBillingFresh.filter(x => {
     if (x.order_id && parseInt(x.order_id) === orderId) return true;
     const svcMatch = (x.service || '').match(/APP-0*([1-9]\d*)/);
     return svcMatch && parseInt(svcMatch[1]) === orderId;
@@ -3338,16 +3406,18 @@ async function confirmPayment() {
   const related = orders.find(o => o.id === orderId);
   if (related && pendentes === 0) {
     await dbUpdate('orders', related.id, { order_status: 'Concluído' });
-    const prevStatus = related.order_status;
-    const msg = prevStatus === 'Aguardando Receber'
-      ? `✅ Pago! Pedido ${orderNum} concluído! 🎉`
-      : `✅ Pago! Pedido ${orderNum} concluído! 🎉`;
-    showToast(msg, 'success');
+    showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
   } else {
     const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
   }
-  reloadSafe(loadBilling);
+
+  // Recarrega a aba correta conforme contexto
+  if (_pmContext === 'order') {
+    reloadSafe(loadOrdersSafe);
+  } else {
+    reloadSafe(loadBilling);
+  }
 }
 async function deleteBilling(id) {
   const data = await dbGet('billing', {});
