@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;--primary:#e8210a;--secondary:#f0a500;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--text:#f1f5f9;--sub:#94a3b8;--muted:#6b7280}
@@ -480,7 +481,10 @@ textarea.input{resize:none;height:70px}
   <div id="screen-notifications" class="screen">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div><div class="page-title">🔔 Alertas</div><div style="color:var(--sub);font-size:12px;">Todas as pendências em um lugar</div></div>
-      <button onclick="generateMonthlyReport()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">📊 Relatório</button>
+      <div style="display:flex;gap:6px;">
+        <button onclick="openDashboardFinanceiro()" style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">📈 Financeiro</button>
+        <button onclick="generateMonthlyReport()" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">📊 Relatório</button>
+      </div>
     </div>
     <!-- Filtros de categoria -->
     <div class="filter-tabs" style="margin-bottom:8px;">
@@ -683,12 +687,14 @@ textarea.input{resize:none;height:70px}
     <input type="hidden" id="visitaClientId" />
     <div style="font-weight:700;font-size:14px;margin-bottom:4px;" id="visitaClientName"></div>
     <div style="color:var(--sub);font-size:12px;margin-bottom:16px;">O que aconteceu na visita?</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
+
+    <!-- Passo 1: Opções principais -->
+    <div id="visitaStep1" style="display:flex;flex-direction:column;gap:8px;">
       <button onclick="visitaAcao('pedido')" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
-        ✅ Fechou Pedido<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Abre formulário de pedido · próxima visita em 1 ano</div>
+        ✅ Fechou Pedido<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Registrar pedido · próxima visita em 1 ano</div>
       </button>
       <button onclick="visitaAcao('orcamento')" style="background:#f0a50018;color:var(--secondary);border:1px solid #f0a50044;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
-        📋 Deixou Orçamento<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Abre formulário de orçamento · próxima visita em 1 ano</div>
+        📋 Deixou Orçamento<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Registrar orçamento · próxima visita em 1 ano</div>
       </button>
       <button onclick="visitaAcao('nao_quis')" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;text-align:left;">
         ❌ Cliente Não Quis<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Próxima visita agendada para 6 meses</div>
@@ -697,6 +703,22 @@ textarea.input{resize:none;height:70px}
         🔄 Remarcar<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Escolher nova data manualmente</div>
       </button>
     </div>
+
+    <!-- Passo 2: Confirmação se já tem cadastrado -->
+    <div id="visitaStep2" style="display:none;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;" id="visitaStep2Titulo"></div>
+      <div style="color:var(--sub);font-size:12px;margin-bottom:16px;" id="visitaStep2Sub"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button id="visitaStep2Sim" onclick="visitaConfirmarJaCadastrado(true)" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;">
+          ✅ Sim, já está cadastrado<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Apenas registrar a visita e atualizar próxima data</div>
+        </button>
+        <button id="visitaStep2Nao" onclick="visitaConfirmarJaCadastrado(false)" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;">
+          📝 Não, quero cadastrar agora<div style="font-size:11px;color:var(--sub);font-weight:400;margin-top:2px;">Abrir formulário de cadastro</div>
+        </button>
+        <button onclick="document.getElementById('visitaStep1').style.display='flex';document.getElementById('visitaStep2').style.display='none';" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:12px;padding:10px;font-size:12px;cursor:pointer;">← Voltar</button>
+      </div>
+    </div>
+
     <!-- Input data remarcar -->
     <div id="visitaRemarcarDiv" style="display:none;margin-top:12px;">
       <label class="label">Nova data de visita</label>
@@ -3759,17 +3781,28 @@ function setAlertFilter(f, el) {
 
 async function loadNotifications() {
   try {
-    const [clients, billing, extintores] = await Promise.all([
+    const [clients, billing, extintores, orders] = await Promise.all([
       dbGet('clients', {}),
       dbGet('billing', {}),
-      dbGet('extintores', {})
+      dbGet('extintores', {}),
+      dbGet('orders', {})
     ]);
 
     const today = new Date(); today.setHours(0,0,0,0);
     const in3  = new Date(); in3.setDate(today.getDate() + 3);
     const in30 = new Date(); in30.setDate(today.getDate() + 30);
-    const nowMonth = today.getMonth(); // 0-indexed
-    const nowYear  = today.getFullYear();
+    const umAnoAtras = new Date(); umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+
+    // IDs de clientes com pedido/orçamento criado no último ano → não devem aparecer na lista de visitas
+    const clientsComPedidoRecente = new Set(
+      orders
+        .filter(o => {
+          const d = new Date(o.created_at || o.updated_at);
+          return d >= umAnoAtras;
+        })
+        .map(o => o.client_id || o.clientId)
+        .filter(Boolean)
+    );
 
     // Cobranças vencidas e vencendo
     const cobVencidas = billing.filter(b => {
@@ -3783,17 +3816,17 @@ async function loadNotifications() {
       return d && d >= today && d <= in3;
     });
 
-    // Visitas atrasadas (qualquer cliente com next_visit < hoje)
+    // Visitas atrasadas (qualquer cliente com next_visit < hoje, sem pedido recente)
     const visitasAtrasadas = clients.filter(c => {
       const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null;
-      return d && d < today;
+      return d && d < today && !clientsComPedidoRecente.has(c.id);
     }).sort((a, b) => new Date(a.next_visit) - new Date(b.next_visit));
 
-    // Visitas próximas (hoje até 60 dias)
+    // Visitas próximas (hoje até 60 dias, sem pedido recente)
     const in60 = new Date(); in60.setDate(today.getDate() + 60);
     const visitasProximas = clients.filter(c => {
       const d = c.next_visit ? new Date(c.next_visit + 'T12:00:00') : null;
-      return d && d >= today && d <= in60;
+      return d && d >= today && d <= in60 && !clientsComPedidoRecente.has(c.id);
     }).sort((a, b) => new Date(a.next_visit) - new Date(b.next_visit));
 
     // Extintores vencendo em 30 dias ou já vencidos
@@ -3812,6 +3845,8 @@ async function loadNotifications() {
     // Lógica de vencimento por mês para manutenção extintor/hidrostático
     // Se o mês da next_visit já passou (mês atual > mês da visita do ano vigente) = Vencido
     // Aplica apenas para clientes com equipamentos de manutenção
+    const nowMonth = today.getMonth();
+    const nowYear  = today.getFullYear();
     clients.forEach(c => {
       if (!c.next_visit || !c.equipments) return;
       const nv = new Date(c.next_visit + 'T12:00:00');
@@ -5614,8 +5649,12 @@ function abrirVisitaModal(clientId, clientName) {
   document.getElementById('visitaClientId').value = clientId;
   document.getElementById('visitaClientName').textContent = clientName;
   document.getElementById('visitaRemarcarDiv').style.display = 'none';
+  document.getElementById('visitaStep1').style.display = 'flex';
+  document.getElementById('visitaStep2').style.display = 'none';
   openModal('visitaModal');
 }
+
+let _visitaAcaoPendente = null; // 'pedido' ou 'orcamento'
 
 async function visitaAcao(acao) {
   const clientId = parseInt(document.getElementById('visitaClientId').value);
@@ -5623,36 +5662,54 @@ async function visitaAcao(acao) {
 
   if (acao === 'remarcar') {
     document.getElementById('visitaRemarcarDiv').style.display = 'block';
-    // Define data mínima como hoje
     document.getElementById('visitaNovaData').min = new Date().toISOString().split('T')[0];
     return;
   }
 
-  // Agenda próxima visita automaticamente
-  const nextVisit = new Date();
   if (acao === 'nao_quis') {
+    const nextVisit = new Date();
     nextVisit.setMonth(nextVisit.getMonth() + 6);
-  } else {
-    nextVisit.setFullYear(nextVisit.getFullYear() + 1);
-  }
-  const nextVisitStr = nextVisit.toISOString().split('T')[0];
-  await dbUpdate('clients', clientId, { next_visit: nextVisitStr });
-
-  closeModal('visitaModal');
-
-  if (acao === 'nao_quis') {
-    showToast(`✅ Visita registrada! Próxima visita agendada para ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+    await dbUpdate('clients', clientId, { next_visit: nextVisit.toISOString().split('T')[0] });
+    closeModal('visitaModal');
+    showToast(`✅ Visita registrada! Próxima visita: ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
     loadHomeData();
     return;
   }
 
-  // Abre novo pedido ou orçamento com cliente pré-selecionado
-  showToast(`✅ Próxima visita agendada para ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
-  // Pequeno delay pra toast aparecer antes de abrir o form
-  setTimeout(() => {
-    openNewOrder(acao === 'pedido' ? 'Pedido' : 'Orçamento', clientId);
-  }, 400);
-  loadHomeData();
+  // Para pedido e orçamento: mostrar passo 2 (confirmação se já tem cadastrado)
+  _visitaAcaoPendente = acao;
+  const isPedido = acao === 'pedido';
+  document.getElementById('visitaStep2Titulo').textContent = isPedido ? '✅ Fechou Pedido!' : '📋 Deixou Orçamento!';
+  document.getElementById('visitaStep2Sub').textContent = isPedido
+    ? 'O pedido já foi cadastrado no sistema?'
+    : 'O orçamento já foi cadastrado no sistema?';
+  document.getElementById('visitaStep1').style.display = 'none';
+  document.getElementById('visitaStep2').style.display = 'block';
+}
+
+async function visitaConfirmarJaCadastrado(jaCadastrado) {
+  const clientId = parseInt(document.getElementById('visitaClientId').value);
+  const acao = _visitaAcaoPendente;
+
+  const nextVisit = new Date();
+  nextVisit.setFullYear(nextVisit.getFullYear() + 1);
+  const nextVisitStr = nextVisit.toISOString().split('T')[0];
+  await dbUpdate('clients', clientId, { next_visit: nextVisitStr });
+
+  closeModal('visitaModal');
+  _visitaAcaoPendente = null;
+
+  if (jaCadastrado) {
+    const msg = acao === 'pedido' ? '✅ Visita registrada! Próxima visita em 1 ano.' : '✅ Orçamento registrado! Próxima visita em 1 ano.';
+    showToast(msg, 'success');
+    loadHomeData();
+  } else {
+    showToast(`✅ Próxima visita agendada para ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+    setTimeout(() => {
+      openNewOrder(acao === 'pedido' ? 'Pedido' : 'Orçamento', clientId);
+    }, 400);
+    loadHomeData();
+  }
 }
 
 async function confirmarRemarcar() {
@@ -6689,6 +6746,180 @@ async function saveCaixaConfig() {
   closeModal('caixaConfigModal');
   loadCaixa();
 }
+
+// ============================================================
+// DASHBOARD FINANCEIRO
+// ============================================================
+async function openDashboardFinanceiro() {
+  openModal('dashboardFinanceiroModal');
+  await renderDashboardFinanceiro();
+}
+
+let _dashChart = null;
+
+async function renderDashboardFinanceiro() {
+  const el = document.getElementById('dashFinContent');
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub);">⏳ Carregando...</div>';
+
+  try {
+    const [billing, expenses, orders] = await Promise.all([
+      dbGet('billing', {}),
+      dbGet('expenses', {}),
+      dbGet('orders', {})
+    ]);
+
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+
+    // Cobranças pagas este mês
+    const paidThisMonth = billing.filter(b => {
+      if (b.status !== 'Pago') return false;
+      const d = new Date(b.paid_at || b.updated_at || b.created_at);
+      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    });
+    const faturamentoMes = paidThisMonth.reduce((s, b) => s + parseFloat(b.value || 0), 0);
+
+    // Mês anterior
+    const mesAnt = mesAtual === 0 ? 11 : mesAtual - 1;
+    const anoAnt = mesAtual === 0 ? anoAtual - 1 : anoAtual;
+    const paidLastMonth = billing.filter(b => {
+      if (b.status !== 'Pago') return false;
+      const d = new Date(b.paid_at || b.updated_at || b.created_at);
+      return d.getMonth() === mesAnt && d.getFullYear() === anoAnt;
+    });
+    const faturamentoAnt = paidLastMonth.reduce((s, b) => s + parseFloat(b.value || 0), 0);
+    const variacao = faturamentoAnt > 0 ? ((faturamentoMes - faturamentoAnt) / faturamentoAnt * 100).toFixed(0) : 0;
+
+    // A receber (pendentes)
+    const pendentes = billing.filter(b => b.status !== 'Pago');
+    const aReceber = pendentes.reduce((s, b) => s + parseFloat(b.value || 0), 0);
+
+    // Gastos este mês
+    const gastosArr = expenses.filter(e => {
+      if (e.is_template) return false;
+      const d = new Date(e.expense_date ? e.expense_date + 'T12:00:00' : (e.created_at));
+      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    });
+    const gastosMes = gastosArr.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+
+    const lucroLiquido = faturamentoMes - gastosMes;
+    const margem = faturamentoMes > 0 ? Math.round(lucroLiquido / faturamentoMes * 100) : 0;
+
+    const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+
+    // Dados dos últimos 6 meses para o gráfico
+    const meses = [], labMeses = [], entradas6 = [], gastos6 = [];
+    const nomeMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    for (let i = 5; i >= 0; i--) {
+      let m = mesAtual - i; let a = anoAtual;
+      if (m < 0) { m += 12; a -= 1; }
+      labMeses.push(nomeMes[m]);
+      const ent = billing
+        .filter(b => { if (b.status !== 'Pago') return false; const d = new Date(b.paid_at || b.updated_at || b.created_at); return d.getMonth() === m && d.getFullYear() === a; })
+        .reduce((s, b) => s + parseFloat(b.value || 0), 0);
+      const gas = expenses
+        .filter(e => { if (e.is_template) return false; const d = new Date(e.expense_date ? e.expense_date + 'T12:00:00' : e.created_at); return d.getMonth() === m && d.getFullYear() === a; })
+        .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      entradas6.push(Math.round(ent));
+      gastos6.push(Math.round(gas));
+    }
+
+    // Formas de pagamento
+    const metodos = { pix:0, dinheiro:0, debito:0, credito:0, boleto:0 };
+    paidThisMonth.forEach(b => { const m = b.payment_method || 'pix'; if (metodos[m] !== undefined) metodos[m] += parseFloat(b.value||0); });
+    const totalMetodos = Object.values(metodos).reduce((a, b) => a + b, 0);
+    const metodoLabels = { pix:'PIX', dinheiro:'Dinheiro', debito:'Débito', credito:'Crédito', boleto:'Boleto' };
+    const metodoCores = { pix:'#3b82f6', dinheiro:'#22c55e', debito:'#f0a500', credito:'#e8210a', boleto:'#6366f1' };
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="background:linear-gradient(135deg,#0d2137,#0a3d2e);border:1px solid #22c55e33;border-top:3px solid #22c55e;border-radius:12px;padding:14px;">
+          <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Faturamento Mês</div>
+          <div style="color:#22c55e;font-size:18px;font-weight:800;">${fmt(faturamentoMes)}</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:4px;">${variacao > 0 ? '+' : ''}${variacao}% vs mês anterior</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#1a1408,#1c1200);border:1px solid #f0a50033;border-top:3px solid #f0a500;border-radius:12px;padding:14px;">
+          <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">A Receber</div>
+          <div style="color:#f0a500;font-size:18px;font-weight:800;">${fmt(aReceber)}</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:4px;">${pendentes.length} cobranças pendentes</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#1f0a0a,#2d1008);border:1px solid #ef444433;border-top:3px solid #ef4444;border-radius:12px;padding:14px;">
+          <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Gastos do Mês</div>
+          <div style="color:#ef4444;font-size:18px;font-weight:800;">${fmt(gastosMes)}</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:4px;">${gastosArr.length} lançamentos</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#0d1a37,#0a0d3d);border:1px solid #3b82f633;border-top:3px solid #3b82f6;border-radius:12px;padding:14px;">
+          <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Lucro Líquido</div>
+          <div style="color:#3b82f6;font-size:18px;font-weight:800;">${fmt(lucroLiquido)}</div>
+          <div style="color:var(--sub);font-size:10px;margin-top:4px;">Margem ${margem}%</div>
+        </div>
+      </div>
+
+      <!-- Gráfico de barras -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-weight:700;font-size:12px;margin-bottom:12px;">📊 Últimos 6 Meses</div>
+        <canvas id="dashBarChart" height="160"></canvas>
+      </div>
+
+      <!-- Formas de pagamento -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-weight:700;font-size:12px;margin-bottom:10px;">💳 Formas de Pagamento (este mês)</div>
+        ${Object.entries(metodos).filter(([,v]) => v > 0).map(([k, v]) => {
+          const pct = totalMetodos > 0 ? Math.round(v / totalMetodos * 100) : 0;
+          return `<div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+              <span style="font-size:11px;color:${metodoCores[k]};">${metodoLabels[k]}</span>
+              <span style="font-size:11px;font-weight:700;">${pct}% · ${fmt(v)}</span>
+            </div>
+            <div style="background:#ffffff15;border-radius:4px;height:5px;overflow:hidden;">
+              <div style="background:${metodoCores[k]};height:100%;width:${pct}%;border-radius:4px;"></div>
+            </div>
+          </div>`;
+        }).join('') || '<div style="color:var(--sub);font-size:11px;">Nenhum pagamento este mês</div>'}
+      </div>
+    `;
+
+    // Destroi gráfico anterior se existir
+    if (_dashChart) { _dashChart.destroy(); _dashChart = null; }
+    const ctx = document.getElementById('dashBarChart')?.getContext('2d');
+    if (ctx) {
+      _dashChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labMeses,
+          datasets: [
+            { label: 'Entradas', data: entradas6, backgroundColor: '#22c55e99', borderColor: '#22c55e', borderWidth: 1, borderRadius: 4 },
+            { label: 'Gastos', data: gastos6, backgroundColor: '#ef444499', borderColor: '#ef4444', borderWidth: 1, borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#aaa', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#aaa', font: { size: 10 } }, grid: { color: '#ffffff10' } },
+            y: { ticks: { color: '#aaa', font: { size: 10 }, callback: v => 'R$' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#ffffff10' } }
+          }
+        }
+      });
+    }
+  } catch(e) {
+    console.error(e);
+    el.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center;">Erro ao carregar dados.</div>';
+  }
+}
 </script>
+
+<!-- MODAL: Dashboard Financeiro -->
+<div class="modal-overlay" id="dashboardFinanceiroModal" style="z-index:9999;">
+  <div class="modal" style="max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <div class="modal-title">📊 Dashboard Financeiro</div>
+      <button class="modal-close" onclick="closeModal('dashboardFinanceiroModal')">✕</button>
+    </div>
+    <div id="dashFinContent"></div>
+  </div>
+</div>
+
 </body>
 </html>
