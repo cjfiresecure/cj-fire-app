@@ -1659,17 +1659,22 @@ async function loadHomeData() {
 
     // Financeiro do mês
     const now = new Date();
-    const monthBilling = billing.filter(b => {
-      if (!b.created_at) return false;
-      const d = new Date(b.created_at);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
     const currentMonth = now.getMonth() + 1;
     const currentYear  = now.getFullYear();
 
-    // Receita de pedidos
-    const recebidoPedidos = monthBilling.filter(b => b.status === 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
-    const pendentePedidos = monthBilling.filter(b => b.status !== 'Pago').reduce((a, b) => a + parseFloat(b.value || 0), 0);
+    // Receita recebida: usa paid_at (data real do recebimento)
+    const recebidoPedidos = billing.filter(b => {
+      if (b.status !== 'Pago') return false;
+      const d = new Date(b.paid_at || b.updated_at || b.created_at);
+      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
+    }).reduce((a, b) => a + parseFloat(b.value || 0), 0);
+
+    // Pendente: cobranças não pagas com vencimento este mês (ou sem vencimento criadas este mês)
+    const pendentePedidos = billing.filter(b => {
+      if (b.status === 'Pago') return false;
+      const ref = b.due_date ? new Date(b.due_date + 'T12:00:00') : new Date(b.created_at);
+      return ref.getMonth() + 1 === currentMonth && ref.getFullYear() === currentYear;
+    }).reduce((a, b) => a + parseFloat(b.value || 0), 0);
 
     // Receita de obras (pagamentos do mês)
     const monthObraPags = obraPags.filter(p => {
