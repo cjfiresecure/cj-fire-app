@@ -2058,20 +2058,34 @@ function renderOrders() {
           const _clientCampo = allClients.find(c => c.name?.toLowerCase().trim() === o.client?.toLowerCase().trim());
           const _qtdCampo = _clientCampo ? parseInt(_clientCampo.extintores_campo || 0) : 0;
           const _dataCampo = _clientCampo?.extintores_campo_data ? new Date(_clientCampo.extintores_campo_data + 'T12:00:00').toLocaleDateString('pt-BR') : null;
-          return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
-            ${_qtdCampo > 0 ? `<div style="display:flex;align-items:center;justify-content:space-between;background:#ef444414;border:1px solid #ef444440;border-radius:8px;padding:6px 10px;">
-              <div style="display:flex;align-items:center;gap:6px;">
+          let _oItems = []; try { _oItems = JSON.parse(o.items || '[]'); } catch(e){}
+          const _hasManut = _oItems.some(it => { const n=(it.name||it.product||'').toLowerCase(); return n.includes('manutenção')||n.includes('manutencao')||n.includes('hidrostático')||n.includes('hidrostatico'); });
+          if (_qtdCampo > 0) {
+            return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;background:#ef444414;border:1px solid #ef444440;border-radius:8px;padding:6px 10px;gap:6px;">
                 <span style="font-size:22px;font-weight:900;color:var(--danger);line-height:1;">${_qtdCampo}</span>
                 <div style="display:flex;flex-direction:column;gap:1px;">
-                  <span style="font-size:11px;color:var(--text);font-weight:700;">🧯 extintor${_qtdCampo > 1 ? 'es' : ''} em campo</span>
-                  ${_dataCampo ? `<span style="font-size:10px;color:var(--sub);">Deixados em: ${_dataCampo}</span>` : ''}
+                  <span style="font-size:11px;color:var(--text);font-weight:700;">🧯 extintor${_qtdCampo>1?'es':''} em campo</span>
+                  ${_dataCampo?`<span style="font-size:10px;color:var(--sub);">Deixados em: ${_dataCampo}</span>`:''}
                 </div>
               </div>
-            </div>` : `<div style="display:flex;align-items:center;justify-content:center;background:#6b728014;border:1px solid #6b728030;border-radius:8px;padding:5px 10px;">
-              <span style="font-size:10px;color:var(--muted);">🧯 Nenhum extintor registrado em campo</span>
-            </div>`}
-            <button onclick="event.stopPropagation();recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\\'")}')" style="width:100%;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
-          </div>`;
+              <button onclick="event.stopPropagation();recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\'")}')" style="width:100%;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
+            </div>`;
+          } else if (_hasManut) {
+            return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;justify-content:center;background:#f0a50014;border:1px solid #f0a50040;border-radius:8px;padding:5px 10px;">
+                <span style="font-size:10px;color:#f0a500;font-weight:700;">⚠️ Aguardando extintor do cliente</span>
+              </div>
+              <button onclick="event.stopPropagation();devolverExtintorCliente(${o.id})" style="width:100%;background:#f0a50018;color:#f0a500;border:1px solid #f0a50044;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📦 Extintor devolvido pelo cliente</button>
+            </div>`;
+          } else {
+            return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;justify-content:center;background:#22c55e14;border:1px solid #22c55e30;border-radius:8px;padding:5px 10px;">
+                <span style="font-size:10px;color:#22c55e;font-weight:700;">🛒 Somente venda de materiais</span>
+              </div>
+              <button onclick="event.stopPropagation();materiaisEntregues(${o.id})" style="width:100%;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Materiais entregues</button>
+            </div>`;
+          }
         })() : ''}
         ${status === 'Aguardando Receber' ? `
           <button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
@@ -2087,9 +2101,10 @@ function filterOrders() { renderOrders(); }
 async function loadOrdersSafe() {
   const scrollY = window.scrollY || window.pageYOffset || 0;
   try {
-    [allOrders, allProductsForOrder] = await Promise.all([
+    [allOrders, allProductsForOrder, allClients] = await Promise.all([
       dbGet('orders', { order: 'created_at', asc: false }),
-      allProductsForOrder.length ? allProductsForOrder : dbGet('products', {})
+      allProductsForOrder.length ? allProductsForOrder : dbGet('products', {}),
+      dbGet('clients', {})
     ]);
     const pedidos = allOrders.filter(o => o.type === 'Pedido');
     const orcs = allOrders.filter(o => o.type === 'Orçamento');
@@ -3733,6 +3748,22 @@ async function recolhidoExtintor(orderId, clientName) {
   showToast(`📥 ${qtdRecolhida > 0 ? qtdRecolhida + ' extintor(es) recolhido(s)! ' : ''}Pedido → Aguardando Receber`, 'success');
   loadOrdersSafe();
   loadFrota();
+}
+
+// Extintor com manutenção: cliente devolveu o extintor → vai pra Aguardando Receber
+async function devolverExtintorCliente(orderId) {
+  if (!confirm('Confirmar que o cliente devolveu o extintor?')) return;
+  await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber' });
+  showToast('📦 Extintor recebido! Pedido → Aguardando Receber', 'success');
+  loadOrdersSafe();
+}
+
+// Venda de materiais: entregues → vai direto pra Aguardando Receber
+async function materiaisEntregues(orderId) {
+  if (!confirm('Confirmar que os materiais foram entregues?')) return;
+  await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber' });
+  showToast('🛒 Materiais entregues! Pedido → Aguardando Receber', 'success');
+  loadOrdersSafe();
 }
 
 async function ecConfirmar() {
