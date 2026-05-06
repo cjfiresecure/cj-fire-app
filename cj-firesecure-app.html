@@ -1947,9 +1947,10 @@ let allOrders = [], orderFilter = 'Todos', orderStatusFilter = 'Todos', orderDat
 async function loadOrders() {
   document.getElementById('ordersList').innerHTML = '<div class="loading"><div class="spinner"></div><div>Carregando...</div></div>';
   try {
-    [allOrders, allProductsForOrder] = await Promise.all([
+    [allOrders, allProductsForOrder, allClients] = await Promise.all([
       dbGet('orders', { order: 'created_at', asc: false }),
-      dbGet('products', {})
+      dbGet('products', {}),
+      dbGet('clients', {})
     ]);
     const pedidos = allOrders.filter(o => o.type === 'Pedido');
     const orcs = allOrders.filter(o => o.type === 'Orçamento');
@@ -2054,6 +2055,18 @@ function renderOrders() {
         ${o.type === 'Orçamento' ? `
           <button onclick="event.stopPropagation();convertOrcToPedidoRapido(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Virou Pedido</button>
         ` : ''}
+        ${o.type === 'Pedido' && status === 'Em Aberto' ? (() => {
+          let _abItems = []; try { _abItems = JSON.parse(o.items || '[]'); } catch(e){}
+          const _abHasManut = _abItems.some(it => { const n=(it.name||it.product||'').toLowerCase(); return n.includes('manutenção')||n.includes('manutencao')||n.includes('hidrostático')||n.includes('hidrostatico'); });
+          if (!_abHasManut && _abItems.length > 0) {
+            return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;justify-content:center;background:#22c55e14;border:1px solid #22c55e30;border-radius:8px;padding:5px 10px;">
+                <span style="font-size:10px;color:#22c55e;font-weight:700;">🛒 Somente venda de materiais</span>
+              </div>
+              <button onclick="event.stopPropagation();materiaisEntregues(${o.id})" style="width:100%;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Materiais entregues</button>
+            </div>`;
+          } return '';
+        })() : ''}
         ${status === 'Em Andamento' ? (() => {
           const _clientCampo = allClients.find(c => c.name?.toLowerCase().trim() === o.client?.toLowerCase().trim());
           const _qtdCampo = _clientCampo ? parseInt(_clientCampo.extintores_campo || 0) : 0;
@@ -2074,9 +2087,9 @@ function renderOrders() {
           } else if (_hasManut) {
             return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
               <div style="display:flex;align-items:center;justify-content:center;background:#f0a50014;border:1px solid #f0a50040;border-radius:8px;padding:5px 10px;">
-                <span style="font-size:10px;color:#f0a500;font-weight:700;">⚠️ Aguardando extintor do cliente</span>
+                <span style="font-size:10px;color:#f0a500;font-weight:700;">🔧 Extintor em manutenção</span>
               </div>
-              <button onclick="event.stopPropagation();devolverExtintorCliente(${o.id})" style="width:100%;background:#f0a50018;color:#f0a500;border:1px solid #f0a50044;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📦 Extintor devolvido pelo cliente</button>
+              <button onclick="event.stopPropagation();devolverExtintorCliente(${o.id})" style="width:100%;background:#f0a50018;color:#f0a500;border:1px solid #f0a50044;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Extintor entregue ao cliente</button>
             </div>`;
           } else {
             return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
