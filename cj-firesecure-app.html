@@ -2858,13 +2858,42 @@ async function saveOrder() {
         return m && parseInt(m[1]) === editingOrderId;
       });
       const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
-      if (vinculadas.length === 1) {
-        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc });
-      } else if (vinculadas.length > 1) {
-        const novoValorParcela = total / vinculadas.length;
-        for (const b of vinculadas) {
-          await dbUpdate('billing', b.id, { value: parseFloat(novoValorParcela.toFixed(2)) });
+      // Recria cobranças se número de parcelas mudou, ou atualiza valores se igual
+      if (instDates.length > 1 && instDates.length !== vinculadas.length) {
+        // Número de parcelas mudou → apaga pendentes e recria
+        for (const b of vinculadas) await dbDelete('billing', b.id);
+        for (let i = 0; i < instDates.length; i++) {
+          await dbInsert('billing', {
+            client: selectedOrderClient.name,
+            service: `${orderNum} · Parcela ${i+1}/${instDates.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`,
+            value: instDates[i].value,
+            due_date: instDates[i].date,
+            order_id: editingOrderId,
+            multa: 2, juros: 1, status: 'Pendente'
+          });
         }
+      } else if (instDates.length > 1 && instDates.length === vinculadas.length) {
+        // Mesmo número de parcelas → só atualiza valores e datas
+        for (let i = 0; i < vinculadas.length; i++) {
+          await dbUpdate('billing', vinculadas[i].id, {
+            value: instDates[i].value,
+            due_date: instDates[i].date,
+            service: `${orderNum} · Parcela ${i+1}/${vinculadas.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`
+          });
+        }
+      } else if (vinculadas.length > 1 && instDates.length <= 1) {
+        // Mudou de múltiplas para parcela única → apaga extras e atualiza a primeira
+        for (let i = 1; i < vinculadas.length; i++) await dbDelete('billing', vinculadas[i].id);
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
+      } else if (vinculadas.length === 1) {
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
+      } else if (vinculadas.length === 0) {
+        // Sem cobrança pendente → cria uma nova
+        await dbInsert('billing', {
+          client: selectedOrderClient.name, service: serviceDesc,
+          value: total, due_date: instDates[0]?.date || orderDate,
+          order_id: editingOrderId, multa: 2, juros: 1, status: 'Pendente'
+        });
       }
     }
 
