@@ -12,7 +12,6 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-meta{display:none!important}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;--primary:#e8210a;--secondary:#f0a500;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--text:#f1f5f9;--sub:#94a3b8;--muted:#6b7280}
 body.light-mode{--bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;--text:#1e293b;--sub:#64748b;--muted:#94a3b8}
@@ -79,7 +78,7 @@ textarea.input{resize:none;height:70px}
 <div class="toast" id="toast"></div>
 
 <!-- TELA DE LOGIN -->
-<div id="selectScreen" style="min-height:100vh;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);">
+<div id="selectScreen" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);">
   <div style="margin-bottom:8px;">
     <img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="width:80px;height:80px;border-radius:16px;object-fit:cover;" />
     <span style="display:none;font-size:60px;">🦅</span>
@@ -1558,12 +1557,7 @@ async function dbInsert(table, data) {
       body: JSON.stringify(data)
     });
     const result = await r.json();
-    if (!r.ok) {
-      const errMsg = result?.message || result?.details || result?.hint || JSON.stringify(result);
-      console.error('dbInsert error', r.status, result);
-      showToast(`❌ Erro ${r.status}: ${errMsg}`, 'error');
-      return null;
-    }
+    if (!r.ok) { console.error('dbInsert error', r.status, result); return null; }
     return result;
   } catch(e) { console.error('dbInsert', e); return null; }
 }
@@ -2797,6 +2791,7 @@ async function saveOrder() {
     surcharge: discountPct || 0,
     freight: freight || 0,
     installments: installments,
+    installment_dates: installmentDatesJSON,
     created_by: window.currentUser || '',
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
@@ -2862,42 +2857,13 @@ async function saveOrder() {
         return m && parseInt(m[1]) === editingOrderId;
       });
       const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
-      // Recria cobranças se número de parcelas mudou, ou atualiza valores se igual
-      if (instDates.length > 1 && instDates.length !== vinculadas.length) {
-        // Número de parcelas mudou → apaga pendentes e recria
-        for (const b of vinculadas) await dbDelete('billing', b.id);
-        for (let i = 0; i < instDates.length; i++) {
-          await dbInsert('billing', {
-            client: selectedOrderClient.name,
-            service: `${orderNum} · Parcela ${i+1}/${instDates.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`,
-            value: instDates[i].value,
-            due_date: instDates[i].date,
-            order_id: editingOrderId,
-            multa: 2, juros: 1, status: 'Pendente'
-          });
+      if (vinculadas.length === 1) {
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc });
+      } else if (vinculadas.length > 1) {
+        const novoValorParcela = total / vinculadas.length;
+        for (const b of vinculadas) {
+          await dbUpdate('billing', b.id, { value: parseFloat(novoValorParcela.toFixed(2)) });
         }
-      } else if (instDates.length > 1 && instDates.length === vinculadas.length) {
-        // Mesmo número de parcelas → só atualiza valores e datas
-        for (let i = 0; i < vinculadas.length; i++) {
-          await dbUpdate('billing', vinculadas[i].id, {
-            value: instDates[i].value,
-            due_date: instDates[i].date,
-            service: `${orderNum} · Parcela ${i+1}/${vinculadas.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`
-          });
-        }
-      } else if (vinculadas.length > 1 && instDates.length <= 1) {
-        // Mudou de múltiplas para parcela única → apaga extras e atualiza a primeira
-        for (let i = 1; i < vinculadas.length; i++) await dbDelete('billing', vinculadas[i].id);
-        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
-      } else if (vinculadas.length === 1) {
-        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
-      } else if (vinculadas.length === 0) {
-        // Sem cobrança pendente → cria uma nova
-        await dbInsert('billing', {
-          client: selectedOrderClient.name, service: serviceDesc,
-          value: total, due_date: instDates[0]?.date || orderDate,
-          order_id: editingOrderId, multa: 2, juros: 1, status: 'Pendente'
-        });
       }
     }
 
