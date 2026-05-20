@@ -1558,7 +1558,12 @@ async function dbInsert(table, data) {
       body: JSON.stringify(data)
     });
     const result = await r.json();
-    if (!r.ok) { console.error('dbInsert error', r.status, result); return null; }
+    if (!r.ok) {
+      const errMsg = result?.message || result?.details || result?.hint || JSON.stringify(result);
+      console.error('dbInsert error', r.status, result);
+      showToast(`❌ Erro ${r.status}: ${errMsg}`, 'error');
+      return null;
+    }
     return result;
   } catch(e) { console.error('dbInsert', e); return null; }
 }
