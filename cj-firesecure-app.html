@@ -2797,7 +2797,6 @@ async function saveOrder() {
     surcharge: discountPct || 0,
     freight: freight || 0,
     installments: installments,
-    installment_dates: installmentDatesJSON,
     created_by: window.currentUser || '',
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
