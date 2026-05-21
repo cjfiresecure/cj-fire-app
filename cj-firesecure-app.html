@@ -1672,7 +1672,8 @@ async function dbInsert(table, data) {
         showToast('📦 Salvo offline! Sincronizará quando o servidor voltar.', 'success');
         return { id: 'offline_' + Date.now(), offline: true };
       }
-      showToast(`❌ Erro ${r.status}: ${errMsg}`, 'error');
+      // 4xx = dado inválido, mostra o erro real
+      showToast(`❌ Supabase ${r.status}: ${errMsg}`, 'error');
       return null;
     }
     return result;
@@ -2930,11 +2931,11 @@ async function saveOrder() {
     client_address: selectedOrderClient.address || '', client_city: selectedOrderClient.city || '',
     client_phone: selectedOrderClient.phone || '', client_email: selectedOrderClient.email || '',
     type: currentOrderType, value: total, payment,
-    order_date: orderDate,
+    order_date: orderDate || null,
     discount: discount || 0,
     surcharge: discountPct || 0,
     freight: freight || 0,
-    installments: installments,
+    installments: installments || 1,
     created_by: window.currentUser || '',
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
@@ -3107,7 +3108,9 @@ async function saveOrder() {
         showToast('✅ Orçamento criado! Converta em Pedido para gerar cobrança.', 'success');
       }
       loadOrders();
-    } else showToast('❌ Erro ao salvar', 'error');
+    } else {
+      showToast('❌ Erro ao salvar. Veja o console (F12) para detalhes.', 'error');
+    }
   }
 }
 
