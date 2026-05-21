@@ -12,6 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+meta{display:none!important}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3e;--primary:#e8210a;--secondary:#f0a500;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--text:#f1f5f9;--sub:#94a3b8;--muted:#6b7280}
 body.light-mode{--bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;--text:#1e293b;--sub:#64748b;--muted:#94a3b8}
@@ -78,7 +79,7 @@ textarea.input{resize:none;height:70px}
 <div class="toast" id="toast"></div>
 
 <!-- TELA DE LOGIN -->
-<div id="selectScreen" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);">
+<div id="selectScreen" style="min-height:100vh;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);">
   <div style="margin-bottom:8px;">
     <img src="https://raw.githubusercontent.com/cjfiresecure/cj-fire-app/main/cj-firesecure-logo.png" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="width:80px;height:80px;border-radius:16px;object-fit:cover;" />
     <span style="display:none;font-size:60px;">🦅</span>
@@ -122,6 +123,14 @@ textarea.input{resize:none;height:70px}
 
 <!-- APP PRINCIPAL -->
 <div id="mainApp" style="display:none;">
+
+  <!-- BANNER OFFLINE -->
+  <div id="offlineBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#000;font-size:13px;font-weight:700;text-align:center;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+    ⚠️ Modo Offline — <span id="offlineQueueCount">0</span> item(ns) na fila. Salvando localmente até a conexão voltar.
+  </div>
+  <div id="syncingBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#22c55e;color:#fff;font-size:13px;font-weight:700;text-align:center;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+    🔄 Sincronizando dados offline...
+  </div>
 
   <!-- HOME -->
   <div id="screen-home" class="screen active">
@@ -1537,13 +1546,109 @@ const H = () => ({
   'Prefer': 'return=representation'
 });
 
+// ============================================================
+// SISTEMA OFFLINE — fila localStorage + sincronização automática
+// ============================================================
+const OFFLINE_QUEUE_KEY = 'cjfire_offline_queue';
+
+function offlineQueueGet() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); } catch { return []; }
+}
+function offlineQueueSave(q) {
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
+}
+function offlineQueueAdd(op) {
+  const q = offlineQueueGet();
+  q.push({ ...op, _id: Date.now() + Math.random() });
+  offlineQueueSave(q);
+  updateOfflineBanner();
+}
+function updateOfflineBanner() {
+  const q = offlineQueueGet();
+  const banner = document.getElementById('offlineBanner');
+  const countEl = document.getElementById('offlineQueueCount');
+  if (!banner) return;
+  if (q.length > 0) {
+    banner.style.display = 'block';
+    if (countEl) countEl.textContent = q.length;
+    document.getElementById('mainApp').style.paddingTop = '40px';
+  } else {
+    banner.style.display = 'none';
+    document.getElementById('mainApp').style.paddingTop = '';
+  }
+}
+
+async function isSupabaseOnline() {
+  try {
+    const r = await fetch(API + 'orders?select=id&limit=1', { headers: H(), signal: AbortSignal.timeout(5000) });
+    return r.ok || r.status === 406; // 406 = sem RLS, mas está online
+  } catch { return false; }
+}
+
+async function syncOfflineQueue() {
+  const q = offlineQueueGet();
+  if (q.length === 0) return;
+
+  const online = await isSupabaseOnline();
+  if (!online) return;
+
+  // Mostra banner de sincronizando
+  const syncBanner = document.getElementById('syncingBanner');
+  if (syncBanner) { syncBanner.style.display = 'block'; document.getElementById('mainApp').style.paddingTop = '40px'; }
+  if (document.getElementById('offlineBanner')) document.getElementById('offlineBanner').style.display = 'none';
+
+  let successCount = 0;
+  const remaining = [];
+
+  for (const op of q) {
+    try {
+      let ok = false;
+      if (op.type === 'insert') {
+        const r = await fetch(API + op.table, { method: 'POST', headers: H(), body: JSON.stringify(op.data) });
+        ok = r.ok;
+      } else if (op.type === 'update') {
+        const r = await fetch(API + op.table + '?id=eq.' + op.id, { method: 'PATCH', headers: H(), body: JSON.stringify(op.data) });
+        ok = r.ok;
+      } else if (op.type === 'delete') {
+        const r = await fetch(API + op.table + '?id=eq.' + op.id, { method: 'DELETE', headers: H() });
+        ok = r.ok;
+      }
+      if (ok) successCount++;
+      else remaining.push(op);
+    } catch { remaining.push(op); }
+  }
+
+  offlineQueueSave(remaining);
+  if (syncBanner) syncBanner.style.display = 'none';
+  updateOfflineBanner();
+
+  if (successCount > 0) {
+    showToast(`✅ ${successCount} item(ns) sincronizado(s)!`, 'success');
+    // Recarrega listas para refletir dados sincronizados
+    if (typeof loadOrders === 'function') loadOrders();
+    if (typeof loadBilling === 'function') loadBilling();
+  }
+  if (remaining.length > 0) {
+    showToast(`⚠️ ${remaining.length} item(ns) ainda na fila (Supabase instável)`, 'error');
+  }
+}
+
+// Tenta sincronizar ao recuperar conexão de internet
+window.addEventListener('online', () => { setTimeout(syncOfflineQueue, 2000); });
+
+// Verifica a cada 3 minutos se o Supabase voltou
+setInterval(syncOfflineQueue, 3 * 60 * 1000);
+
+// ============================================================
+// DB FUNCTIONS COM FALLBACK OFFLINE
+// ============================================================
 async function dbGet(table, opts = {}) {
   try {
     let url = API + table + '?select=*';
     if (opts.order) url += '&order=' + opts.order + '.' + (opts.asc !== false ? 'asc' : 'desc');
     if (opts.limit) url += '&limit=' + opts.limit;
     if (opts.filter) url += '&or=(' + opts.filter + ')';
-    const r = await fetch(url, { headers: H() });
+    const r = await fetch(url, { headers: H(), signal: AbortSignal.timeout(8000) });
     if (!r.ok) { console.error('dbGet', r.status, await r.text()); return []; }
     return await r.json();
   } catch(e) { console.error('dbGet', e); return []; }
@@ -1554,30 +1659,69 @@ async function dbInsert(table, data) {
     const r = await fetch(API + table, {
       method: 'POST',
       headers: H(),
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(8000)
     });
     const result = await r.json();
-    if (!r.ok) { console.error('dbInsert error', r.status, result); return null; }
+    if (!r.ok) {
+      const errMsg = result?.message || result?.details || result?.hint || JSON.stringify(result);
+      console.error('dbInsert error', r.status, result);
+      // Salva na fila offline se for erro de servidor (5xx) ou timeout
+      if (r.status >= 500) {
+        offlineQueueAdd({ type: 'insert', table, data });
+        showToast('📦 Salvo offline! Sincronizará quando o servidor voltar.', 'success');
+        return { id: 'offline_' + Date.now(), offline: true };
+      }
+      showToast(`❌ Erro ${r.status}: ${errMsg}`, 'error');
+      return null;
+    }
     return result;
-  } catch(e) { console.error('dbInsert', e); return null; }
+  } catch(e) {
+    // Erro de rede/timeout → salva offline
+    console.error('dbInsert network error', e);
+    offlineQueueAdd({ type: 'insert', table, data });
+    showToast('📦 Salvo offline! Sincronizará quando o servidor voltar.', 'success');
+    return { id: 'offline_' + Date.now(), offline: true };
+  }
 }
 
 async function dbUpdate(table, id, data) {
+  // Não tenta atualizar registros que ainda estão offline
+  if (String(id).startsWith('offline_')) {
+    offlineQueueAdd({ type: 'update', table, id, data });
+    return true;
+  }
   try {
     const r = await fetch(API + table + '?id=eq.' + id, {
       method: 'PATCH',
       headers: H(),
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(8000)
     });
+    if (!r.ok && r.status >= 500) {
+      offlineQueueAdd({ type: 'update', table, id, data });
+      return true;
+    }
     return r.ok;
-  } catch(e) { return false; }
+  } catch(e) {
+    offlineQueueAdd({ type: 'update', table, id, data });
+    return true;
+  }
 }
 
 async function dbDelete(table, id) {
+  if (String(id).startsWith('offline_')) {
+    // Remove da fila offline em vez de deletar no servidor
+    const q = offlineQueueGet().filter(op => !(op.type === 'insert' && op.data?._offlineId === id));
+    offlineQueueSave(q);
+    updateOfflineBanner();
+    return;
+  }
   try {
     await fetch(API + table + '?id=eq.' + id, {
       method: 'DELETE',
-      headers: H()
+      headers: H(),
+      signal: AbortSignal.timeout(8000)
     });
   } catch(e) {}
 }
@@ -2791,7 +2935,6 @@ async function saveOrder() {
     surcharge: discountPct || 0,
     freight: freight || 0,
     installments: installments,
-    installment_dates: installmentDatesJSON,
     created_by: window.currentUser || '',
     obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
   };
@@ -2857,13 +3000,42 @@ async function saveOrder() {
         return m && parseInt(m[1]) === editingOrderId;
       });
       const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
-      if (vinculadas.length === 1) {
-        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc });
-      } else if (vinculadas.length > 1) {
-        const novoValorParcela = total / vinculadas.length;
-        for (const b of vinculadas) {
-          await dbUpdate('billing', b.id, { value: parseFloat(novoValorParcela.toFixed(2)) });
+      // Recria cobranças se número de parcelas mudou, ou atualiza valores se igual
+      if (instDates.length > 1 && instDates.length !== vinculadas.length) {
+        // Número de parcelas mudou → apaga pendentes e recria
+        for (const b of vinculadas) await dbDelete('billing', b.id);
+        for (let i = 0; i < instDates.length; i++) {
+          await dbInsert('billing', {
+            client: selectedOrderClient.name,
+            service: `${orderNum} · Parcela ${i+1}/${instDates.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`,
+            value: instDates[i].value,
+            due_date: instDates[i].date,
+            order_id: editingOrderId,
+            multa: 2, juros: 1, status: 'Pendente'
+          });
         }
+      } else if (instDates.length > 1 && instDates.length === vinculadas.length) {
+        // Mesmo número de parcelas → só atualiza valores e datas
+        for (let i = 0; i < vinculadas.length; i++) {
+          await dbUpdate('billing', vinculadas[i].id, {
+            value: instDates[i].value,
+            due_date: instDates[i].date,
+            service: `${orderNum} · Parcela ${i+1}/${vinculadas.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`
+          });
+        }
+      } else if (vinculadas.length > 1 && instDates.length <= 1) {
+        // Mudou de múltiplas para parcela única → apaga extras e atualiza a primeira
+        for (let i = 1; i < vinculadas.length; i++) await dbDelete('billing', vinculadas[i].id);
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
+      } else if (vinculadas.length === 1) {
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
+      } else if (vinculadas.length === 0) {
+        // Sem cobrança pendente → cria uma nova
+        await dbInsert('billing', {
+          client: selectedOrderClient.name, service: serviceDesc,
+          value: total, due_date: instDates[0]?.date || orderDate,
+          order_id: editingOrderId, multa: 2, juros: 1, status: 'Pendente'
+        });
       }
     }
 
@@ -6062,6 +6234,8 @@ function launchApp(email) {
   setTimeout(() => requestPushPermission(), 2000);
   checkAndSendAlerts();
   setInterval(checkAndSendAlerts, 30 * 60 * 1000);
+  // Sincroniza fila offline ao abrir o app
+  setTimeout(() => { updateOfflineBanner(); syncOfflineQueue(); }, 3000);
 }
 
 // ============================================================
