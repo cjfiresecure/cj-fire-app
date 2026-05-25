@@ -568,58 +568,78 @@ textarea.input{resize:none;height:70px}
 
   <!-- CAIXA -->
   <div id="screen-caixa" class="screen">
+    <!-- Header -->
     <div class="page-header">
-      <div><div class="page-title">💳 Caixa</div><div style="color:var(--sub);font-size:12px;">Saldo em tempo real</div></div>
+      <div><div class="page-title">💳 Caixa</div><div style="color:var(--sub);font-size:12px;" id="caixaPeriodoLabel">Este mês</div></div>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;" onclick="openDashboardFinanceiro()">📈 Financeiro</button>
-        <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openCaixaConfig()">⚙️ Saldo inicial</button>
+        <button class="btn btn-sm" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;" onclick="openDashboardFinanceiro()">📈</button>
+        <button class="btn btn-sm" style="background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="openCaixaConfig()">⚙️</button>
       </div>
     </div>
-    <!-- Card saldo atual -->
-    <div id="caixaSaldoCard" style="background:linear-gradient(135deg,#0d2137,#0a3d2e);border:2px solid #22c55e44;border-radius:18px;padding:20px;margin-bottom:16px;text-align:center;">
-      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">SALDO ATUAL EM CAIXA</div>
-      <div style="font-size:36px;font-weight:900;" id="caixaSaldoAtual">R$ 0,00</div>
-      <div style="color:var(--sub);font-size:11px;margin-top:6px;">Atualizado agora</div>
+
+    <!-- Filtro de período -->
+    <div class="filter-tabs" style="margin-bottom:12px;">
+      <div class="filter-tab" onclick="setCaixaPeriodo('hoje',this)">Hoje</div>
+      <div class="filter-tab active" onclick="setCaixaPeriodo('mes',this)">Este Mês</div>
+      <div class="filter-tab" onclick="setCaixaPeriodo('semana',this)">Semana</div>
+      <div class="filter-tab" onclick="setCaixaPeriodo('ano',this)">Ano</div>
+      <div class="filter-tab" onclick="setCaixaPeriodo('tudo',this)">Tudo</div>
     </div>
-    <!-- Breakdown -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
-      <div style="background:var(--card);border:1px solid #22c55e44;border-radius:12px;padding:12px;text-align:center;">
-        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">💰 SALDO INICIAL</div>
-        <div style="font-size:15px;font-weight:800;color:#22c55e;" id="caixaSaldoInicial">R$ 0,00</div>
-      </div>
+
+    <!-- Card saldo atual (sempre geral) -->
+    <div id="caixaSaldoCard" style="background:linear-gradient(135deg,#0d2137,#0a3d2e);border:2px solid #22c55e44;border-radius:18px;padding:18px 20px;margin-bottom:12px;text-align:center;">
+      <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">SALDO ATUAL EM CAIXA</div>
+      <div style="font-size:38px;font-weight:900;" id="caixaSaldoAtual">R$ 0,00</div>
+      <div style="color:var(--sub);font-size:10px;margin-top:4px;">Acumulado desde o início</div>
+    </div>
+
+    <!-- Resumo do período (Entradas / Saídas / Resultado) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
       <div style="background:var(--card);border:1px solid #22c55e44;border-radius:12px;padding:12px;text-align:center;">
         <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📥 ENTRADAS</div>
-        <div style="font-size:15px;font-weight:800;color:#22c55e;" id="caixaTotalEntradas">R$ 0,00</div>
+        <div style="font-size:17px;font-weight:800;color:#22c55e;" id="caixaTotalEntradas">R$ 0,00</div>
       </div>
       <div style="background:var(--card);border:1px solid #e8210a44;border-radius:12px;padding:12px;text-align:center;">
-        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📤 SAÍDAS VARIÁVEIS</div>
-        <div style="font-size:15px;font-weight:800;color:var(--primary);" id="caixaSaidasVar">R$ 0,00</div>
+        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📤 SAÍDAS</div>
+        <div style="font-size:17px;font-weight:800;color:var(--primary);" id="caixaTotalSaidas">R$ 0,00</div>
       </div>
-      <div style="background:var(--card);border:1px solid #e8210a44;border-radius:12px;padding:12px;text-align:center;">
-        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">📤 FIXAS PAGAS</div>
-        <div style="font-size:15px;font-weight:800;color:var(--primary);" id="caixaSaidasFixo">R$ 0,00</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;grid-column:1/-1;" id="caixaResultadoCard">
+        <div style="font-size:10px;color:var(--sub);font-weight:700;margin-bottom:4px;">⚖️ RESULTADO DO PERÍODO</div>
+        <div style="font-size:24px;font-weight:900;" id="caixaResultado">R$ 0,00</div>
       </div>
     </div>
-    <!-- Detalhamento entradas -->
+
+    <!-- Botões de lançamento manual -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+      <button onclick="openCaixaLancamento('entrada')" style="background:#22c55e18;color:#22c55e;border:2px solid #22c55e55;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">📥 + Entrada</button>
+      <button onclick="openCaixaLancamento('saida')" style="background:#ef444418;color:var(--danger);border:2px solid #ef444455;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">📤 − Saída</button>
+    </div>
+
+    <!-- Previsão próximos 30 dias -->
+    <div style="background:var(--card);border:1px solid #f0a50033;border-radius:12px;padding:14px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📅 Previsão — Próximos 30 dias</div>
+      <div id="caixaPrevisaoContent"><div style="color:var(--sub);font-size:12px;">Carregando...</div></div>
+    </div>
+
+    <!-- Últimas movimentações -->
+    <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🕐 Últimas Movimentações</div>
+    <div id="caixaMovimentacoes" style="margin-bottom:14px;"></div>
+
+    <!-- Detalhamento por forma de pagamento -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
-      <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Detalhamento de Entradas</div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
-        <span style="color:var(--text);">Cobranças pagas (líquido)</span>
-        <span style="color:#22c55e;font-weight:700;" id="caixaEntBilling">R$ 0,00</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px;">
-        <span style="color:var(--text);">Pagamentos de obras</span>
-        <span style="color:#22c55e;font-weight:700;" id="caixaEntObras">R$ 0,00</span>
-      </div>
-      <!-- Breakdown por forma de pagamento -->
-      <div style="border-top:1px solid var(--border);padding-top:10px;">
-        <div style="font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💳 Por forma de pagamento</div>
-        <div id="caixaPaymentBreakdown" style="display:flex;flex-direction:column;gap:5px;"></div>
-      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">💳 Por forma de pagamento</div>
+      <div id="caixaPaymentBreakdown" style="display:flex;flex-direction:column;gap:5px;"></div>
     </div>
-    <!-- Observação -->
+
+    <!-- IDs legacy mantidos invisíveis para não quebrar código existente -->
+    <span id="caixaSaldoInicial" style="display:none;"></span>
+    <span id="caixaEntBilling" style="display:none;"></span>
+    <span id="caixaEntObras" style="display:none;"></span>
+    <span id="caixaSaidasVar" style="display:none;"></span>
+    <span id="caixaSaidasFixo" style="display:none;"></span>
+
     <div style="background:#f0a50011;border:1px solid #f0a50033;border-radius:10px;padding:10px 14px;">
-      <div style="font-size:11px;color:var(--secondary);">ℹ️ Gastos variáveis são descontados automaticamente. Gastos fixos só são descontados após você marcar como ✅ pago na aba Gastos.</div>
+      <div style="font-size:11px;color:var(--secondary);">ℹ️ Gastos variáveis são descontados automaticamente. Gastos fixos só após marcar ✅ pago na aba Gastos.</div>
     </div>
   </div>
 
@@ -824,6 +844,86 @@ textarea.input{resize:none;height:70px}
       💡 Exemplo: se você quer acompanhar a partir de hoje, coloque a data de hoje e o saldo atual da sua conta.
     </div>
     <button class="btn btn-primary" onclick="saveCaixaConfig()">✓ Salvar Configuração</button>
+  </div>
+</div>
+
+<!-- MODAL: Caixa - Lançamento Manual -->
+<div class="modal-overlay" id="caixaLancamentoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="caixaLancTitle">📥 Nova Entrada</div>
+      <button class="modal-close" onclick="closeModal('caixaLancamentoModal')">✕</button>
+    </div>
+    <input type="hidden" id="caixaLancTipo" />
+    <input type="hidden" id="caixaLancEditId" />
+
+    <div class="field">
+      <label class="label">Descrição *</label>
+      <input class="input" id="caixaLancDesc" placeholder="Ex: Recebimento do cliente João / Compra de material" />
+    </div>
+
+    <div class="field">
+      <label class="label">Valor (R$) *</label>
+      <input class="input" id="caixaLancValor" type="number" step="0.01" placeholder="0,00" style="font-size:20px;font-weight:700;text-align:center;" />
+    </div>
+
+    <div class="field">
+      <label class="label">Data</label>
+      <input class="input" id="caixaLancData" type="date" />
+    </div>
+
+    <!-- Tipo de recebimento (entrada) -->
+    <div class="field" id="caixaLancTipoRecField">
+      <label class="label">Tipo de Recebimento</label>
+      <select class="input" id="caixaLancTipoRec">
+        <option>🔧 Serviço Prestado</option>
+        <option>🧯 Venda de Produto</option>
+        <option>📄 Contrato Mensal / Anual</option>
+        <option>💰 Outras Receitas</option>
+      </select>
+    </div>
+
+    <!-- Categoria (saída) -->
+    <div class="field" id="caixaLancCatField" style="display:none;">
+      <label class="label">Categoria</label>
+      <select class="input" id="caixaLancCategoria">
+        <option>🧯 Materiais / Peças / Cargas</option>
+        <option>🚚 Combustível / Transporte</option>
+        <option>👷 Pagamento de Técnicos / Comissões</option>
+        <option>📋 Documentos / Laudos / ART / Taxas</option>
+        <option>🧾 Aluguel / Energia / Água / Internet</option>
+        <option>🛠️ Manutenção de Veículos / Equipamentos</option>
+        <option>📦 Estoque / Compra de Mercadorias</option>
+        <option>📈 Marketing / Propaganda</option>
+        <option>💸 Impostos / Taxas / Contabilidade</option>
+        <option>📌 Outros gastos</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="label">Forma de Pagamento</label>
+      <select class="input" id="caixaLancFormaPag">
+        <option value="pix">📱 PIX</option>
+        <option value="dinheiro">💵 Dinheiro</option>
+        <option value="boleto">📄 Boleto</option>
+        <option value="credito">💳 Cartão Crédito</option>
+        <option value="debito">💳 Cartão Débito</option>
+        <option value="transferencia">🏦 Transferência Bancária</option>
+        <option value="cheque">📜 Cheque</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="label">Cliente / Fornecedor (opcional)</label>
+      <input class="input" id="caixaLancCliente" placeholder="Nome do cliente ou fornecedor" />
+    </div>
+
+    <div class="field">
+      <label class="label">Observação</label>
+      <input class="input" id="caixaLancObs" placeholder="Opcional" />
+    </div>
+
+    <button class="btn btn-primary" onclick="saveCaixaLancamento()">✓ Confirmar Lançamento</button>
   </div>
 </div>
 
@@ -3763,6 +3863,11 @@ async function confirmPayment() {
   if (!orderId) {
     showToast('✅ Pago!', 'success');
     reloadSafe(_pmContext === 'order' ? loadOrdersSafe : loadBilling);
+    if (document.getElementById('screen-caixa')?.classList.contains('active')) {
+      loadCaixa();
+    } else {
+      try { localStorage.removeItem('cjfire_rc_billing'); } catch {}
+    }
     return;
   }
 
@@ -3791,6 +3896,13 @@ async function confirmPayment() {
     reloadSafe(loadOrdersSafe);
   } else {
     reloadSafe(loadBilling);
+  }
+  // Atualiza caixa em background se a tela estiver aberta
+  if (document.getElementById('screen-caixa')?.classList.contains('active')) {
+    loadCaixa();
+  } else {
+    // Invalida cache para forçar refresh na próxima visita
+    try { localStorage.removeItem('cjfire_rc_billing'); } catch {}
   }
 }
 async function deleteBilling(id) {
@@ -6853,6 +6965,12 @@ async function saveObraPagamento() {
     closeModal('obraPagamentoModal');
     _obraAtual = null;
     loadObras();
+    // Atualiza caixa se estiver aberto, ou invalida cache
+    if (document.getElementById('screen-caixa')?.classList.contains('active')) {
+      loadCaixa();
+    } else {
+      try { localStorage.removeItem('cjfire_rc_obra_pagamentos'); } catch {}
+    }
   } else showToast('❌ Erro ao salvar', 'error');
 
   btn.textContent = '✓ Confirmar Recebimento'; btn.disabled = false;
@@ -6950,109 +7068,306 @@ async function deleteObraPagamento(pagId, obraId) {
 // ============================================================
 // CAIXA
 // ============================================================
+// ============================================================
+// CAIXA — estado e helpers de período
+// ============================================================
+let caixaPeriodoAtivo = 'mes';
+let _caixaBillingCache = [], _caixaObraPagsCache = [], _caixaExpensesCache = [], _caixaLancamentosCache = [];
+
+function setCaixaPeriodo(periodo, el) {
+  caixaPeriodoAtivo = periodo;
+  document.querySelectorAll('#screen-caixa .filter-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const labels = { hoje:'Hoje', mes:'Este mês', semana:'Esta semana', ano:'Este ano', tudo:'Todo o período' };
+  const lbl = document.getElementById('caixaPeriodoLabel');
+  if (lbl) lbl.textContent = labels[periodo] || periodo;
+  _renderCaixaComDados(_caixaBillingCache, _caixaObraPagsCache, _caixaExpensesCache, _caixaLancamentosCache, null);
+}
+
+function _caixaPeriodoBounds() {
+  const now = new Date();
+  let from = null;
+  if (caixaPeriodoAtivo === 'hoje') {
+    from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (caixaPeriodoAtivo === 'semana') {
+    from = new Date(now); from.setDate(now.getDate() - 6);
+  } else if (caixaPeriodoAtivo === 'mes') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (caixaPeriodoAtivo === 'ano') {
+    from = new Date(now.getFullYear(), 0, 1);
+  }
+  return from; // null = tudo
+}
+
+function _caixaDateOf(rec) {
+  // Pega a melhor data de um registro de billing/obra/expense/lancamento
+  const raw = rec.paid_at || rec.pag_date || rec.expense_date || rec.lancamento_date || rec.updated_at || rec.created_at || '';
+  if (!raw) return null;
+  const d = new Date(raw.length === 10 ? raw + 'T12:00:00' : raw);
+  return isNaN(d) ? null : d;
+}
+
 async function loadCaixa() {
   document.getElementById('caixaSaldoAtual').textContent = '⏳';
-  const [billing, obraPags, expenses, config] = await Promise.all([
+  const [billing, obraPags, expenses, config, lancamentos] = await Promise.all([
     dbGet('billing', {}),
     dbGet('obra_pagamentos', {}),
     dbGet('expenses', {}),
-    dbGet('caixa_config', {})
+    dbGet('caixa_config', {}),
+    dbGet('caixa_lancamentos', { order: 'lancamento_date', asc: false })
   ]);
+  _caixaBillingCache = billing;
+  _caixaObraPagsCache = obraPags;
+  _caixaExpensesCache = expenses;
+  _caixaLancamentosCache = lancamentos;
+  _renderCaixaComDados(billing, obraPags, expenses, lancamentos, config);
+}
 
-  const saldoInicial = parseFloat(config[0]?.saldo_inicial || 0);
-  const dataInicio   = config[0]?.data_inicio ? new Date(config[0].data_inicio + 'T00:00:00') : null;
+function _renderCaixaComDados(billing, obraPags, expenses, lancamentos, config) {
+  // Config (usa cache se não vier)
+  const cfg = config || null;
 
-  // Helper: retorna true se a data do registro é >= data_inicio
-  const aposInicio = (dateStr) => {
-    if (!dataInicio) return true;
-    if (!dateStr) return false;
-    return new Date(dateStr) >= dataInicio;
-  };
+  // ── SALDO GERAL (desde o início, independente do filtro) ──
+  const saldoInicial = parseFloat(cfg?.[0]?.saldo_inicial || 0);
+  const dataInicio = cfg?.[0]?.data_inicio ? new Date(cfg[0].data_inicio + 'T00:00:00') : null;
+  const aposInicio = (d) => { if (!dataInicio) return true; if (!d) return false; return d >= dataInicio; };
 
-  const entBilling = billing
-    .filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at))
-    .reduce((s, b) => s + parseFloat(b.value || 0) - parseFloat(b.tax_amount || 0), 0);
+  const totalEntGlobal = billing.filter(b => b.status === 'Pago' && aposInicio(_caixaDateOf(b))).reduce((s, b) => s + parseFloat(b.value||0) - parseFloat(b.tax_amount||0), 0)
+    + obraPags.filter(p => p.status === 'Pago' && aposInicio(_caixaDateOf(p))).reduce((s, p) => s + parseFloat(p.value||0), 0)
+    + lancamentos.filter(l => l.tipo === 'entrada' && aposInicio(_caixaDateOf(l))).reduce((s, l) => s + parseFloat(l.valor||0), 0);
 
-  const entObras = obraPags
-    .filter(p => p.status === 'Pago' && aposInicio(p.pag_date ? p.pag_date + 'T12:00:00' : (p.updated_at || p.created_at)))
-    .reduce((s, p) => s + parseFloat(p.value || 0), 0);
+  const totalSaiGlobal = expenses.filter(e => !e.is_template && (e.type !== 'Fixo' || e.paid) && aposInicio(_caixaDateOf(e))).reduce((s, e) => s + parseFloat(e.amount||0), 0)
+    + lancamentos.filter(l => l.tipo === 'saida' && aposInicio(_caixaDateOf(l))).reduce((s, l) => s + parseFloat(l.valor||0), 0);
 
-  const totalEntradas = entBilling + entObras;
-
-  const saidasVar = expenses
-    .filter(e => !e.is_template && e.type !== 'Fixo' && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : (e.created_at)))
-    .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-
-  const saidasFixo = expenses
-    .filter(e => !e.is_template && e.type === 'Fixo' && e.paid && aposInicio(e.expense_date ? e.expense_date + 'T12:00:00' : (e.created_at)))
-    .reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-
-  const saldo = saldoInicial + totalEntradas - saidasVar - saidasFixo;
-
+  const saldo = saldoInicial + totalEntGlobal - totalSaiGlobal;
   const cor = saldo >= 0 ? '#22c55e' : 'var(--danger)';
   const saldoEl = document.getElementById('caixaSaldoAtual');
-  saldoEl.textContent = (saldo < 0 ? '- ' : '') + 'R$ ' + Math.abs(saldo).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  saldoEl.style.color = cor;
-
+  if (saldoEl) { saldoEl.textContent = fmt(saldo); saldoEl.style.color = cor; }
   const cardEl = document.getElementById('caixaSaldoCard');
-  cardEl.style.border = `2px solid ${saldo >= 0 ? '#22c55e44' : '#ef444444'}`;
-  cardEl.style.background = saldo >= 0
-    ? 'linear-gradient(135deg,#0d2137,#0a3d2e)'
-    : 'linear-gradient(135deg,#1a0a04,#2d1008)';
+  if (cardEl) {
+    cardEl.style.border = `2px solid ${saldo >= 0 ? '#22c55e44' : '#ef444444'}`;
+    cardEl.style.background = saldo >= 0 ? 'linear-gradient(135deg,#0d2137,#0a3d2e)' : 'linear-gradient(135deg,#1a0a04,#2d1008)';
+  }
+  const statEl = document.getElementById('statCaixa');
+  if (statEl) { statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + fmtInt(Math.abs(saldo)); statEl.style.color = cor; }
 
-  document.getElementById('caixaSaldoInicial').textContent  = 'R$ ' + saldoInicial.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('caixaTotalEntradas').textContent = 'R$ ' + totalEntradas.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('caixaSaidasVar').textContent     = 'R$ ' + saidasVar.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('caixaSaidasFixo').textContent    = 'R$ ' + saidasFixo.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('caixaEntBilling').textContent    = 'R$ ' + entBilling.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('caixaEntObras').textContent      = 'R$ ' + entObras.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  // ── PERÍODO SELECIONADO ──
+  const from = _caixaPeriodoBounds();
+  const noPeriodo = (d) => { if (!d) return false; if (!from) return aposInicio(d); return d >= from && aposInicio(d); };
 
-  // Breakdown por forma de pagamento
-  const paidBilling = billing.filter(b => b.status === 'Pago' && aposInicio(b.paid_at || b.updated_at || b.created_at));
+  const entPeriodo = billing.filter(b => b.status === 'Pago' && noPeriodo(_caixaDateOf(b))).reduce((s, b) => s + parseFloat(b.value||0) - parseFloat(b.tax_amount||0), 0)
+    + obraPags.filter(p => p.status === 'Pago' && noPeriodo(_caixaDateOf(p))).reduce((s, p) => s + parseFloat(p.value||0), 0)
+    + lancamentos.filter(l => l.tipo === 'entrada' && noPeriodo(_caixaDateOf(l))).reduce((s, l) => s + parseFloat(l.valor||0), 0);
+
+  const saiPeriodo = expenses.filter(e => !e.is_template && (e.type !== 'Fixo' || e.paid) && noPeriodo(_caixaDateOf(e))).reduce((s, e) => s + parseFloat(e.amount||0), 0)
+    + lancamentos.filter(l => l.tipo === 'saida' && noPeriodo(_caixaDateOf(l))).reduce((s, l) => s + parseFloat(l.valor||0), 0);
+
+  const resultado = entPeriodo - saiPeriodo;
+  const resCor = resultado >= 0 ? '#22c55e' : 'var(--danger)';
+
+  const entEl = document.getElementById('caixaTotalEntradas');
+  const saiEl = document.getElementById('caixaTotalSaidas');
+  const resEl = document.getElementById('caixaResultado');
+  const resCard = document.getElementById('caixaResultadoCard');
+  if (entEl) entEl.textContent = fmt(entPeriodo);
+  if (saiEl) saiEl.textContent = fmt(saiPeriodo);
+  if (resEl) { resEl.textContent = fmt(resultado); resEl.style.color = resCor; }
+  if (resCard) resCard.style.borderColor = resultado >= 0 ? '#22c55e44' : '#ef444444';
+
+  // ── PREVISÃO 30 DIAS ──
+  _renderCaixaPrevisao(billing, obraPags, expenses);
+
+  // ── ÚLTIMAS MOVIMENTAÇÕES ──
+  _renderCaixaMovimentacoes(billing, obraPags, expenses, lancamentos, noPeriodo);
+
+  // ── BREAKDOWN POR FORMA DE PAGAMENTO ──
   const methodMap = {
-    pix:     { label: 'PIX',     icon: '📱', color: '#3b82f6' },
-    dinheiro:{ label: 'Dinheiro',icon: '💵', color: '#22c55e' },
-    debito:  { label: 'Débito',  icon: '💳', color: '#f0a500' },
-    credito: { label: 'Crédito', icon: '💳', color: '#e8210a' },
-    boleto:  { label: 'Boleto',  icon: '🧾', color: '#6366f1' }
+    pix:{ label:'PIX', icon:'📱', color:'#3b82f6' }, dinheiro:{ label:'Dinheiro', icon:'💵', color:'#22c55e' },
+    debito:{ label:'Débito', icon:'💳', color:'#f0a500' }, credito:{ label:'Crédito', icon:'💳', color:'#e8210a' },
+    boleto:{ label:'Boleto', icon:'📄', color:'#6366f1' }, transferencia:{ label:'Transferência', icon:'🏦', color:'#8b5cf6' },
+    cheque:{ label:'Cheque', icon:'📜', color:'#64748b' }
   };
   const byMethod = {};
-  paidBilling.forEach(b => {
-    const m = b.payment_method || 'pix';
-    if (!byMethod[m]) byMethod[m] = { count: 0, total: 0, taxa: 0 };
+  [...billing.filter(b => b.status === 'Pago' && noPeriodo(_caixaDateOf(b))),
+   ...lancamentos.filter(l => l.tipo === 'entrada' && noPeriodo(_caixaDateOf(l)))]
+  .forEach(b => {
+    const m = b.payment_method || b.forma_pagamento || 'pix';
+    if (!byMethod[m]) byMethod[m] = { count:0, total:0, taxa:0 };
     byMethod[m].count++;
-    byMethod[m].total += parseFloat(b.value || 0);
+    byMethod[m].total += parseFloat(b.value || b.valor || 0);
     byMethod[m].taxa  += parseFloat(b.tax_amount || 0);
   });
   const breakdownEl = document.getElementById('caixaPaymentBreakdown');
-  if (Object.keys(byMethod).length === 0) {
-    breakdownEl.innerHTML = '<div style="color:var(--sub);font-size:12px;text-align:center;padding:8px 0;">Nenhuma cobrança paga ainda.</div>';
-  } else {
-    breakdownEl.innerHTML = Object.entries(byMethod).map(([method, data]) => {
-      const info = methodMap[method] || { label: method, icon: '💰', color: '#22c55e' };
-      const liquido = data.total - data.taxa;
-      return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:8px;padding:8px 10px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:16px;">${info.icon}</span>
-          <div>
-            <div style="font-size:12px;font-weight:700;color:${info.color};">${info.label}</div>
-            <div style="font-size:10px;color:var(--sub);">${data.count} cobrança(s)${data.taxa > 0 ? ` · Taxa: R$ ${data.taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-weight:800;font-size:13px;color:#22c55e;">R$ ${liquido.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
-          ${data.taxa > 0 ? `<div style="font-size:10px;color:var(--sub);">Bruto: R$ ${data.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>` : ''}
-        </div>
-      </div>`;
-    }).join('');
+  if (breakdownEl) {
+    if (!Object.keys(byMethod).length) {
+      breakdownEl.innerHTML = '<div style="color:var(--sub);font-size:12px;text-align:center;padding:8px 0;">Nenhuma entrada no período.</div>';
+    } else {
+      breakdownEl.innerHTML = Object.entries(byMethod).map(([m, d]) => {
+        const info = methodMap[m] || { label:m, icon:'💰', color:'#22c55e' };
+        const liq = d.total - d.taxa;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:8px;padding:8px 10px;">
+          <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">${info.icon}</span>
+            <div><div style="font-size:12px;font-weight:700;color:${info.color};">${info.label}</div>
+            <div style="font-size:10px;color:var(--sub);">${d.count} lançamento(s)${d.taxa>0?` · Taxa: ${fmt(d.taxa)}`:''}
+          </div></div></div>
+          <div style="text-align:right;"><div style="font-weight:800;font-size:13px;color:#22c55e;">${fmt(liq)}</div>${d.taxa>0?`<div style="font-size:10px;color:var(--sub);">Bruto: ${fmt(d.total)}</div>`:''}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+function fmt(v) {
+  const n = parseFloat(v) || 0;
+  return (n < 0 ? '- R$ ' : 'R$ ') + Math.abs(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function _renderCaixaPrevisao(billing, obraPags, expenses) {
+  const el = document.getElementById('caixaPrevisaoContent');
+  if (!el) return;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const em30 = new Date(hoje); em30.setDate(hoje.getDate() + 30);
+
+  const aReceber = billing.filter(b => {
+    if (b.status === 'Pago') return false;
+    const d = b.due_date ? new Date(b.due_date + 'T12:00:00') : null;
+    return d && d <= em30;
+  });
+  const aPagar = expenses.filter(e => {
+    if (e.is_template || e.paid) return false;
+    const d = e.expense_date ? new Date(e.expense_date + 'T12:00:00') : null;
+    return d && d >= hoje && d <= em30;
+  });
+
+  const totalRec = aReceber.reduce((s, b) => s + parseFloat(b.value||0), 0);
+  const totalPag = aPagar.reduce((s, e) => s + parseFloat(e.amount||0), 0);
+  const saldoPrev = totalRec - totalPag;
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div style="text-align:center;background:#22c55e11;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:15px;font-weight:800;color:#22c55e;">${fmt(totalRec)}</div>
+        <div style="color:var(--sub);font-size:10px;">📥 A receber</div>
+      </div>
+      <div style="text-align:center;background:#ef444411;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:15px;font-weight:800;color:var(--danger);">${fmt(totalPag)}</div>
+        <div style="color:var(--sub);font-size:10px;">📤 A pagar</div>
+      </div>
+      <div style="text-align:center;background:${saldoPrev>=0?'#22c55e11':'#ef444411'};border-radius:10px;padding:10px 6px;">
+        <div style="font-size:15px;font-weight:800;color:${saldoPrev>=0?'#22c55e':'var(--danger)'};">${fmt(saldoPrev)}</div>
+        <div style="color:var(--sub);font-size:10px;">⚖️ Saldo prev.</div>
+      </div>
+    </div>
+    ${aReceber.length === 0 && aPagar.length === 0 ? '<div style="color:var(--sub);font-size:12px;text-align:center;">Nenhuma pendência nos próximos 30 dias 🎉</div>' : ''}
+    ${aReceber.slice(0,3).map(b => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-size:12px;font-weight:600;color:#22c55e;">📥 ${b.client||'—'}</div><div style="color:var(--sub);font-size:10px;">Vence: ${b.due_date||'—'}</div></div>
+      <div style="font-weight:700;color:#22c55e;font-size:13px;">${fmt(b.value)}</div>
+    </div>`).join('')}
+    ${aPagar.slice(0,3).map(e => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-size:12px;font-weight:600;color:var(--danger);">📤 ${e.description||'—'}</div><div style="color:var(--sub);font-size:10px;">Em: ${e.expense_date||'—'}</div></div>
+      <div style="font-weight:700;color:var(--danger);font-size:13px;">${fmt(e.amount)}</div>
+    </div>`).join('')}
+    ${(aReceber.length > 3 || aPagar.length > 3) ? `<div style="color:var(--sub);font-size:11px;text-align:center;padding-top:6px;">+ ${aReceber.length + aPagar.length - 6} itens — veja Cobranças e Gastos para o detalhamento completo</div>` : ''}`;
+}
+
+function _renderCaixaMovimentacoes(billing, obraPags, expenses, lancamentos, noPeriodo) {
+  const el = document.getElementById('caixaMovimentacoes');
+  if (!el) return;
+
+  const movs = [
+    ...billing.filter(b => b.status === 'Pago' && noPeriodo(_caixaDateOf(b))).map(b => ({
+      tipo:'entrada', desc: b.client || 'Cobrança', valor: parseFloat(b.value||0) - parseFloat(b.tax_amount||0),
+      data: _caixaDateOf(b), sub: b.payment_method || 'pix', origem:'cobrança'
+    })),
+    ...obraPags.filter(p => p.status === 'Pago' && noPeriodo(_caixaDateOf(p))).map(p => ({
+      tipo:'entrada', desc: 'Obra — ' + (p.obra_id||''), valor: parseFloat(p.value||0),
+      data: _caixaDateOf(p), sub:'', origem:'obra'
+    })),
+    ...expenses.filter(e => !e.is_template && (e.type !== 'Fixo' || e.paid) && noPeriodo(_caixaDateOf(e))).map(e => ({
+      tipo:'saida', desc: e.description || e.category || 'Gasto', valor: parseFloat(e.amount||0),
+      data: _caixaDateOf(e), sub: e.category||'', origem:'gasto'
+    })),
+    ...lancamentos.filter(l => noPeriodo(_caixaDateOf(l))).map(l => ({
+      tipo: l.tipo, desc: l.descricao||'—', valor: parseFloat(l.valor||0),
+      data: _caixaDateOf(l), sub: l.categoria || l.tipo_recebimento || l.forma_pagamento || '', origem:'manual', id: l.id
+    }))
+  ].sort((a, b) => (b.data||0) - (a.data||0)).slice(0, 12);
+
+  if (!movs.length) {
+    el.innerHTML = '<div style="color:var(--sub);font-size:12px;text-align:center;padding:20px 0;">Nenhuma movimentação no período.</div>';
+    return;
   }
 
-  // Atualiza card na home se existir
-  const statEl = document.getElementById('statCaixa');
-  if (statEl) {
-    statEl.textContent = (saldo < 0 ? '-' : '') + 'R$' + fmtInt(Math.abs(saldo));
-    statEl.style.color = cor;
+  el.innerHTML = movs.map(m => {
+    const corTipo = m.tipo === 'entrada' ? '#22c55e' : 'var(--danger)';
+    const iconeTipo = m.tipo === 'entrada' ? '📥' : '📤';
+    const dataFmt = m.data ? m.data.toLocaleDateString('pt-BR') : '—';
+    const deleteBtn = m.origem === 'manual' && m.id
+      ? `<button onclick="deleteCaixaLancamento(${m.id})" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0 4px;" title="Excluir">🗑️</button>` : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+        <span style="font-size:18px;">${iconeTipo}</span>
+        <div style="min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.desc}</div>
+          <div style="color:var(--sub);font-size:10px;">${dataFmt}${m.sub ? ' · ' + m.sub : ''}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+        <div style="font-weight:800;font-size:14px;color:${corTipo};">${m.tipo==='saida'?'−':'+'} ${fmt(m.valor)}</div>
+        ${deleteBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── LANÇAMENTO MANUAL ─────────────────────────────────────────
+function openCaixaLancamento(tipo) {
+  document.getElementById('caixaLancTipo').value = tipo;
+  document.getElementById('caixaLancEditId').value = '';
+  document.getElementById('caixaLancTitle').textContent = tipo === 'entrada' ? '📥 Nova Entrada' : '📤 Nova Saída';
+  document.getElementById('caixaLancDesc').value = '';
+  document.getElementById('caixaLancValor').value = '';
+  document.getElementById('caixaLancData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('caixaLancCliente').value = '';
+  document.getElementById('caixaLancObs').value = '';
+  document.getElementById('caixaLancTipoRecField').style.display = tipo === 'entrada' ? 'block' : 'none';
+  document.getElementById('caixaLancCatField').style.display = tipo === 'saida' ? 'block' : 'none';
+  openModal('caixaLancamentoModal');
+}
+
+async function saveCaixaLancamento() {
+  const tipo = document.getElementById('caixaLancTipo').value;
+  const desc = document.getElementById('caixaLancDesc').value.trim();
+  const valor = parseFloat(document.getElementById('caixaLancValor').value || 0);
+  if (!desc) { showToast('⚠️ Informe a descrição', 'error'); return; }
+  if (!valor || valor <= 0) { showToast('⚠️ Informe o valor', 'error'); return; }
+
+  const data = {
+    tipo,
+    descricao: desc,
+    valor,
+    lancamento_date: document.getElementById('caixaLancData').value || new Date().toISOString().split('T')[0],
+    tipo_recebimento: tipo === 'entrada' ? document.getElementById('caixaLancTipoRec').value : null,
+    categoria: tipo === 'saida' ? document.getElementById('caixaLancCategoria').value : null,
+    forma_pagamento: document.getElementById('caixaLancFormaPag').value,
+    cliente: document.getElementById('caixaLancCliente').value.trim() || null,
+    obs: document.getElementById('caixaLancObs').value.trim() || null
+  };
+
+  const r = await dbInsert('caixa_lancamentos', data);
+  if (r) {
+    showToast(`✅ ${tipo === 'entrada' ? 'Entrada' : 'Saída'} lançada!`, 'success');
+    closeModal('caixaLancamentoModal');
+    loadCaixa();
   }
+}
+
+async function deleteCaixaLancamento(id) {
+  confirmDelete('Lançamento manual', async () => {
+    await dbDelete('caixa_lancamentos', id);
+    showToast('🗑️ Lançamento removido', 'success');
+    loadCaixa();
+  });
 }
 
 async function openCaixaConfig() {
