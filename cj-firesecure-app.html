@@ -8139,7 +8139,16 @@ async function enviarContratoWhatsapp() {
 let _carteiraStatusFiltro = 'todos';
 
 async function loadCarteira() {
-  const mes = parseInt(document.getElementById('carteiraFiltroMes')?.value ?? new Date().getMonth());
+  // Inicializa filtro de mês/ano com o mês atual na primeira vez
+  const mesEl = document.getElementById('carteiraFiltroMes');
+  const anoEl = document.getElementById('carteiraFiltroAno');
+  if (mesEl && !mesEl._iniciado) {
+    const hoje = new Date();
+    mesEl.value = hoje.getMonth();
+    anoEl.value = hoje.getFullYear();
+    mesEl._iniciado = true;
+  }
+  const mes = parseInt(mesEl?.value ?? new Date().getMonth());
   const ano = parseInt(document.getElementById('carteiraFiltroAno')?.value ?? new Date().getFullYear());
   document.getElementById('carteiraList').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
@@ -8331,29 +8340,12 @@ async function saveAvisoConfig() {
   closeModal('avisoConfigModal');
 }
 
-// ── Hook no navigate para inicializar mês/ano correto na Carteira ──
-const _navigateOriginal_comercial = navigate;
-function navigate(screen) {
-  if (screen === 'carteira') {
-    const hoje = new Date();
-    setTimeout(() => {
-      const mes = document.getElementById('carteiraFiltroMes');
-      const ano = document.getElementById('carteiraFiltroAno');
-      if (mes && !mes._iniciado) {
-        mes.value = hoje.getMonth();
-        ano.value = hoje.getFullYear();
-        mes._iniciado = true;
-      }
-    }, 50);
-  }
-  _navigateOriginal_comercial(screen);
-}
-
 // ── Helper JSON parse seguro ──────────────────────────────────
 function safeParseJSON(str, fallback = []) {
   try { return str ? JSON.parse(str) : fallback; } catch { return fallback; }
 }
 
+</script>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- MODAL: PROPOSTA — Formulário                               -->
