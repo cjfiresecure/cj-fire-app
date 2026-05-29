@@ -125,16 +125,6 @@ textarea.input{resize:none;height:70px}
 <div id="mainApp" style="display:none;">
 
   <!-- BANNER OFFLINE -->
-  <div id="offlineBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#000;font-size:12px;font-weight:700;text-align:center;padding:6px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
-    <div>⚠️ Modo Offline — <span id="offlineQueueCount">0</span> item(ns) na fila.</div>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:4px;">
-      <button onclick="syncOfflineQueue()" style="background:#000;color:#f59e0b;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Tentar agora</button>
-      <button onclick="if(confirm('Descartar item(ns) da fila offline? Dados não salvos serão perdidos.')){offlineQueueSave([]);updateOfflineBanner();}" style="background:#7f1d1d;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Descartar</button>
-    </div>
-  </div>
-  <div id="syncingBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#22c55e;color:#fff;font-size:13px;font-weight:700;text-align:center;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
-    🔄 Sincronizando dados offline...
-  </div>
 
   <!-- HOME -->
   <div id="screen-home" class="screen active">
@@ -1742,107 +1732,9 @@ const H = () => ({
 // ============================================================
 // SISTEMA OFFLINE — fila localStorage + sincronização automática
 // ============================================================
-const OFFLINE_QUEUE_KEY = 'cjfire_offline_queue';
-
-function offlineQueueGet() {
-  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); } catch { return []; }
-}
-function offlineQueueSave(q) {
-  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
-}
-function offlineQueueAdd(op) {
-  const q = offlineQueueGet();
-  q.push({ ...op, _id: Date.now() + Math.random() });
-  offlineQueueSave(q);
-  updateOfflineBanner();
-}
-function updateOfflineBanner() {
-  const q = offlineQueueGet();
-  const banner = document.getElementById('offlineBanner');
-  const countEl = document.getElementById('offlineQueueCount');
-  if (!banner) return;
-  if (q.length > 0) {
-    banner.style.display = 'block';
-    if (countEl) countEl.textContent = q.length;
-    document.getElementById('mainApp').style.paddingTop = '40px';
-  } else {
-    banner.style.display = 'none';
-    document.getElementById('mainApp').style.paddingTop = '';
-  }
-}
-
-async function isSupabaseOnline() {
-  try {
-    const r = await fetch(API + 'orders?select=id&limit=1', { headers: H(), signal: AbortSignal.timeout(5000) });
-    return r.ok || r.status === 406; // 406 = sem RLS, mas está online
-  } catch { return false; }
-}
-
-async function syncOfflineQueue() {
-  const q = offlineQueueGet();
-  if (q.length === 0) return;
-
-  const online = await isSupabaseOnline();
-  if (!online) return;
-
-  // Mostra banner de sincronizando
-  const syncBanner = document.getElementById('syncingBanner');
-  if (syncBanner) { syncBanner.style.display = 'block'; document.getElementById('mainApp').style.paddingTop = '40px'; }
-  if (document.getElementById('offlineBanner')) document.getElementById('offlineBanner').style.display = 'none';
-
-  let successCount = 0;
-  const remaining = [];
-
-  for (const op of q) {
-    try {
-      let ok = false;
-      if (op.type === 'insert') {
-        const r = await fetch(API + op.table, { method: 'POST', headers: H(), body: JSON.stringify(op.data) });
-        ok = r.ok;
-      } else if (op.type === 'update') {
-        const r = await fetch(API + op.table + '?id=eq.' + op.id, { method: 'PATCH', headers: H(), body: JSON.stringify(op.data) });
-        ok = r.ok;
-      } else if (op.type === 'delete') {
-        const r = await fetch(API + op.table + '?id=eq.' + op.id, { method: 'DELETE', headers: H() });
-        ok = r.ok;
-      }
-      if (ok) successCount++;
-      else remaining.push(op);
-    } catch { remaining.push(op); }
-  }
-
-  offlineQueueSave(remaining);
-  if (syncBanner) syncBanner.style.display = 'none';
-  // Atualiza banner diretamente sem chamar updateOfflineBanner (evita loop)
-  const _banner = document.getElementById('offlineBanner');
-  const _countEl = document.getElementById('offlineQueueCount');
-  if (_banner) {
-    if (remaining.length > 0) {
-      _banner.style.display = 'block';
-      if (_countEl) _countEl.textContent = remaining.length;
-      document.getElementById('mainApp').style.paddingTop = '40px';
-    } else {
-      _banner.style.display = 'none';
-      document.getElementById('mainApp').style.paddingTop = '';
-    }
-  }
-
-  if (successCount > 0) {
-    showToast(`✅ ${successCount} item(ns) sincronizado(s)!`, 'success');
-    // Recarrega listas para refletir dados sincronizados
-    if (typeof loadOrders === 'function') loadOrders();
-    if (typeof loadBilling === 'function') loadBilling();
-  }
-  if (remaining.length > 0) {
-    showToast(`⚠️ ${remaining.length} item(ns) ainda na fila (Supabase instável)`, 'error');
-  }
-}
-
-// Tenta sincronizar ao recuperar conexão de internet
-window.addEventListener('online', () => { setTimeout(syncOfflineQueue, 2000); });
-
-// Verifica a cada 3 minutos se o Supabase voltou
-setInterval(syncOfflineQueue, 3 * 60 * 1000);
+// Offline queue removida — app funciona exclusivamente online
+// Limpa resquícios da fila offline que possam ter ficado no localStorage
+try { localStorage.removeItem('cjfire_offline_queue'); } catch(e) {}
 
 // ============================================================
 // DB FUNCTIONS COM FALLBACK OFFLINE
@@ -1871,11 +1763,9 @@ async function dbInsert(table, data) {
     if (!r.ok) {
       const errMsg = result?.message || result?.details || result?.hint || JSON.stringify(result);
       console.error('dbInsert error', r.status, result);
-      // Salva na fila offline se for erro de servidor (5xx) ou timeout
       if (r.status >= 500) {
-        offlineQueueAdd({ type: 'insert', table, data });
-        showToast('📦 Salvo offline! Sincronizará quando o servidor voltar.', 'success');
-        return { id: 'offline_' + Date.now(), offline: true };
+        showToast('❌ Erro no servidor (' + r.status + '). Tente novamente.', 'error');
+        return null;
       }
       // 4xx = dado inválido, mostra o erro real
       showToast(`❌ Supabase ${r.status}: ${errMsg}`, 'error');
@@ -1883,20 +1773,13 @@ async function dbInsert(table, data) {
     }
     return result;
   } catch(e) {
-    // Erro de rede/timeout → salva offline
     console.error('dbInsert network error', e);
-    offlineQueueAdd({ type: 'insert', table, data });
-    showToast('📦 Salvo offline! Sincronizará quando o servidor voltar.', 'success');
-    return { id: 'offline_' + Date.now(), offline: true };
+    showToast('❌ Sem conexão. Verifique a internet e tente novamente.', 'error');
+    return null;
   }
 }
 
 async function dbUpdate(table, id, data) {
-  // Não tenta atualizar registros que ainda estão offline
-  if (String(id).startsWith('offline_')) {
-    offlineQueueAdd({ type: 'update', table, id, data });
-    return true;
-  }
   try {
     const r = await fetch(API + table + '?id=eq.' + id, {
       method: 'PATCH',
@@ -1904,25 +1787,16 @@ async function dbUpdate(table, id, data) {
       body: JSON.stringify(data),
       signal: AbortSignal.timeout(8000)
     });
-    if (!r.ok && r.status >= 500) {
-      offlineQueueAdd({ type: 'update', table, id, data });
-      return true;
-    }
+    if (!r.ok) { console.error('dbUpdate', r.status); return false; }
     return r.ok;
   } catch(e) {
-    offlineQueueAdd({ type: 'update', table, id, data });
-    return true;
+    console.error('dbUpdate network error', e);
+    showToast('❌ Sem conexão. Verifique a internet e tente novamente.', 'error');
+    return false;
   }
 }
 
 async function dbDelete(table, id) {
-  if (String(id).startsWith('offline_')) {
-    // Remove da fila offline em vez de deletar no servidor
-    const q = offlineQueueGet().filter(op => !(op.type === 'insert' && op.data?._offlineId === id));
-    offlineQueueSave(q);
-    updateOfflineBanner();
-    return;
-  }
   try {
     await fetch(API + table + '?id=eq.' + id, {
       method: 'DELETE',
@@ -6480,7 +6354,7 @@ function launchApp(email) {
   checkAndSendAlerts();
   setInterval(checkAndSendAlerts, 30 * 60 * 1000);
   // Sincroniza fila offline ao abrir o app
-  setTimeout(() => { updateOfflineBanner(); syncOfflineQueue(); }, 3000);
+  
 }
 
 // ============================================================
