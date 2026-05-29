@@ -125,8 +125,12 @@ textarea.input{resize:none;height:70px}
 <div id="mainApp" style="display:none;">
 
   <!-- BANNER OFFLINE -->
-  <div id="offlineBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#000;font-size:13px;font-weight:700;text-align:center;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
-    ⚠️ Modo Offline — <span id="offlineQueueCount">0</span> item(ns) na fila. Salvando localmente até a conexão voltar.
+  <div id="offlineBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#000;font-size:12px;font-weight:700;text-align:center;padding:6px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+    <div>⚠️ Modo Offline — <span id="offlineQueueCount">0</span> item(ns) na fila.</div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:4px;">
+      <button onclick="syncOfflineQueue()" style="background:#000;color:#f59e0b;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Tentar agora</button>
+      <button onclick="if(confirm('Descartar item(ns) da fila offline? Dados não salvos serão perdidos.')){offlineQueueSave([]);updateOfflineBanner();}" style="background:#7f1d1d;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Descartar</button>
+    </div>
   </div>
   <div id="syncingBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#22c55e;color:#fff;font-size:13px;font-weight:700;text-align:center;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
     🔄 Sincronizando dados offline...
@@ -1758,16 +1762,9 @@ function updateOfflineBanner() {
   const countEl = document.getElementById('offlineQueueCount');
   if (!banner) return;
   if (q.length > 0) {
-    // Tem itens na fila: tenta sincronizar se online, senao mostra banner
-    isSupabaseOnline().then(online => {
-      if (online) {
-        syncOfflineQueue(); // sincroniza em background, banner sumirá após sync
-      } else {
-        banner.style.display = 'block';
-        if (countEl) countEl.textContent = q.length;
-        document.getElementById('mainApp').style.paddingTop = '40px';
-      }
-    });
+    banner.style.display = 'block';
+    if (countEl) countEl.textContent = q.length;
+    document.getElementById('mainApp').style.paddingTop = '40px';
   } else {
     banner.style.display = 'none';
     document.getElementById('mainApp').style.paddingTop = '';
@@ -1816,7 +1813,19 @@ async function syncOfflineQueue() {
 
   offlineQueueSave(remaining);
   if (syncBanner) syncBanner.style.display = 'none';
-  updateOfflineBanner();
+  // Atualiza banner diretamente sem chamar updateOfflineBanner (evita loop)
+  const _banner = document.getElementById('offlineBanner');
+  const _countEl = document.getElementById('offlineQueueCount');
+  if (_banner) {
+    if (remaining.length > 0) {
+      _banner.style.display = 'block';
+      if (_countEl) _countEl.textContent = remaining.length;
+      document.getElementById('mainApp').style.paddingTop = '40px';
+    } else {
+      _banner.style.display = 'none';
+      document.getElementById('mainApp').style.paddingTop = '';
+    }
+  }
 
   if (successCount > 0) {
     showToast(`✅ ${successCount} item(ns) sincronizado(s)!`, 'success');
