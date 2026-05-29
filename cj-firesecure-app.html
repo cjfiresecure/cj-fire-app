@@ -2493,6 +2493,8 @@ async function convertOrcToPedido(id, skipReload = false) {
       order_id: id
     });
   }
+  // Seta Em Andamento ao converter (convertOrcToPedidoRapido sobrescreverá se necessário)
+  await dbUpdate('orders', id, { order_status: 'Em Andamento' });
   closeModal('orderStatusModal');
   showToast('✅ Orçamento convertido para Pedido!', 'success');
   if (!skipReload) loadOrdersSafe();
@@ -3030,7 +3032,8 @@ async function saveOrder() {
     freight: freight || 0,
     installments: installments || 1,
     created_by: window.currentUser || '',
-    obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado'
+    obs: document.getElementById('orderObs').value, items: JSON.stringify(orderItems), status: 'Confirmado',
+    order_status: currentOrderType === 'Pedido' ? 'Em Andamento' : null
   };
 
   if (editingOrderId) {
@@ -3133,6 +3136,10 @@ async function saveOrder() {
       }
     }
 
+    // Se converteu de Orçamento para Pedido e ainda não tem status de progresso, seta Em Andamento
+    if (oldType === 'Orçamento' && currentOrderType === 'Pedido') {
+      orderData.order_status = 'Em Andamento';
+    }
     await dbUpdate('orders', editingOrderId, orderData);
     editingOrderId = null;
     closeModal('orderFormModal');
