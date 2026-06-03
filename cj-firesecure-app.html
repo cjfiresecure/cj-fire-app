@@ -3082,6 +3082,11 @@ async function saveOrder() {
       } else {
         showToast('✅ Convertido em Pedido · Cobrança(s) e estoque atualizados!', 'success');
       }
+      // Pergunta se deixou extintor da CJ no cliente (igual ao pedido novo)
+      const temManutencaoConv = orderItems.some(i => /manutenção|manutencao|recarga/i.test(i.name));
+      if (temManutencaoConv && selectedOrderClient?.id) {
+        setTimeout(() => openExtintoresCampoModal(selectedOrderClient.id, selectedOrderClient.name), 600);
+      }
     }
     // Pedido → Pedido: ajusta estoque E atualiza cobrança pendente
     else if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
