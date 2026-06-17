@@ -72,6 +72,8 @@ textarea.input{resize:none;height:70px}
 .danger-border{border-color:#ef444455}
 .warning-border{border-color:#f59e0b55}
 .success-border{border-color:#22c55e55}
+body.values-hidden .money-value{filter:blur(7px);user-select:none;transition:filter .15s}
+body.values-hidden .money-value:active{filter:blur(0)}
 </style>
 </head>
 <body>
@@ -136,6 +138,7 @@ textarea.input{resize:none;height:70px}
           <div style="color:var(--sub);font-size:10px;">CJ FireSecure Ltda</div>
         </div>
         <button onclick="openGlobalSearch()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;">🔍</button>
+        <button onclick="toggleValuesHidden()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;" id="hideValuesBtn" title="Ocultar valores">👁️</button>
         <button onclick="toggleTheme()" style="background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;" id="themeBtn">🌙</button>
         <button onclick="navigate('notifications')" style="position:relative;background:var(--card);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;" id="bellBtn">
           🔔<span id="alertBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:900;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;line-height:14px;"></span>
@@ -150,10 +153,10 @@ textarea.input{resize:none;height:70px}
     <!-- Stats principais -->
     <div class="stats-grid">
       <div class="stat-card" style="text-align:center;"><div style="font-size:22px;">📋</div><div style="font-size:26px;font-weight:800;color:var(--secondary);margin-top:4px;" id="statOrders">—</div><div style="color:var(--sub);font-size:11px;">Pedidos</div></div>
-      <div class="stat-card" style="text-align:center;"><div style="font-size:22px;">💰</div><div style="font-size:20px;font-weight:800;color:var(--success);margin-top:4px;" id="statBilling">—</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
+      <div class="stat-card" style="text-align:center;"><div style="font-size:22px;">💰</div><div class="money-value" style="font-size:20px;font-weight:800;color:var(--success);margin-top:4px;" id="statBilling">—</div><div style="color:var(--sub);font-size:11px;">A Receber</div></div>
       <div class="stat-card" style="grid-column:1/-1;cursor:pointer;border-color:#22c55e44;text-align:center;" onclick="navigate('caixa')">
         <div style="font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💳 Saldo em Caixa</div>
-        <div style="font-size:30px;font-weight:900;" id="statCaixa">—</div>
+        <div class="money-value" style="font-size:30px;font-weight:900;" id="statCaixa">—</div>
         <div style="font-size:10px;color:var(--sub);margin-top:4px;">Ver detalhes ›</div>
       </div>
     </div>
@@ -162,10 +165,10 @@ textarea.input{resize:none;height:70px}
     <div style="background:linear-gradient(135deg,#1a0a04,#2d1008);border:1px solid #e8210a33;border-radius:14px;padding:14px 16px;margin-bottom:14px;cursor:pointer;" onclick="navigate('caixa')">
       <div style="color:var(--sub);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Financeiro do Mês</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="color:var(--success);font-weight:800;font-size:15px;" id="monthRevenue">R$ 0</div><div style="color:var(--sub);font-size:10px;">✅ Recebido</div></div>
-        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="color:var(--secondary);font-weight:800;font-size:15px;" id="monthPending">R$ 0</div><div style="color:var(--sub);font-size:10px;">⏳ Pendente</div></div>
-        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="color:var(--primary);font-weight:800;font-size:15px;" id="monthExpenses">R$ 0</div><div style="color:var(--sub);font-size:10px;">💸 Gastos</div></div>
-        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div style="font-weight:800;font-size:15px;" id="monthResult">R$ 0</div><div style="color:var(--sub);font-size:10px;">📈 Resultado</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div class="money-value" style="color:var(--success);font-weight:800;font-size:15px;" id="monthRevenue">R$ 0</div><div style="color:var(--sub);font-size:10px;">✅ Recebido</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div class="money-value" style="color:var(--secondary);font-weight:800;font-size:15px;" id="monthPending">R$ 0</div><div style="color:var(--sub);font-size:10px;">⏳ Pendente</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div class="money-value" style="color:var(--primary);font-weight:800;font-size:15px;" id="monthExpenses">R$ 0</div><div style="color:var(--sub);font-size:10px;">💸 Gastos</div></div>
+        <div style="text-align:center;background:#ffffff08;border-radius:8px;padding:8px;"><div class="money-value" style="font-weight:800;font-size:15px;" id="monthResult">R$ 0</div><div style="color:var(--sub);font-size:10px;">📈 Resultado</div></div>
       </div>
     </div>
 
@@ -3394,8 +3397,9 @@ async function _buildPDFObject() {
     const natural = pos + pageHPx;
     let breakAt = natural;
 
-    // Varre até 80px para cima buscando linha quase branca
-    for (let dy = 0; dy <= 80; dy++) {
+    // Varre até 300px para cima buscando linha quase branca
+    let found = false;
+    for (let dy = 0; dy <= 300; dy++) {
       const y = natural - dy;
       if (y <= pos + Math.floor(pageHPx * 0.55)) break; // não sobe mais que 45% da página
       const row = ctx.getImageData(0, y, canvas.width, 1).data;
@@ -3403,8 +3407,10 @@ async function _buildPDFObject() {
       for (let i = 0; i < row.length; i += 4) {
         if (row[i] < 230 || row[i + 1] < 230 || row[i + 2] < 230) dark++;
       }
-      if (dark < 10) { breakAt = y; break; }
+      if (dark < 10) { breakAt = y; found = true; break; }
     }
+    // Se não achou linha em branco, recua um pouco para não cortar (e duplicar) no meio do texto
+    if (!found) breakAt = natural - 100;
 
     breaks.push(breakAt);
     pos = breakAt;
@@ -5975,6 +5981,25 @@ function loadTheme() {
 }
 
 // ============================================================
+// OCULTAR VALORES (modo privacidade)
+// ============================================================
+function toggleValuesHidden() {
+  const hidden = document.body.classList.toggle('values-hidden');
+  const btn = document.getElementById('hideValuesBtn');
+  if (btn) btn.textContent = hidden ? '🙈' : '👁️';
+  localStorage.setItem('cj_hide_values', hidden ? '1' : '0');
+}
+
+function loadHideValuesPref() {
+  const saved = localStorage.getItem('cj_hide_values');
+  if (saved === '1') {
+    document.body.classList.add('values-hidden');
+    const btn = document.getElementById('hideValuesBtn');
+    if (btn) btn.textContent = '🙈';
+  }
+}
+
+// ============================================================
 // BUSCA GLOBAL
 // ============================================================
 function openGlobalSearch() {
@@ -6320,6 +6345,7 @@ function launchApp(email) {
   loadHomeData();
   setDate();
   loadTheme();
+  loadHideValuesPref();
   setTimeout(() => requestPushPermission(), 2000);
   checkAndSendAlerts();
   setInterval(checkAndSendAlerts, 30 * 60 * 1000);
@@ -6332,6 +6358,7 @@ function launchApp(email) {
 // ============================================================
 window.addEventListener('load', async () => {
   loadTheme();
+  loadHideValuesPref();
 
   // Verifica se há recuperação de senha em andamento (hash #access_token)
   const hash = window.location.hash;
