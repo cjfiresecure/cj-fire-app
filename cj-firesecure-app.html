@@ -265,8 +265,12 @@ body.values-hidden .money-value:active{filter:blur(0)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div class="stat-card" style="text-align:center;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">TOTAL PRÓPRIOS</div><div style="font-size:22px;font-weight:900;color:var(--secondary);" id="frotaTotal">0</div></div>
       <div class="stat-card" style="text-align:center;border-color:#ef444455;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">EM CAMPO</div><div style="font-size:22px;font-weight:900;color:var(--danger);" id="frotaCampo">0</div></div>
-      <div class="stat-card" style="text-align:center;border-color:#22c55e44;grid-column:1/-1;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">DISPONÍVEIS</div><div style="font-size:22px;font-weight:900;color:var(--success);" id="frotaDisp">0</div></div>
+      <div class="stat-card" style="text-align:center;border-color:#22c55e44;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">DISPONÍVEIS</div><div style="font-size:22px;font-weight:900;color:var(--success);" id="frotaDisp">0</div></div>
+      <div class="stat-card" style="text-align:center;border-color:#f0a50055;"><div style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px;">C/ CLIENTE PRA DEVOLVER</div><div style="font-size:22px;font-weight:900;color:#f0a500;" id="frotaPendente">0</div></div>
     </div>
+    <!-- Extintores de clientes pendentes de devolução -->
+    <div style="color:#f0a500;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔧 Extintores de Clientes p/ Devolver</div>
+    <div id="frotaPendentesList" style="margin-bottom:16px;"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
     <!-- Extintores em campo -->
     <div style="color:var(--primary);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📍 Em Campo (clientes)</div>
     <div id="frotaCampoList"><div class="loading"><div class="spinner"></div><div>Carregando...</div></div></div>
@@ -986,8 +990,9 @@ body.values-hidden .money-value:active{filter:blur(0)}
 
     <!-- Valor original -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;text-align:center;">
-      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Valor da Cobrança</div>
+      <div style="color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Valor a Receber</div>
       <div style="font-size:22px;font-weight:900;color:var(--success);" id="pmValorOriginal">R$ 0,00</div>
+      <div id="pmValorDetalhe" style="display:none;font-size:11px;color:var(--danger);margin-top:6px;"></div>
     </div>
 
     <!-- Seleção do método -->
@@ -2303,9 +2308,24 @@ function renderOrders() {
             </div>`;
           }
         })() : ''}
-        ${status === 'Aguardando Receber' ? `
-          <button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
-        ` : ''}
+        ${(status === 'Aguardando Receber' || status === 'Concluído') ? (() => {
+          let _cItems = []; try { _cItems = JSON.parse(o.items || '[]'); } catch(e){}
+          const _cHasManut = _cItems.some(it => { const n=(it.name||it.product||'').toLowerCase(); return n.includes('manutenção')||n.includes('manutencao')||n.includes('hidrostático')||n.includes('hidrostatico'); });
+          const _pendDevolucao = _cHasManut && o.extintor_devolvido !== true;
+          let html = '';
+          if (_pendDevolucao) {
+            html += `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;align-items:center;justify-content:center;background:#ef444418;border:1px solid #ef444450;border-radius:8px;padding:5px 10px;">
+                <span style="font-size:10px;color:var(--danger);font-weight:700;">⚠️ ${status === 'Concluído' ? 'Já pagou' : 'Aguardando pagamento'} — extintor ainda com a gente</span>
+              </div>
+              <button onclick="event.stopPropagation();marcarExtintorDevolvido(${o.id},'${(o.client||'').replace(/'/g,"\\'")}')" style="width:100%;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📦 Devolvido ao cliente</button>
+            </div>`;
+          }
+          if (status === 'Aguardando Receber') {
+            html += `<button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>`;
+          }
+          return html;
+        })() : ''}
       </div>
     </div>`;
   }).join('');
@@ -2377,14 +2397,20 @@ async function convertOrcToPedidoRapido(id) {
   await convertOrcToPedido(id, true);
   // Vai direto pra Em Andamento
   await dbUpdate('orders', id, { order_status: 'Em Andamento' });
-  loadOrdersSafe();
   // Pergunta se deixou extintor da CJ no cliente (igual ao saveOrder)
   let items = []; try { items = JSON.parse(o.items || '[]'); } catch {}
   const temManutencao = items.some(i => /manutenção|manutencao|recarga/i.test(i.name));
   if (temManutencao) {
     const clients = await dbGet('clients', {});
     const c = clients.find(x => x.name?.toLowerCase().trim() === o.client?.toLowerCase().trim());
-    if (c) setTimeout(() => openExtintoresCampoModal(c.id, c.name), 700);
+    if (c) {
+      // ecConfirmar vai chamar loadOrdersSafe após confirmar o modal
+      setTimeout(() => openExtintoresCampoModal(c.id, c.name), 700);
+    } else {
+      loadOrdersSafe();
+    }
+  } else {
+    loadOrdersSafe();
   }
 }
 
@@ -2408,19 +2434,31 @@ async function confirmarConcluir(id) {
   _pmInstallments = 1;
   _pmTaxRate = 0;
 
+  const detalhe = document.getElementById('pmValorDetalhe');
   if (billing) {
     // Garante que o billing está em _billingData para showPmResumo funcionar
     if (!_billingData.find(b => b.id === billing.id)) {
       _billingData = [..._billingData, billing];
     }
     _pmBillingId = billing.id;
-    _pmFallbackValue = parseFloat(billing.value || 0);
+    const calc = calcBillingUpdated(billing.value, billing.due_date, billing.multa, billing.juros);
+    _pmFallbackValue = calc.total;
+    _pmOriginalValue = calc.original;
     document.getElementById('pmBillingId').value = billing.id;
+    const acrescimo = calc.multa + calc.juros;
+    if (calc.daysLate > 0 && acrescimo > 0.009) {
+      detalhe.innerHTML = `Original: R$ ${fmt(calc.original)} + Multa/Juros (${calc.daysLate}d em atraso): R$ ${fmt(acrescimo)}`;
+      detalhe.style.display = 'block';
+    } else {
+      detalhe.style.display = 'none';
+    }
   } else {
     // Sem cobrança: usa valor do próprio pedido
     _pmBillingId = null;
     _pmFallbackValue = parseFloat(o.value || 0);
+    _pmOriginalValue = _pmFallbackValue;
     document.getElementById('pmBillingId').value = '';
+    detalhe.style.display = 'none';
   }
 
   document.getElementById('pmValorOriginal').textContent = 'R$ ' + _pmFallbackValue.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -3181,6 +3219,9 @@ async function saveOrder() {
 }
 
 function buildPDF(client, type, items, payment, obs, extra = {}) {
+  const titleElBuildPDF = document.querySelector('#pdfModal .modal-title');
+  if (titleElBuildPDF) titleElBuildPDF.textContent = '📄 Pedido/Orçamento';
+  _pdfFileName = 'CJ-FireSecure-Pedido.pdf';
   const date = extra.order_date ? new Date(extra.order_date + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
   const subtotal = items.reduce((a, i) => a + i.price * i.qty, 0);
   const discount = parseFloat(extra.discount || 0);
@@ -3430,7 +3471,7 @@ async function printPDF() {
   showToast('⏳ Gerando PDF...', 'success');
   try {
     const pdf = await _buildPDFObject();
-    pdf.save('CJ-FireSecure-Pedido.pdf');
+    pdf.save(_pdfFileName);
     showToast('✅ PDF baixado!', 'success');
   } catch(e) {
     console.error(e);
@@ -3446,26 +3487,26 @@ async function sharePDF() {
   try {
     const pdf = await _buildPDFObject();
     const pdfBlob = pdf.output('blob');
-    const pdfFile = new File([pdfBlob], 'CJ-FireSecure-Pedido.pdf', { type: 'application/pdf' });
+    const pdfFile = new File([pdfBlob], _pdfFileName, { type: 'application/pdf' });
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
       await navigator.share({
-        title: 'CJ FireSecure - Pedido/Orçamento',
-        text: 'Segue o pedido/orçamento da CJ FireSecure 🔥',
+        title: 'CJ FireSecure',
+        text: 'Segue o documento da CJ FireSecure 🔥',
         files: [pdfFile]
       });
     } else {
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'CJ-FireSecure-Pedido.pdf';
+      a.download = _pdfFileName;
       a.click();
       URL.revokeObjectURL(url);
       showToast('📥 PDF baixado! Compartilhe pelo WhatsApp', 'success');
     }
   } catch(e) {
     console.error('PDF error:', e);
-    window.open('https://wa.me/?text=Segue+o+pedido/orçamento+da+CJ+FireSecure+🔥%0ATel%3A+(34)+99706-0025', '_blank');
+    window.open('https://wa.me/?text=Segue+o+documento+da+CJ+FireSecure+🔥%0ATel%3A+(34)+99706-0025', '_blank');
   }
 }
 
@@ -3699,7 +3740,7 @@ function renderBillingList() {
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;">
-        ${!isPaid ? `<button class="btn btn-sm" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="markPaid(${b.id})">✓ Pago</button>` : ''}
+        ${!isPaid ? `<button class="btn btn-sm" style="flex:1;background:#22c55e18;color:var(--success);border:1px solid #22c55e44;" onclick="markPaid(${b.id})">✓ Pago</button>` : `<button class="btn btn-sm" style="flex:1;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;" onclick="gerarReciboPagamento(${b.id})">🧾 Recibo</button>`}
         <button class="btn btn-sm" style="background:#f0a50022;color:var(--secondary);border:1px solid #f0a50044;" onclick="editBilling(${b.id})">✏️</button>
         <button class="btn btn-sm" style="flex:1;background:#25D36618;color:#25D366;border:1px solid #25D36644;" onclick="chargeWhatsApp('${b.client.replace(/'/g,"\\'")}',${b.value},'${b.due_date||''}',${b.multa??2},${b.juros??1})">📲 Cobrar</button>
         <button class="btn btn-sm" style="background:#ef444418;color:var(--danger);border:1px solid #ef444444;" onclick="deleteBilling(${b.id})">🗑️</button>
@@ -3718,6 +3759,8 @@ let _pmTaxRate = 0;
 let _pmContext = 'billing'; // 'billing' ou 'order'
 let _pmOrderId = null;      // id do pedido quando chamado da aba Pedidos
 let _pmFallbackValue = 0;   // valor do pedido quando não há cobrança vinculada
+let _pmOriginalValue = 0;   // valor original da cobrança, antes de multa/juros
+let _pdfFileName = 'CJ-FireSecure-Pedido.pdf';
 
 function markPaid(id) {
   const billing = _billingData.find(b => b.id === id);
@@ -3726,9 +3769,24 @@ function markPaid(id) {
   _pmMethod = null;
   _pmContext = 'billing';
   _pmOrderId = null;
-  _pmFallbackValue = parseFloat(billing.value || 0);
+
+  // Calcula o valor atualizado (com multa/juros se estiver em atraso)
+  const calc = calcBillingUpdated(billing.value, billing.due_date, billing.multa, billing.juros);
+  _pmFallbackValue = calc.total;
+  _pmOriginalValue = calc.original;
+
   document.getElementById('pmBillingId').value = id;
-  document.getElementById('pmValorOriginal').textContent = 'R$ ' + parseFloat(billing.value||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('pmValorOriginal').textContent = 'R$ ' + calc.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  const detalhe = document.getElementById('pmValorDetalhe');
+  const acrescimo = calc.multa + calc.juros;
+  if (calc.daysLate > 0 && acrescimo > 0.009) {
+    detalhe.innerHTML = `Original: R$ ${fmt(calc.original)} + Multa/Juros (${calc.daysLate}d em atraso): R$ ${fmt(acrescimo)}`;
+    detalhe.style.display = 'block';
+  } else {
+    detalhe.style.display = 'none';
+  }
+
   document.getElementById('pmStep1').style.display = 'block';
   document.getElementById('pmStep2').style.display = 'none';
   document.getElementById('pmStep3').style.display = 'none';
@@ -3755,8 +3813,7 @@ function selectInstallments(n) {
 }
 
 function showPmResumo() {
-  const billing = _billingData.find(b => b.id === _pmBillingId);
-  const bruto = billing ? parseFloat(billing.value || 0) : _pmFallbackValue;
+  const bruto = _pmFallbackValue;
   const taxa = bruto * _pmTaxRate / 100;
   const liquido = bruto - taxa;
   const metodoLabel = {
@@ -3796,22 +3853,39 @@ async function confirmPayment() {
     const orderNum = `APP-${String(_pmOrderId).padStart(3,'0')}`;
     const taxMsg = taxa > 0 ? ` · Taxa: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ Pedido ${orderNum} concluído! 🎉${taxMsg}`, 'success');
+    const oQuitado = allOrders.find(x => x.id === _pmOrderId);
+    if (oQuitado) {
+      gerarReciboPagamento({
+        client: oQuitado.client, value: _pmFallbackValue, original_value: _pmOriginalValue,
+        service: `Pedido ${orderNum}`, due_date: null, paid_at: paidAt,
+        payment_method: _pmMethod, card_installments: _pmMethod === 'credito' ? _pmInstallments : null
+      });
+    }
     reloadSafe(loadOrdersSafe);
     return;
   }
 
   const billing = _billingData.find(b => b.id === id);
-  const bruto = billing ? parseFloat(billing.value || 0) : _pmFallbackValue;
+  const originalValue = billing ? parseFloat(billing.value || 0) : _pmOriginalValue;
+  const bruto = _pmFallbackValue; // já inclui multa/juros calculados em markPaid/confirmarConcluir
   const taxa = bruto * _pmTaxRate / 100;
 
-  await dbUpdate('billing', id, {
+  const billingUpdate = {
     status: 'Pago',
     paid_at: paidAt,
     payment_method: _pmMethod,
     card_installments: _pmMethod === 'credito' ? _pmInstallments : null,
     tax_rate: _pmTaxRate,
     tax_amount: parseFloat(taxa.toFixed(2))
-  });
+  };
+  // Se houve multa/juros por atraso, atualiza o valor para o total recebido
+  // (não gravamos "original_value" pois essa coluna pode não existir no Supabase;
+  // o detalhamento é levado em memória para o recibo via receiptData abaixo)
+  if (Math.abs(bruto - originalValue) > 0.009) {
+    billingUpdate.value = parseFloat(bruto.toFixed(2));
+  }
+
+  await dbUpdate('billing', id, billingUpdate);
 
   closeModal('paymentMethodModal');
   btn.textContent = '✅ Confirmar Pagamento'; btn.disabled = false;
@@ -3843,6 +3917,7 @@ async function confirmPayment() {
 
   if (!orderId) {
     showToast('✅ Pago!', 'success');
+    if (b) gerarReciboPagamento({ ...b, original_value: originalValue });
     reloadSafe(_pmContext === 'order' ? loadOrdersSafe : loadBilling);
     if (document.getElementById('screen-caixa')?.classList.contains('active')) {
       loadCaixa();
@@ -3870,6 +3945,7 @@ async function confirmPayment() {
     const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
   }
+  if (b) gerarReciboPagamento({ ...b, original_value: originalValue });
 
   // Recarrega a aba correta conforme contexto
   if (_pmContext === 'order') {
@@ -3894,6 +3970,57 @@ async function deleteBilling(id) {
     loadBilling();
   });
 }
+
+// Gera e exibe (no modal de PDF) um recibo de pagamento para o cliente
+// Aceita um id de cobrança (busca em _billingData) ou um objeto já pronto com os campos necessários
+function gerarReciboPagamento(billingOrId) {
+  const b = (billingOrId && typeof billingOrId === 'object') ? billingOrId : _billingData.find(x => x.id === billingOrId);
+  if (!b) { showToast('⚠️ Cobrança não encontrada para gerar o recibo', 'error'); return; }
+
+  const value = parseFloat(b.value || 0);
+  const originalValue = b.original_value != null ? parseFloat(b.original_value) : value;
+  const lateFee = value - originalValue;
+  const paidDate = b.paid_at ? new Date(b.paid_at) : new Date();
+  const dataStr = paidDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const metodoLabel = {
+    pix: 'PIX',
+    dinheiro: 'Dinheiro',
+    debito: 'Cartão de Débito',
+    credito: (b.card_installments && b.card_installments > 1) ? `Cartão de Crédito ${b.card_installments}x` : 'Cartão de Crédito à vista',
+    boleto: 'Boleto'
+  }[b.payment_method] || (b.payment_method || '—');
+
+  const orderMatch = (b.service || '').match(/APP-0*([1-9]\d*)/);
+  const orderRef = b.service || (orderMatch ? `Pedido APP-${orderMatch[1].padStart(3,'0')}` : (b.order_id ? `Pedido APP-${String(b.order_id).padStart(3,'0')}` : ''));
+
+  const titleEl = document.querySelector('#pdfModal .modal-title');
+  if (titleEl) titleEl.textContent = '🧾 Recibo de Pagamento';
+  _pdfFileName = `Recibo-${(b.client || 'cliente').replace(/[^a-zA-Z0-9]+/g, '-')}.pdf`;
+
+  document.getElementById('pdfContent').innerHTML = `
+  <div style="font-family:Arial,sans-serif;font-size:12px;color:#222;background:#fff;padding:20px;">
+    <div style="text-align:center;border-bottom:2px solid #e8210a;padding-bottom:14px;margin-bottom:22px;">
+      <div style="font-size:18px;font-weight:900;color:#e8210a;letter-spacing:1px;">RECIBO DE PAGAMENTO</div>
+    </div>
+    <div style="font-size:13px;line-height:2.1;margin-bottom:26px;">
+      Recebemos de <strong>${b.client || '—'}</strong> a quantia de <strong>R$ ${fmt(value)}</strong>
+      ${lateFee > 0.009 ? `<div style="font-size:11px;color:#888;margin-top:2px;">(Valor original: R$ ${fmt(originalValue)} + Multa/Juros por atraso: R$ ${fmt(lateFee)})</div>` : ''}
+      ${orderRef ? `, referente a <strong>${orderRef}</strong>` : ''}, pago via <strong>${metodoLabel}</strong>.
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;border-top:1px solid #eee;border-bottom:1px solid #eee;padding:10px 0;margin-bottom:50px;">
+      <span>${b.due_date ? 'Vencimento: ' + new Date(b.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}</span>
+      <span>Pago em: ${dataStr}</span>
+    </div>
+    <div style="text-align:center;">
+      <div style="border-top:1px solid #333;width:240px;margin:0 auto;padding-top:6px;font-size:12px;font-weight:700;">CJ FireSecure Ltda</div>
+      <div style="font-size:10px;color:#666;margin-top:2px;">CNPJ: 48.794.963/0001-30</div>
+      <div style="font-size:10px;color:#666;">Tel: (34) 99706-0025 · cjextintores28@gmail.com</div>
+    </div>
+  </div>`;
+  openModal('pdfModal');
+}
+
 // Calcula valor atualizado com multa e juros
 function calcBillingUpdated(value, dueDate, multa, juros) {
   const original = parseFloat(value || 0);
@@ -4066,9 +4193,10 @@ async function deleteFrota(id) {
 
 async function loadFrota() {
   try {
-    const [frota, clientes] = await Promise.all([
+    const [frota, clientes, orders] = await Promise.all([
       dbGet('minha_frota', {}),
-      dbGet('clients', {})
+      dbGet('clients', {}),
+      dbGet('orders', {})
     ]);
 
     // Conta total em campo (soma extintores_campo de todos os clientes)
@@ -4082,6 +4210,45 @@ async function loadFrota() {
     document.getElementById('frotaTotal').textContent = totalFrota;
     document.getElementById('frotaCampo').textContent = totalCampo;
     document.getElementById('frotaDisp').textContent = disponivel;
+
+    // Pedidos de manutenção com extintor do cliente ainda não devolvido
+    const pendentes = orders.filter(o => {
+      if (o.type !== 'Pedido' || o.order_status === 'Cancelado') return false;
+      if (o.extintor_devolvido === true) return false;
+      let items = []; try { items = JSON.parse(o.items || '[]'); } catch(e) {}
+      const hasManut = items.some(it => {
+        const n = (it.name || it.product || '').toLowerCase();
+        return n.includes('manutenção') || n.includes('manutencao') || n.includes('hidrostático') || n.includes('hidrostatico');
+      });
+      return hasManut;
+    }).sort((a, z) => {
+      const aPago = a.order_status === 'Concluído' ? 1 : 0;
+      const zPago = z.order_status === 'Concluído' ? 1 : 0;
+      return zPago - aPago; // pagos primeiro (mais urgente)
+    });
+    document.getElementById('frotaPendente').textContent = pendentes.length;
+
+    const pendEl = document.getElementById('frotaPendentesList');
+    if (!pendentes.length) {
+      pendEl.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:8px 0;">Nenhum extintor de cliente pendente de devolução. 🎉</div>';
+    } else {
+      pendEl.innerHTML = pendentes.map(o => {
+        const orderNum = `APP-${String(o.id).padStart(3,'0')}`;
+        const pago = o.order_status === 'Concluído';
+        return `
+        <div class="card" style="margin-bottom:8px;padding:12px 14px;${pago ? 'border-color:#ef444455;background:linear-gradient(135deg,#1a1d27,#1f0a0a);' : 'border-color:#f0a50044;'}">
+          ${pago ? '<div style="background:#ef444422;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:var(--danger);margin-bottom:8px;">⚠️ CLIENTE JÁ PAGOU — EXTINTOR AINDA COM A GENTE</div>' : ''}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="color:var(--sub);font-size:11px;font-weight:700;">${orderNum}</div>
+              <div style="font-weight:700;font-size:13px;">${o.client}</div>
+              <div style="color:var(--sub);font-size:11px;">${o.order_status}${o.value ? ' · R$ ' + parseFloat(o.value).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : ''}</div>
+            </div>
+            <button onclick="marcarExtintorDevolvido(${o.id},'${(o.client||'').replace(/'/g,"\\'")}')" style="background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">📦 Devolvido</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
 
     // Lista em campo
     const campoEl = document.getElementById('frotaCampoList');
@@ -4189,9 +4356,19 @@ async function recolhidoExtintor(orderId, clientName) {
 // Extintor com manutenção: cliente devolveu o extintor → vai pra Aguardando Receber
 async function devolverExtintorCliente(orderId) {
   if (!confirm('Confirmar que o cliente devolveu o extintor?')) return;
-  await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber' });
+  await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber', extintor_devolvido: true });
   showToast('📦 Extintor recebido! Pedido → Aguardando Receber', 'success');
   loadOrdersSafe();
+}
+
+// Marca que o extintor do cliente (em manutenção) já foi devolvido a ele,
+// sem alterar o status do pedido (usado quando o pagamento já rolou antes da devolução física)
+async function marcarExtintorDevolvido(orderId, clientName) {
+  if (!confirm(`Confirmar que o extintor de "${clientName || 'cliente'}" já foi devolvido?`)) return;
+  await dbUpdate('orders', orderId, { extintor_devolvido: true });
+  showToast('📦 Extintor marcado como devolvido!', 'success');
+  loadOrdersSafe();
+  if (document.getElementById('screen-frota')?.classList.contains('active')) loadFrota();
 }
 
 // Venda de materiais: entregues → vai direto pra Aguardando Receber
@@ -4212,15 +4389,17 @@ async function ecConfirmar() {
     extintores_campo: jaEmCampo + _ecQty,
     extintores_campo_data: today
   });
-  // Muda o pedido mais recente em aberto desse cliente para "Em Andamento"
+  // Muda o pedido mais recente em aberto OU em andamento desse cliente para "Em Andamento"
   const orders = await dbGet('orders', {});
   const pedidoAberto = orders
-    .filter(o => o.client?.toLowerCase().trim() === (c?.name || '').toLowerCase().trim() && (o.order_status === 'Em Aberto' || !o.order_status) && o.type === 'Pedido')
+    .filter(o => o.client?.toLowerCase().trim() === (c?.name || '').toLowerCase().trim() && (o.order_status === 'Em Aberto' || o.order_status === 'Em Andamento' || !o.order_status) && o.type === 'Pedido')
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-  if (pedidoAberto) await dbUpdate('orders', pedidoAberto.id, { order_status: 'Em Andamento' });
+  if (pedidoAberto && pedidoAberto.order_status !== 'Em Andamento') {
+    await dbUpdate('orders', pedidoAberto.id, { order_status: 'Em Andamento' });
+  }
   closeModal('extintoresCampoModal');
   showToast(`✅ ${_ecQty} extintor(es) em campo! Pedido → Em Andamento`, 'success');
-  if (pedidoAberto) loadOrdersSafe();
+  loadOrdersSafe();
 }
 
 let _alertFilter = 'todos';
@@ -5445,6 +5624,9 @@ async function saveAndPdfNbr() {
 }
 
 function buildNbrPDF(sig) {
+  const titleElNbr = document.querySelector('#pdfModal .modal-title');
+  if (titleElNbr) titleElNbr.textContent = '📄 Relatório de Inspeção NBR';
+  _pdfFileName = 'CJ-FireSecure-Inspecao-NBR.pdf';
   const date = document.getElementById('nbrData').value || new Date().toLocaleDateString('pt-BR');
   const ap = nbrExtintores.filter(e => e.resultado === 'ok').length;
   const rep = nbrExtintores.filter(e => e.resultado === 'no').length;
@@ -6178,6 +6360,9 @@ async function openNewOrder(type, clientId) {
   }
 }
 async function generateMonthlyReport() {
+  const titleElReport = document.querySelector('#pdfModal .modal-title');
+  if (titleElReport) titleElReport.textContent = '📄 Relatório Mensal';
+  _pdfFileName = 'CJ-FireSecure-Relatorio-Mensal.pdf';
   showToast('⏳ Gerando relatório...', 'success');
   const [orders, billing, clients, inspecoes] = await Promise.all([
     dbGet('orders', {}), dbGet('billing', {}), dbGet('clients', {}), dbGet('inspecoes_nbr', {})
