@@ -2293,11 +2293,13 @@ function renderOrders() {
               <button onclick="event.stopPropagation();recolhidoExtintor(${o.id},'${o.client.replace(/'/g,"\'")}')" style="width:100%;background:#a855f718;color:#a855f7;border:1px solid #a855f744;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📥 Recolhido</button>
             </div>`;
           } else if (_hasManut) {
+            const _jaPagou = o.payment_done === true;
             return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;align-items:center;justify-content:center;background:#f0a50014;border:1px solid #f0a50040;border-radius:8px;padding:5px 10px;">
-                <span style="font-size:10px;color:#f0a500;font-weight:700;">🔧 Extintor em manutenção</span>
+              <div style="display:flex;align-items:center;justify-content:center;background:${_jaPagou?'#ef444418':'#f0a50014'};border:1px solid ${_jaPagou?'#ef444450':'#f0a50040'};border-radius:8px;padding:5px 10px;">
+                <span style="font-size:10px;color:${_jaPagou?'var(--danger)':'#f0a500'};font-weight:700;">${_jaPagou?'⚠️ Já pagou — extintor ainda com a gente':'🔧 Extintor em manutenção'}</span>
               </div>
-              <button onclick="event.stopPropagation();devolverExtintorCliente(${o.id})" style="width:100%;background:#f0a50018;color:#f0a500;border:1px solid #f0a50044;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Extintor entregue ao cliente</button>
+              ${!_jaPagou ? `<button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="width:100%;background:#3b82f618;color:#3b82f6;border:1px solid #3b82f644;border-radius:8px;padding:7px 6px;font-size:11px;font-weight:700;cursor:pointer;">💰 Já pagou (aguarda devolução)</button>` : ''}
+              <button onclick="event.stopPropagation();devolverExtintorCliente(${o.id})" style="width:100%;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📦 Extintor devolvido ao cliente</button>
             </div>`;
           } else {
             return `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
@@ -2308,24 +2310,9 @@ function renderOrders() {
             </div>`;
           }
         })() : ''}
-        ${(status === 'Aguardando Receber' || status === 'Concluído') ? (() => {
-          let _cItems = []; try { _cItems = JSON.parse(o.items || '[]'); } catch(e){}
-          const _cHasManut = _cItems.some(it => { const n=(it.name||it.product||'').toLowerCase(); return n.includes('manutenção')||n.includes('manutencao')||n.includes('hidrostático')||n.includes('hidrostatico'); });
-          const _pendDevolucao = _cHasManut && o.extintor_devolvido !== true;
-          let html = '';
-          if (_pendDevolucao) {
-            html += `<div style="flex:1;display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;align-items:center;justify-content:center;background:#ef444418;border:1px solid #ef444450;border-radius:8px;padding:5px 10px;">
-                <span style="font-size:10px;color:var(--danger);font-weight:700;">⚠️ ${status === 'Concluído' ? 'Já pagou' : 'Aguardando pagamento'} — extintor ainda com a gente</span>
-              </div>
-              <button onclick="event.stopPropagation();marcarExtintorDevolvido(${o.id},'${(o.client||'').replace(/'/g,"\\'")}')" style="width:100%;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">📦 Devolvido ao cliente</button>
-            </div>`;
-          }
-          if (status === 'Aguardando Receber') {
-            html += `<button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>`;
-          }
-          return html;
-        })() : ''}
+        ${status === 'Aguardando Receber' ? `
+          <button onclick="event.stopPropagation();confirmarConcluir(${o.id})" style="flex:1;background:#22c55e18;color:#22c55e;border:1px solid #22c55e44;border-radius:8px;padding:8px 6px;font-size:11px;font-weight:700;cursor:pointer;">✅ Concluir</button>
+        ` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3837,22 +3824,45 @@ async function confirmPayment() {
 
   const paidAt = new Date().toISOString();
 
-  // Caso especial: chamado pelo botão "Concluir" do pedido sem cobrança vinculada
+  // Caso especial: chamado pelo botão "Concluir"/"Já pagou" do pedido sem cobrança vinculada
   if (!id && _pmContext === 'order' && _pmOrderId) {
     const taxa = _pmFallbackValue * _pmTaxRate / 100;
-    await dbUpdate('orders', _pmOrderId, {
-      order_status: 'Concluído',
+    const oAtual = allOrders.find(x => x.id === _pmOrderId);
+    let _oaItems = []; try { _oaItems = JSON.parse(oAtual?.items || '[]'); } catch(e){}
+    const _oaHasManut = _oaItems.some(it => { const n=(it.name||it.product||'').toLowerCase(); return n.includes('manutenção')||n.includes('manutencao')||n.includes('hidrostático')||n.includes('hidrostatico'); });
+    const _oaPendingReturn = _oaHasManut && oAtual?.extintor_devolvido !== true && oAtual?.order_status === 'Em Andamento';
+
+    const orderUpdate = {
+      paid_at: paidAt,
+      payment_method: _pmMethod,
+      card_installments: _pmMethod === 'credito' ? _pmInstallments : null,
+      tax_rate: _pmTaxRate,
+      tax_amount: parseFloat(taxa.toFixed(2))
+    };
+    orderUpdate.order_status = _oaPendingReturn ? 'Em Andamento' : 'Concluído';
+    if (_oaPendingReturn) orderUpdate.payment_done = true;
+    await dbUpdate('orders', _pmOrderId, orderUpdate);
+
+    // Não havia cobrança vinculada: cria uma já paga, pra entrar certinho no Caixa
+    const orderNum = `APP-${String(_pmOrderId).padStart(3,'0')}`;
+    await dbInsert('billing', {
+      client: oAtual?.client || '',
+      service: `Pedido ${orderNum}`,
+      order_id: _pmOrderId,
+      value: parseFloat(_pmFallbackValue.toFixed(2)),
+      due_date: new Date().toISOString().split('T')[0],
+      status: 'Pago',
       paid_at: paidAt,
       payment_method: _pmMethod,
       card_installments: _pmMethod === 'credito' ? _pmInstallments : null,
       tax_rate: _pmTaxRate,
       tax_amount: parseFloat(taxa.toFixed(2))
     });
+
     closeModal('paymentMethodModal');
     btn.textContent = '✅ Confirmar Pagamento'; btn.disabled = false;
-    const orderNum = `APP-${String(_pmOrderId).padStart(3,'0')}`;
     const taxMsg = taxa > 0 ? ` · Taxa: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
-    showToast(`✅ Pedido ${orderNum} concluído! 🎉${taxMsg}`, 'success');
+    showToast(_oaPendingReturn ? `✅ Pago! Pedido ${orderNum} — aguardando devolução do extintor pra concluir 🔧${taxMsg}` : `✅ Pedido ${orderNum} concluído! 🎉${taxMsg}`, 'success');
     const oQuitado = allOrders.find(x => x.id === _pmOrderId);
     if (oQuitado) {
       gerarReciboPagamento({
@@ -3939,8 +3949,16 @@ async function confirmPayment() {
 
   const related = orders.find(o => o.id === orderId);
   if (related && pendentes === 0) {
-    await dbUpdate('orders', related.id, { order_status: 'Concluído' });
-    showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
+    let _relItems = []; try { _relItems = JSON.parse(related.items || '[]'); } catch(e) {}
+    const _relHasManut = _relItems.some(it => { const n=(it.name||it.product||'').toLowerCase(); return n.includes('manutenção')||n.includes('manutencao')||n.includes('hidrostático')||n.includes('hidrostatico'); });
+    const _pendingReturn = _relHasManut && related.extintor_devolvido !== true && related.order_status === 'Em Andamento';
+    if (_pendingReturn) {
+      await dbUpdate('orders', related.id, { payment_done: true });
+      showToast(`✅ Pago! Pedido ${orderNum} — aguardando devolução do extintor pra concluir 🔧`, 'success');
+    } else {
+      await dbUpdate('orders', related.id, { order_status: 'Concluído' });
+      showToast(`✅ Pago! Pedido ${orderNum} concluído! 🎉`, 'success');
+    }
   } else {
     const taxMsg = taxa > 0 ? ` · Taxa maquininha: R$ ${taxa.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
     showToast(`✅ ${pagas}/${total} parcela(s) paga(s)${taxMsg}`, 'success');
@@ -4211,9 +4229,9 @@ async function loadFrota() {
     document.getElementById('frotaCampo').textContent = totalCampo;
     document.getElementById('frotaDisp').textContent = disponivel;
 
-    // Pedidos de manutenção com extintor do cliente ainda não devolvido
+    // Pedidos EM ANDAMENTO com extintor do cliente ainda não devolvido
     const pendentes = orders.filter(o => {
-      if (o.type !== 'Pedido' || o.order_status === 'Cancelado') return false;
+      if (o.type !== 'Pedido' || o.order_status !== 'Em Andamento') return false;
       if (o.extintor_devolvido === true) return false;
       let items = []; try { items = JSON.parse(o.items || '[]'); } catch(e) {}
       const hasManut = items.some(it => {
@@ -4222,8 +4240,8 @@ async function loadFrota() {
       });
       return hasManut;
     }).sort((a, z) => {
-      const aPago = a.order_status === 'Concluído' ? 1 : 0;
-      const zPago = z.order_status === 'Concluído' ? 1 : 0;
+      const aPago = a.payment_done === true ? 1 : 0;
+      const zPago = z.payment_done === true ? 1 : 0;
       return zPago - aPago; // pagos primeiro (mais urgente)
     });
     document.getElementById('frotaPendente').textContent = pendentes.length;
@@ -4234,7 +4252,7 @@ async function loadFrota() {
     } else {
       pendEl.innerHTML = pendentes.map(o => {
         const orderNum = `APP-${String(o.id).padStart(3,'0')}`;
-        const pago = o.order_status === 'Concluído';
+        const pago = o.payment_done === true;
         return `
         <div class="card" style="margin-bottom:8px;padding:12px 14px;${pago ? 'border-color:#ef444455;background:linear-gradient(135deg,#1a1d27,#1f0a0a);' : 'border-color:#f0a50044;'}">
           ${pago ? '<div style="background:#ef444422;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;color:var(--danger);margin-bottom:8px;">⚠️ CLIENTE JÁ PAGOU — EXTINTOR AINDA COM A GENTE</div>' : ''}
@@ -4355,17 +4373,23 @@ async function recolhidoExtintor(orderId, clientName) {
 
 // Extintor com manutenção: cliente devolveu o extintor → vai pra Aguardando Receber
 async function devolverExtintorCliente(orderId) {
-  if (!confirm('Confirmar que o cliente devolveu o extintor?')) return;
-  await dbUpdate('orders', orderId, { order_status: 'Aguardando Receber', extintor_devolvido: true });
-  showToast('📦 Extintor recebido! Pedido → Aguardando Receber', 'success');
+  if (!confirm('Confirmar que o extintor foi devolvido ao cliente?')) return;
+  const o = allOrders.find(x => x.id === orderId);
+  const jaPagou = o && o.payment_done === true;
+  const novoStatus = jaPagou ? 'Concluído' : 'Aguardando Receber';
+  await dbUpdate('orders', orderId, { order_status: novoStatus, extintor_devolvido: true });
+  showToast(jaPagou ? '📦 Extintor devolvido! Pedido concluído 🎉' : '📦 Extintor devolvido! Pedido → Aguardando Receber', 'success');
   loadOrdersSafe();
 }
 
-// Marca que o extintor do cliente (em manutenção) já foi devolvido a ele,
-// sem alterar o status do pedido (usado quando o pagamento já rolou antes da devolução física)
+// Usada na tela Minha Frota: marca extintor devolvido e resolve o status do pedido
 async function marcarExtintorDevolvido(orderId, clientName) {
   if (!confirm(`Confirmar que o extintor de "${clientName || 'cliente'}" já foi devolvido?`)) return;
-  await dbUpdate('orders', orderId, { extintor_devolvido: true });
+  const o = allOrders.find(x => x.id === orderId);
+  const jaPagou = o && o.payment_done === true;
+  const update = { extintor_devolvido: true };
+  if (o && o.order_status === 'Em Andamento') update.order_status = jaPagou ? 'Concluído' : 'Aguardando Receber';
+  await dbUpdate('orders', orderId, update);
   showToast('📦 Extintor marcado como devolvido!', 'success');
   loadOrdersSafe();
   if (document.getElementById('screen-frota')?.classList.contains('active')) loadFrota();
