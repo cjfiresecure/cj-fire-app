@@ -1752,46 +1752,80 @@ async function dbGetStrict(table) {
   } catch (e) { console.error('dbGetStrict', e); return null; }
 }
 
+// Colunas "opcionais" de pedidos: se o banco ainda não tiver alguma, o app NÃO trava —
+// tira a coluna do envio, tenta de novo e avisa. (Para ter tudo: rodar corrigir_colunas_orders.sql)
+const ORDER_OPTIONAL_COLS = ['installment_dates', 'installments', 'discount', 'surcharge', 'freight', 'created_by'];
+const _missingOrderCols = new Set();
+function _stripMissing(table, data) {
+  if (table !== 'orders' || !_missingOrderCols.size) return data;
+  const c = { ...data };
+  _missingOrderCols.forEach(k => delete c[k]);
+  return c;
+}
+function _colFaltando(table, txt, body) {
+  if (table !== 'orders' || !String(txt).includes('PGRST204')) return null;
+  const m = String(txt).match(/Could not find the '([A-Za-z0-9_]+)' column/);
+  return (m && ORDER_OPTIONAL_COLS.includes(m[1]) && m[1] in body) ? m[1] : null;
+}
+function _avisaColunaFaltando(col) {
+  console.warn('Coluna ausente em orders:', col);
+  showToast(`ℹ️ O banco não tem a coluna "${col}" — salvando sem ela. Rode o corrigir_colunas_orders.sql quando puder.`, 'error');
+}
+
 // PATCH que devolve a linha gravada, para conferir o que o banco realmente salvou
 async function dbUpdateRow(table, id, data) {
-  try {
-    const r = await fetch(API + table + '?id=eq.' + id, {
-      method: 'PATCH', headers: H(), body: JSON.stringify(data), signal: AbortSignal.timeout(15000)
-    });
-    const txt = await r.text();
-    if (!r.ok) return { ok: false, error: r.status + ' ' + txt.slice(0, 220) };
-    let rows = []; try { rows = JSON.parse(txt || '[]'); } catch (e) {}
-    if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: 'o banco não alterou nenhuma linha (permissão/RLS ou pedido inexistente)' };
-    return { ok: true, row: rows[0] };
-  } catch (e) { return { ok: false, error: 'sem conexão ou tempo esgotado' }; }
+  let body = _stripMissing(table, data);
+  for (let tent = 0; tent < 8; tent++) {
+    try {
+      const r = await fetch(API + table + '?id=eq.' + id, {
+        method: 'PATCH', headers: H(), body: JSON.stringify(body), signal: AbortSignal.timeout(15000)
+      });
+      const txt = await r.text();
+      if (!r.ok) {
+        const col = _colFaltando(table, txt, body);
+        if (col) { _missingOrderCols.add(col); _avisaColunaFaltando(col); body = _stripMissing(table, body); continue; }
+        return { ok: false, error: r.status + ' ' + txt.slice(0, 220) };
+      }
+      let rows = []; try { rows = JSON.parse(txt || '[]'); } catch (e) {}
+      if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: 'o banco não alterou nenhuma linha (permissão/RLS ou pedido inexistente)' };
+      return { ok: true, row: rows[0] };
+    } catch (e) { return { ok: false, error: 'sem conexão ou tempo esgotado' }; }
+  }
+  return { ok: false, error: 'colunas ausentes no banco — rode o corrigir_colunas_orders.sql' };
 }
 
 async function dbInsert(table, data) {
-  try {
-    const r = await fetch(API + table, {
-      method: 'POST',
-      headers: H(),
-      body: JSON.stringify(data),
-      signal: AbortSignal.timeout(8000)
-    });
-    const result = await r.json();
-    if (!r.ok) {
-      const errMsg = result?.message || result?.details || result?.hint || JSON.stringify(result);
-      console.error('dbInsert error', r.status, result);
-      if (r.status >= 500) {
-        showToast('❌ Erro no servidor (' + r.status + '). Tente novamente.', 'error');
+  let body = _stripMissing(table, data);
+  for (let tent = 0; tent < 8; tent++) {
+    try {
+      const r = await fetch(API + table, {
+        method: 'POST',
+        headers: H(),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000)
+      });
+      const result = await r.json();
+      if (!r.ok) {
+        const col = _colFaltando(table, JSON.stringify(result), body);
+        if (col) { _missingOrderCols.add(col); _avisaColunaFaltando(col); body = _stripMissing(table, body); continue; }
+        const errMsg = result?.message || result?.details || result?.hint || JSON.stringify(result);
+        console.error('dbInsert error', r.status, result);
+        if (r.status >= 500) {
+          showToast('❌ Erro no servidor (' + r.status + '). Tente novamente.', 'error');
+          return null;
+        }
+        // 4xx = dado inválido, mostra o erro real
+        showToast(`❌ Supabase ${r.status}: ${errMsg}`, 'error');
         return null;
       }
-      // 4xx = dado inválido, mostra o erro real
-      showToast(`❌ Supabase ${r.status}: ${errMsg}`, 'error');
+      return result;
+    } catch(e) {
+      console.error('dbInsert network error', e);
+      showToast('❌ Sem conexão. Verifique a internet e tente novamente.', 'error');
       return null;
     }
-    return result;
-  } catch(e) {
-    console.error('dbInsert network error', e);
-    showToast('❌ Sem conexão. Verifique a internet e tente novamente.', 'error');
-    return null;
   }
+  return null;
 }
 
 async function dbUpdate(table, id, data) {
@@ -2909,7 +2943,7 @@ async function editOrder(id) {
   // limpa a prévia de parcelas do pedido anterior (as datas vazavam de um pedido pro outro)
   const _pv = document.getElementById('installmentPreview'); if (_pv) _pv.innerHTML = '';
   // restaura nº de parcelas E recalcula; depois recoloca os vencimentos que já estavam salvos
-  setTimeout(() => {
+  setTimeout(async () => {
     const sel = document.getElementById('orderInstallments');
     if (sel && o.installments > 1 && selectedPayTerms[0] === 'Parcelado') sel.value = String(o.installments);
     calcInstallments();
@@ -2920,6 +2954,17 @@ async function editOrder(id) {
           const inp = document.getElementById('instDate_' + i);
           if (inp && sd.date) { inp.value = sd.date; currentInstallmentList[i].date = sd.date; }
         });
+      }
+      // Sem datas salvas no pedido (coluna ausente/pedido antigo): usa os vencimentos das cobranças
+      if (!(saved.length > 1) && currentInstallmentList.length > 1) {
+        const bl = (await dbGet('billing', {})).filter(b => _orderBillingId(b) === o.id)
+          .sort((x, y) => String(x.due_date || '').localeCompare(String(y.due_date || '')));
+        if (bl.length === currentInstallmentList.length) {
+          bl.forEach((b, i) => {
+            const inp = document.getElementById('instDate_' + i);
+            if (inp && b.due_date) { inp.value = b.due_date; currentInstallmentList[i].date = b.due_date; }
+          });
+        }
       }
     } catch (e) { console.error('restaura vencimentos', e); }
   }, 80);
@@ -3271,7 +3316,7 @@ async function saveOrder() {
     const _dif = [];
     if (Math.abs(parseFloat(_gravado.value) - total) > 0.009) _dif.push(`valor gravado R$ ${_gravado.value} (era para ser R$ ${total.toFixed(2)})`);
     if ((_gravado.payment || '') !== (payment || '')) _dif.push(`pagamento gravado "${_gravado.payment}" (era "${payment}")`);
-    if ((parseInt(_gravado.installments) || 1) !== (installments || 1)) _dif.push(`parcelas gravadas ${_gravado.installments} (era ${installments})`);
+    if (!_missingOrderCols.has('installments') && (parseInt(_gravado.installments) || 1) !== (installments || 1)) _dif.push(`parcelas gravadas ${_gravado.installments} (era ${installments})`);
     if (_dif.length) {
       const _msg = 'O banco NÃO gravou o que foi enviado:\n• ' + _dif.join('\n• ') + '\n\nHá uma regra/trigger no banco alterando os pedidos. As cobranças NÃO foram mexidas para não ficar inconsistente.';
       console.error('saveOrder divergência', _dif, _gravado);
