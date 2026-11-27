@@ -1752,6 +1752,20 @@ async function dbGetStrict(table) {
   } catch (e) { console.error('dbGetStrict', e); return null; }
 }
 
+// PATCH que devolve a linha gravada, para conferir o que o banco realmente salvou
+async function dbUpdateRow(table, id, data) {
+  try {
+    const r = await fetch(API + table + '?id=eq.' + id, {
+      method: 'PATCH', headers: H(), body: JSON.stringify(data), signal: AbortSignal.timeout(15000)
+    });
+    const txt = await r.text();
+    if (!r.ok) return { ok: false, error: r.status + ' ' + txt.slice(0, 220) };
+    let rows = []; try { rows = JSON.parse(txt || '[]'); } catch (e) {}
+    if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: 'o banco não alterou nenhuma linha (permissão/RLS ou pedido inexistente)' };
+    return { ok: true, row: rows[0] };
+  } catch (e) { return { ok: false, error: 'sem conexão ou tempo esgotado' }; }
+}
+
 async function dbInsert(table, data) {
   try {
     const r = await fetch(API + table, {
@@ -1794,6 +1808,15 @@ async function dbUpdate(table, id, data) {
       console.error('dbUpdate', r.status, t);
       return false;
     }
+    // Prefer: return=representation devolve as linhas alteradas; lista vazia = o banco NÃO alterou nada
+    try {
+      const rows = JSON.parse((await r.text()) || '[]');
+      if (Array.isArray(rows) && rows.length === 0) {
+        window._lastDbError = 'o banco não alterou nenhuma linha (permissão/RLS ou registro inexistente)';
+        console.error('dbUpdate: 0 linhas alteradas em', table, id);
+        return false;
+      }
+    } catch (e) { /* corpo vazio/não-JSON: segue como sucesso */ }
     return true;
   } catch(e) {
     console.error('dbUpdate network error', e);
@@ -3237,9 +3260,23 @@ async function saveOrder() {
       _billEdit = await dbGetStrict('billing');
       if (!_billEdit) { showToast('❌ Sem conexão para conferir as cobranças. Nada foi alterado.', 'error'); return; }
     }
-    const _okOrder = await dbUpdate('orders', editingOrderId, editData);
-    if (!_okOrder) {
-      showToast('❌ Não salvou o pedido: ' + (window._lastDbError || 'erro desconhecido'), 'error');
+    const _upd = await dbUpdateRow('orders', editingOrderId, editData);
+    if (!_upd.ok) {
+      console.error('saveOrder: falha ao gravar pedido', _upd.error);
+      showToast('❌ Não salvou o pedido: ' + _upd.error, 'error');
+      return;
+    }
+    // O banco devolveu o que realmente gravou — confere com o que foi enviado
+    const _gravado = _upd.row || {};
+    const _dif = [];
+    if (Math.abs(parseFloat(_gravado.value) - total) > 0.009) _dif.push(`valor gravado R$ ${_gravado.value} (era para ser R$ ${total.toFixed(2)})`);
+    if ((_gravado.payment || '') !== (payment || '')) _dif.push(`pagamento gravado "${_gravado.payment}" (era "${payment}")`);
+    if ((parseInt(_gravado.installments) || 1) !== (installments || 1)) _dif.push(`parcelas gravadas ${_gravado.installments} (era ${installments})`);
+    if (_dif.length) {
+      const _msg = 'O banco NÃO gravou o que foi enviado:\n• ' + _dif.join('\n• ') + '\n\nHá uma regra/trigger no banco alterando os pedidos. As cobranças NÃO foram mexidas para não ficar inconsistente.';
+      console.error('saveOrder divergência', _dif, _gravado);
+      showToast('❌ O banco não gravou o valor/parcelas do pedido', 'error');
+      alert(_msg);
       return;
     }
 
