@@ -1675,6 +1675,11 @@ body.values-hidden .money-value:active{filter:blur(0)}
 function fmt(valor) {
   return parseFloat(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+// Data local (YYYY-MM-DD). toISOString() usa UTC e adianta o dia depois das 21h no Brasil.
+function _isoLocal(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
 function fmtInt(valor) {
   return parseFloat(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
@@ -1738,6 +1743,15 @@ async function dbGet(table, opts = {}) {
   } catch(e) { console.error('dbGet', e); return []; }
 }
 
+// Igual ao dbGet, mas devolve null quando falha (rede/timeout) — evita decidir com lista vazia
+async function dbGetStrict(table) {
+  try {
+    const r = await fetch(API + table + '?select=*', { headers: H(), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { console.error('dbGetStrict', e); return null; }
+}
+
 async function dbInsert(table, data) {
   try {
     const r = await fetch(API + table, {
@@ -1774,8 +1788,13 @@ async function dbUpdate(table, id, data) {
       body: JSON.stringify(data),
       signal: AbortSignal.timeout(8000)
     });
-    if (!r.ok) { console.error('dbUpdate', r.status); return false; }
-    return r.ok;
+    if (!r.ok) {
+      let t = ''; try { t = (await r.text()).slice(0, 180); } catch(e) {}
+      window._lastDbError = r.status + ' ' + t;
+      console.error('dbUpdate', r.status, t);
+      return false;
+    }
+    return true;
   } catch(e) {
     console.error('dbUpdate network error', e);
     showToast('❌ Sem conexão. Verifique a internet e tente novamente.', 'error');
@@ -2533,8 +2552,20 @@ async function confirmarConcluir(id) {
   const o = allOrders.find(x => x.id === id);
   if (!o) return;
 
-  // Busca cobrança vinculada a este pedido
-  const allBilling = await dbGet('billing', {});
+  // Busca cobrança vinculada a este pedido (se falhar a rede, NÃO segue: evitava pagamento duplicado)
+  const allBilling = await dbGetStrict('billing');
+  if (!allBilling) { showToast('❌ Sem conexão para conferir as cobranças. Tente de novo.', 'error'); return; }
+
+  // Já está tudo pago? Só conclui (não cria outro pagamento no Caixa)
+  const _linked = allBilling.filter(b => _orderBillingId(b) === id);
+  if (_linked.length && _linked.every(b => b.status === 'Pago')) {
+    const _pend = _orderHasManut(o) && o.extintor_devolvido !== true && o.order_status === 'Em Andamento';
+    await dbUpdate('orders', id, _pend ? { payment_done: true } : { order_status: 'Concluído' });
+    showToast(_pend ? '✅ Já estava pago — aguardando devolução do extintor' : '✅ Já estava pago → Concluído 🎉', 'success');
+    loadOrdersSafe();
+    return;
+  }
+
   const billing = allBilling.find(b => {
     if (b.status === 'Pago') return false;
     if (b.order_id && parseInt(b.order_id) === id) return true;
@@ -2562,7 +2593,7 @@ async function confirmarConcluir(id) {
     document.getElementById('pmBillingId').value = billing.id;
     const acrescimo = calc.multa + calc.juros;
     if (calc.daysLate > 0 && acrescimo > 0.009) {
-      detalhe.innerHTML = `Original: R$ ${fmt(calc.original)} + Multa/Juros (${calc.daysLate}d em atraso): R$ ${fmt(acrescimo)}`;
+      detalhe.innerHTML = `Original: ${fmt(calc.original)} + Multa/Juros (${calc.daysLate}d em atraso): ${fmt(acrescimo)}`;
       detalhe.style.display = 'block';
     } else {
       detalhe.style.display = 'none';
@@ -2668,7 +2699,7 @@ async function recriarCobranca(id) {
         await dbInsert('billing', {
           client: o.client, service: `${orderNum} · Parcela ${i+1}/${installments} · ${serviceDesc}`,
           value: parseFloat(parcelValue.toFixed(2)),
-          due_date: due.toISOString().split('T')[0],
+          due_date: _isoLocal(due),
           order_id: id, multa: 2, juros: 1, status: 'Pendente'
         });
       }
@@ -2693,7 +2724,7 @@ async function recriarCobranca(id) {
           const d = new Date(baseDate); d.setDate(d.getDate() + parts[i]);
           await dbInsert('billing', {
             client: o.client, service: `${orderNum} · Parcela ${i+1}/${parts.length} · ${serviceDesc}`,
-            value: parcel, due_date: d.toISOString().split('T')[0],
+            value: parcel, due_date: _isoLocal(d),
             order_id: id, multa: 2, juros: 1, status: 'Pendente'
           });
         }
@@ -2703,7 +2734,7 @@ async function recriarCobranca(id) {
       }
       await dbInsert('billing', {
         client: o.client, service: serviceDesc,
-        value: total, due_date: due.toISOString().split('T')[0],
+        value: total, due_date: _isoLocal(due),
         order_id: id, multa: 2, juros: 1, status: 'Pendente'
       });
       showToast('✅ Cobrança recriada!', 'success');
@@ -2807,7 +2838,7 @@ function openOrderForm() {
   document.getElementById('orderDiscount').value = '';
   document.getElementById('orderSurcharge').value = '';
   document.getElementById('orderFreight').value = '';
-  document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('orderDate').value = _isoLocal(new Date());
   selectedPayTerms = ['À vista'];
   currentInstallmentList = [];
   updatePaymentButtons();
@@ -2852,11 +2883,25 @@ async function editOrder(id) {
   } else {
     selectedPayTerms = [storedPay];
   }
-  if (o.installments && o.installments > 1 && selectedPayTerms[0] === 'Parcelado') {
-    setTimeout(() => { const s = document.getElementById('orderInstallments'); if(s) s.value = String(o.installments); }, 50);
-  }
+  // limpa a prévia de parcelas do pedido anterior (as datas vazavam de um pedido pro outro)
+  const _pv = document.getElementById('installmentPreview'); if (_pv) _pv.innerHTML = '';
+  // restaura nº de parcelas E recalcula; depois recoloca os vencimentos que já estavam salvos
+  setTimeout(() => {
+    const sel = document.getElementById('orderInstallments');
+    if (sel && o.installments > 1 && selectedPayTerms[0] === 'Parcelado') sel.value = String(o.installments);
+    calcInstallments();
+    try {
+      const saved = o.installment_dates ? (typeof o.installment_dates === 'string' ? JSON.parse(o.installment_dates) : o.installment_dates) : [];
+      if (saved.length > 1 && saved.length === currentInstallmentList.length) {
+        saved.forEach((sd, i) => {
+          const inp = document.getElementById('instDate_' + i);
+          if (inp && sd.date) { inp.value = sd.date; currentInstallmentList[i].date = sd.date; }
+        });
+      }
+    } catch (e) { console.error('restaura vencimentos', e); }
+  }, 80);
   updatePaymentButtons();
-  document.getElementById('orderDate').value = o.order_date || new Date().toISOString().split('T')[0];
+  document.getElementById('orderDate').value = o.order_date || _isoLocal(new Date());
   document.getElementById('orderObs').value = o.obs || '';
   document.getElementById('orderFreight').value = o.freight || '';
   document.getElementById('orderDiscount').value = o.discount || '';
@@ -3023,7 +3068,7 @@ function calcInstallments() {
     for (let i = 0; i < n; i++) {
       const d = new Date(baseDate);
       d.setMonth(d.getMonth() + i + 1);
-      list.push({ label: `${i+1}ª parcela`, date: d.toISOString().split('T')[0], value: parcel });
+      list.push({ label: `${i+1}ª parcela`, date: _isoLocal(d), value: parcel });
     }
   } else {
     const daysMap = {'15 dias':15,'30 dias':30,'60 dias':60};
@@ -3033,10 +3078,14 @@ function calcInstallments() {
       const d = new Date(baseDate);
       d.setDate(d.getDate() + (daysMap[t] || 0));
       const label = n === 1 ? 'Vencimento' : `${i+1}ª parcela (${t})`;
-      list.push({ label, date: d.toISOString().split('T')[0], value: parcel });
+      list.push({ label, date: _isoLocal(d), value: parcel });
     });
   }
 
+  if (list.length > 1) { // última parcela absorve o centavo de arredondamento
+    const _soma = list.slice(0, -1).reduce((a, x) => a + x.value, 0);
+    list[list.length - 1].value = parseFloat((total - _soma).toFixed(2));
+  }
   currentInstallmentList = list;
 
   // Preserva datas já editadas pelo usuário (se mesmo nº de parcelas)
@@ -3112,6 +3161,24 @@ function setObsTemplate(tipo) {
 }
 // Agenda visita se tiver extintor, manutenção, recarga, CO2, AP, ABC, BC, sprinkler ou hidrante
 // NÃO agenda se for só placa, luz de emergência, sinalização, materiais avulsos
+
+// Se o cliente está com visita atrasada (ou chegando em ≤60 dias) e você abriu pedido/orçamento
+// pra ele, a visita foi feita: tira da lista e remarca para daqui 1 ano.
+async function reagendarVisitaSeVencida(client) {
+  try {
+    if (!client || !client.id || !client.next_visit) return null;
+    const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+    const limite = new Date(hoje); limite.setDate(limite.getDate() + 60);
+    if (new Date(client.next_visit + 'T12:00:00') > limite) return null; // já está agendada pra longe
+    const nova = new Date(hoje); nova.setFullYear(nova.getFullYear() + 1);
+    const iso = _isoLocal(nova);
+    const ok = await dbUpdate('clients', client.id, { next_visit: iso });
+    if (!ok) return null;
+    client.next_visit = iso;
+    return nova;
+  } catch (e) { console.error('reagendarVisitaSeVencida', e); return null; }
+}
+
 function pedidoNecessitaVisita(items) {
   const PRECISA = /extintor|manutenção|manutencao|recarga|co2|pó|po abc|po bc|ap |abc|sprinkler|hidrante|inspeção|inspecao|detector|alarme|central/i;
   const NAO_PRECISA = /^placa|^luz de emer|^sinaliza|^placa foto|^manômetro|^manometro|^abrigo/i;
@@ -3157,6 +3224,25 @@ async function saveOrder() {
     const oldType = oldOrder?.type;
     const oldItems = JSON.parse(oldOrder?.items || '[]');
 
+    // Dados da edição: NÃO sobrescreve criador nem o andamento (antes todo "salvar" voltava p/ Em Andamento)
+    const editData = { ...orderData };
+    delete editData.created_by;
+    if (oldType === 'Orçamento' && currentOrderType === 'Pedido') editData.order_status = 'Em Andamento';
+    else if (currentOrderType === 'Orçamento') editData.order_status = null;
+    else delete editData.order_status;
+
+    let _billEdit = [];
+    let _avisoParcelaPaga = false;
+    if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
+      _billEdit = await dbGetStrict('billing');
+      if (!_billEdit) { showToast('❌ Sem conexão para conferir as cobranças. Nada foi alterado.', 'error'); return; }
+    }
+    const _okOrder = await dbUpdate('orders', editingOrderId, editData);
+    if (!_okOrder) {
+      showToast('❌ Não salvou o pedido: ' + (window._lastDbError || 'erro desconhecido'), 'error');
+      return;
+    }
+
     // Pedido → Orçamento: devolve estoque
     if (oldType === 'Pedido' && currentOrderType === 'Orçamento') {
       await adjustStock(oldItems, false);
@@ -3180,7 +3266,7 @@ async function saveOrder() {
           });
         }
       } else {
-        const dueDate = instDates[0]?.date || (orderDate || new Date().toISOString().split('T')[0]);
+        const dueDate = instDates[0]?.date || (orderDate || _isoLocal(new Date()));
         await dbInsert('billing', {
           client: selectedOrderClient.name,
           service: `${orderNum} · ${serviceDesc}`,
@@ -3192,10 +3278,11 @@ async function saveOrder() {
       if (pedidoNecessitaVisita(orderItems)) {
         const nextVisit = new Date(baseDate);
         nextVisit.setFullYear(nextVisit.getFullYear() + 1);
-        if (selectedOrderClient.id) await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
+        if (selectedOrderClient.id) await dbUpdate('clients', selectedOrderClient.id, { next_visit: _isoLocal(nextVisit) });
         showToast('✅ Convertido em Pedido · Cobrança(s), estoque e visita agendados!', 'success');
       } else {
-        showToast('✅ Convertido em Pedido · Cobrança(s) e estoque atualizados!', 'success');
+        const _nvConv = await reagendarVisitaSeVencida(selectedOrderClient);
+        showToast(_nvConv ? `✅ Convertido em Pedido · visita remarcada para ${_nvConv.toLocaleDateString('pt-BR')}` : '✅ Convertido em Pedido · Cobrança(s) e estoque atualizados!', 'success');
       }
       // Pergunta se deixou extintor da CJ no cliente (igual ao pedido novo)
       const temManutencaoConv = orderItems.some(i => /manutenção|manutencao|recarga/i.test(i.name));
@@ -3207,18 +3294,15 @@ async function saveOrder() {
     else if (oldType === 'Pedido' && currentOrderType === 'Pedido') {
       await adjustStock(oldItems, false);
       await adjustStock(orderItems, true);
-      const allBilling = await dbGet('billing', {});
       const orderNum = `APP-${String(editingOrderId).padStart(3,'0')}`;
-      const vinculadas = allBilling.filter(b => {
-        if (b.status !== 'Pendente') return false;
-        if (b.order_id && parseInt(b.order_id) === editingOrderId) return true;
-        // Match exato pelo número no service (evita APP-022 bater em APP-0220)
-        const m = (b.service || '').match(/APP-0*([1-9]\d*)/);
-        return m && parseInt(m[1]) === editingOrderId;
-      });
+      const linkedAll = _billEdit.filter(b => _orderBillingId(b) === editingOrderId);
+      const temParcelaPaga = linkedAll.some(b => b.status === 'Pago');
+      const vinculadas = linkedAll.filter(b => b.status !== 'Pago'); // inclui 'Vencido'
       const serviceDesc = `${orderNum} · Pedido - ${orderItems.map(i => i.name).join(', ')}${discount > 0 ? ` (Desc: R$ ${discount.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})})` : ''}${discountPct > 0 ? ` (Desc: ${discountPct}%)` : ''}`;
       // Recria cobranças se número de parcelas mudou, ou atualiza valores se igual
-      if (instDates.length > 1 && instDates.length !== vinculadas.length) {
+      if (temParcelaPaga) {
+        _avisoParcelaPaga = true; // já tem parcela paga: não mexe nas cobranças (evita contar o pago 2x)
+      } else if (instDates.length > 1 && instDates.length !== vinculadas.length) {
         // Número de parcelas mudou → apaga pendentes e recria
         for (const b of vinculadas) await dbDelete('billing', b.id);
         for (let i = 0; i < instDates.length; i++) {
@@ -3237,15 +3321,16 @@ async function saveOrder() {
           await dbUpdate('billing', vinculadas[i].id, {
             value: instDates[i].value,
             due_date: instDates[i].date,
+            status: 'Pendente',
             service: `${orderNum} · Parcela ${i+1}/${vinculadas.length} · Pedido - ${orderItems.map(x => x.name).join(', ')}`
           });
         }
       } else if (vinculadas.length > 1 && instDates.length <= 1) {
         // Mudou de múltiplas para parcela única → apaga extras e atualiza a primeira
         for (let i = 1; i < vinculadas.length; i++) await dbDelete('billing', vinculadas[i].id);
-        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date || orderDate || undefined, status: 'Pendente' });
       } else if (vinculadas.length === 1) {
-        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date });
+        await dbUpdate('billing', vinculadas[0].id, { value: total, service: serviceDesc, due_date: instDates[0]?.date || orderDate || undefined, status: 'Pendente' });
       } else if (vinculadas.length === 0) {
         // Sem cobrança pendente → cria uma nova
         await dbInsert('billing', {
@@ -3257,13 +3342,9 @@ async function saveOrder() {
     }
 
     // Se converteu de Orçamento para Pedido e ainda não tem status de progresso, seta Em Andamento
-    if (oldType === 'Orçamento' && currentOrderType === 'Pedido') {
-      orderData.order_status = 'Em Andamento';
-    }
-    await dbUpdate('orders', editingOrderId, orderData);
     editingOrderId = null;
     closeModal('orderFormModal');
-    if (oldType === currentOrderType) showToast('✅ Pedido atualizado!', 'success');
+    if (oldType === currentOrderType) showToast(_avisoParcelaPaga ? '⚠️ Pedido atualizado, mas já existe parcela PAGA — ajuste as cobranças pendentes na aba Cobranças' : '✅ Pedido atualizado!', _avisoParcelaPaga ? 'error' : 'success');
     loadOrders();
 
   } else {
@@ -3295,7 +3376,7 @@ async function saveOrder() {
           showToast(`✅ ${instDates.length} cobranças geradas!`, 'success');
         } else {
           // Cobrança única (À vista ou prazo único)
-          const dueDate = instDates[0]?.date || (orderDate || new Date().toISOString().split('T')[0]);
+          const dueDate = instDates[0]?.date || (orderDate || _isoLocal(new Date()));
           await dbInsert('billing', {
             client: selectedOrderClient.name,
             service: `${orderNum} · ${serviceDesc}`,
@@ -3310,8 +3391,11 @@ async function saveOrder() {
         if (pedidoNecessitaVisita(orderItems) && selectedOrderClient.id) {
           const nextVisit = new Date(baseDate);
           nextVisit.setFullYear(nextVisit.getFullYear() + 1);
-          await dbUpdate('clients', selectedOrderClient.id, { next_visit: nextVisit.toISOString().split('T')[0] });
+          await dbUpdate('clients', selectedOrderClient.id, { next_visit: _isoLocal(nextVisit) });
           showToast(`📅 Visita agendada: ${nextVisit.toLocaleDateString('pt-BR')}`, 'success');
+        } else if (selectedOrderClient.id) {
+          const _nv = await reagendarVisitaSeVencida(selectedOrderClient);
+          if (_nv) showToast(`📅 Visita remarcada para ${_nv.toLocaleDateString('pt-BR')}`, 'success');
         }
 
         closeModal('orderFormModal');
@@ -3325,7 +3409,8 @@ async function saveOrder() {
       } else {
         // Orçamento — sem cobrança, sem baixa de estoque
         closeModal('orderFormModal');
-        showToast('✅ Orçamento criado! Converta em Pedido para gerar cobrança.', 'success');
+        const _nvOrc = await reagendarVisitaSeVencida(selectedOrderClient);
+        showToast(_nvOrc ? `✅ Orçamento criado! Visita remarcada para ${_nvOrc.toLocaleDateString('pt-BR')}` : '✅ Orçamento criado! Converta em Pedido para gerar cobrança.', 'success');
       }
       loadOrders();
     } else {
@@ -3370,7 +3455,7 @@ function buildPDF(client, type, items, payment, obs, extra = {}) {
       const parcel = total / installments;
       return Array.from({ length: installments }, (_, i) => {
         const d = new Date(baseDate); d.setMonth(d.getMonth() + i + 1);
-        return { date: d.toISOString().split('T')[0], value: parcel };
+        return { date: _isoLocal(d), value: parcel };
       });
     })();
     installmentRows = `
@@ -3904,7 +3989,7 @@ function renderBillingList() {
     const bgStyle = isOverdue ? 'background:linear-gradient(135deg,#1a1d27,#1f0a0a);' : isWarning ? 'background:linear-gradient(135deg,#1a1d27,#1a1500);' : isPaid ? 'opacity:0.7;' : '';
     let daysInfo = '';
     if (isOverdue && due) {
-      daysInfo = `<div style="background:#ef444422;border-radius:8px;padding:8px 10px;margin-top:8px;"><div style="color:var(--danger);font-size:11px;font-weight:700;">🚨 ${calc.daysLate} dia(s) em atraso</div><div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;"><span style="color:var(--sub);">Multa (${b.multa??2}%)</span><span style="color:var(--danger);">+ R$ ${fmt(calc.multa)}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid #ef444444;margin-top:6px;padding-top:6px;"><span style="color:var(--danger);">Total Atualizado</span><span style="color:var(--danger);">R$ ${calc.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></div></div>`;
+      daysInfo = `<div style="background:#ef444422;border-radius:8px;padding:8px 10px;margin-top:8px;"><div style="color:var(--danger);font-size:11px;font-weight:700;">🚨 ${calc.daysLate} dia(s) em atraso</div><div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;"><span style="color:var(--sub);">Multa (${b.multa??2}%)</span><span style="color:var(--danger);">+ ${fmt(calc.multa)}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid #ef444444;margin-top:6px;padding-top:6px;"><span style="color:var(--danger);">Total Atualizado</span><span style="color:var(--danger);">R$ ${calc.total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></div></div>`;
     } else if (isWarning && due) {
       const dl = Math.ceil((due - today) / (1000*60*60*24));
       daysInfo = `<div style="background:#f59e0b22;border-radius:8px;padding:8px 10px;margin-top:8px;"><div style="color:var(--warning);font-size:12px;font-weight:800;">⏰ VENCE EM ${dl} DIA(S)!</div><div style="color:var(--sub);font-size:11px;margin-top:2px;">Após o vencimento: Multa ${b.multa??2}% + Juros ${b.juros??1}% a.m.</div></div>`;
@@ -3966,7 +4051,7 @@ function markPaid(id) {
   const detalhe = document.getElementById('pmValorDetalhe');
   const acrescimo = calc.multa + calc.juros;
   if (calc.daysLate > 0 && acrescimo > 0.009) {
-    detalhe.innerHTML = `Original: R$ ${fmt(calc.original)} + Multa/Juros (${calc.daysLate}d em atraso): R$ ${fmt(acrescimo)}`;
+    detalhe.innerHTML = `Original: ${fmt(calc.original)} + Multa/Juros (${calc.daysLate}d em atraso): ${fmt(acrescimo)}`;
     detalhe.style.display = 'block';
   } else {
     detalhe.style.display = 'none';
@@ -4048,7 +4133,7 @@ async function confirmPayment() {
       service: `Pedido ${orderNum}`,
       order_id: _pmOrderId,
       value: parseFloat(_pmFallbackValue.toFixed(2)),
-      due_date: new Date().toISOString().split('T')[0],
+      due_date: _isoLocal(new Date()),
       status: 'Pago',
       paid_at: paidAt,
       payment_method: _pmMethod,
@@ -4220,8 +4305,8 @@ function gerarReciboPagamento(billingOrId) {
       <div style="font-size:18px;font-weight:900;color:#e8210a;letter-spacing:1px;">RECIBO DE PAGAMENTO</div>
     </div>
     <div style="font-size:13px;line-height:2.1;margin-bottom:26px;">
-      Recebemos de <strong>${b.client || '—'}</strong> a quantia de <strong>R$ ${fmt(value)}</strong>
-      ${lateFee > 0.009 ? `<div style="font-size:11px;color:#888;margin-top:2px;">(Valor original: R$ ${fmt(originalValue)} + Multa/Juros por atraso: R$ ${fmt(lateFee)})</div>` : ''}
+      Recebemos de <strong>${b.client || '—'}</strong> a quantia de <strong>${fmt(value)}</strong>
+      ${lateFee > 0.009 ? `<div style="font-size:11px;color:#888;margin-top:2px;">(Valor original: ${fmt(originalValue)} + Multa/Juros por atraso: ${fmt(lateFee)})</div>` : ''}
       ${orderRef ? `, referente a <strong>${orderRef}</strong>` : ''}, pago via <strong>${metodoLabel}</strong>.
     </div>
     <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;border-top:1px solid #eee;border-bottom:1px solid #eee;padding:10px 0;margin-bottom:50px;">
@@ -4606,7 +4691,7 @@ async function materiaisEntregues(orderId) {
 
 async function ecConfirmar() {
   const clientId = parseInt(document.getElementById('ecClientId').value);
-  const today = new Date().toISOString().split('T')[0];
+  const today = _isoLocal(new Date());
   const clients = await dbGet('clients', {});
   const c = clients.find(x => x.id === clientId);
   const jaEmCampo = parseInt(c?.extintores_campo || 0);
@@ -5243,9 +5328,9 @@ function openExtintorForm() {
   document.getElementById('saveExtintorBtn').textContent = '✓ Cadastrar Extintor';
   // Auto set próxima inspeção para 12 meses
   const next = new Date(); next.setFullYear(next.getFullYear() + 1);
-  document.getElementById('extProximaInsp').value = next.toISOString().split('T')[0];
+  document.getElementById('extProximaInsp').value = _isoLocal(next);
   const hidro = new Date(); hidro.setFullYear(hidro.getFullYear() + 5);
-  document.getElementById('extProximoHidro').value = hidro.toISOString().split('T')[0];
+  document.getElementById('extProximoHidro').value = _isoLocal(hidro);
   if (!allClients.length) loadClients();
   openModal('extintorFormModal');
 }
@@ -5555,7 +5640,7 @@ function startNbrInspection() {
   document.getElementById('nbrClientSelected').style.display = 'none';
   document.getElementById('nbrClientDd').style.display = 'none';
   document.getElementById('nbrTecnico').value = '';
-  document.getElementById('nbrData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('nbrData').value = _isoLocal(new Date());
   document.getElementById('nbrBtnStep1').disabled = true;
   document.getElementById('nbrObsGeral') && (document.getElementById('nbrObsGeral').value = '');
   if (!allClients.length) loadClients();
@@ -5827,7 +5912,7 @@ async function saveAndPdfNbr() {
       else proxima.setFullYear(proxima.getFullYear() + 1);
       await dbUpdate('extintores', e.id, {
         ultima_inspecao: document.getElementById('nbrData').value,
-        proxima_inspecao: proxima.toISOString().split('T')[0]
+        proxima_inspecao: _isoLocal(proxima)
       });
     }
     // Salva extintores novos no cadastro
@@ -5836,7 +5921,7 @@ async function saveAndPdfNbr() {
         client_name: nbrSelectedClient.name, numero_serie: e.serie,
         tipo: e.tipo, capacidade: e.cap, classe_fogo: e.classe,
         ultima_inspecao: document.getElementById('nbrData').value,
-        proxima_inspecao: (() => { const d=new Date(); d.setFullYear(d.getFullYear()+1); return d.toISOString().split('T')[0]; })(),
+        proxima_inspecao: (() => { const d=new Date(); d.setFullYear(d.getFullYear()+1); return _isoLocal(d); })(),
         status: 'Ativo'
       });
     }
@@ -6031,14 +6116,14 @@ async function exportBackup() {
     const jsonBlob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(jsonBlob);
-    a.download = `CJFire_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `CJFire_Backup_${_isoLocal(new Date())}.json`;
     a.click();
     // CSV Clientes
     setTimeout(() => {
       const csv = ['Nome,CNPJ,Telefone,Cidade,Próxima Visita,Status', ...clients.map(c=>`"${c.name}","${c.cnpj||''}","${c.phone||''}","${c.city||''}","${c.next_visit||''}","${c.status||''}"`)].join('\n');
       const b = document.createElement('a');
       b.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-      b.download = `CJFire_Clientes_${new Date().toISOString().split('T')[0]}.csv`;
+      b.download = `CJFire_Clientes_${_isoLocal(new Date())}.csv`;
       b.click();
     }, 600);
     showToast('✅ Backup gerado! 2 arquivos baixados', 'success');
@@ -6368,7 +6453,7 @@ async function exportData(type) {
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `cj_fire_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = `cj_fire_${type}_${_isoLocal(new Date())}.csv`;
   a.click();
   showToast(`✅ ${data.length} registro(s) exportado(s)!`, 'success');
 }
@@ -6526,7 +6611,7 @@ async function visitaAcao(acao) {
   if (acao === 'remarcar') {
     document.getElementById('visitaRemarcarDiv').style.display = 'block';
     // Define data mínima como hoje
-    document.getElementById('visitaNovaData').min = new Date().toISOString().split('T')[0];
+    document.getElementById('visitaNovaData').min = _isoLocal(new Date());
     return;
   }
 
@@ -6537,7 +6622,7 @@ async function visitaAcao(acao) {
   } else {
     nextVisit.setFullYear(nextVisit.getFullYear() + 1);
   }
-  const nextVisitStr = nextVisit.toISOString().split('T')[0];
+  const nextVisitStr = _isoLocal(nextVisit);
   await dbUpdate('clients', clientId, { next_visit: nextVisitStr });
 
   closeModal('visitaModal');
@@ -6920,7 +7005,7 @@ function openExpenseForm(expense = null) {
   updateExpenseCategoryList();
   document.getElementById('expenseCategory').value = expense?.category || '';
   // Data padrão: hoje
-  const today = new Date().toISOString().split('T')[0];
+  const today = _isoLocal(new Date());
   document.getElementById('expenseDate').value = expense?.expense_date || today;
   openModal('expenseFormModal');
 }
@@ -7191,7 +7276,7 @@ async function loadObras() {
 async function openObraForm(id = null) {
   document.getElementById('obraEditId').value = id || '';
   document.getElementById('obraFormTitle').textContent = id ? '✏️ Editar Obra' : '🏗️ Nova Obra / Serviço';
-  document.getElementById('obraStart').value = new Date().toISOString().split('T')[0];
+  document.getElementById('obraStart').value = _isoLocal(new Date());
   document.getElementById('obraEnd').value = '';
   document.getElementById('obraClient').value = '';
   document.getElementById('obraDesc').value = '';
@@ -7306,7 +7391,7 @@ async function openObraPagamento(obraId) {
     <div style="text-align:center;color:var(--success);font-size:12px;font-weight:700;margin-top:4px;">${pct}% recebido</div>`;
 
   document.getElementById('obraPagValue').value  = restante > 0 ? restante.toFixed(2) : '';
-  document.getElementById('obraPagDate').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('obraPagDate').value   = _isoLocal(new Date());
   document.getElementById('obraPagPreview').style.display = 'none';
 
   closeModal('obraDetailModal');
@@ -7753,7 +7838,7 @@ function openCaixaLancamento(tipo) {
   document.getElementById('caixaLancTitle').textContent = tipo === 'entrada' ? '📥 Nova Entrada' : '📤 Nova Saída';
   document.getElementById('caixaLancDesc').value = '';
   document.getElementById('caixaLancValor').value = '';
-  document.getElementById('caixaLancData').value = new Date().toISOString().split('T')[0];
+  document.getElementById('caixaLancData').value = _isoLocal(new Date());
   document.getElementById('caixaLancCliente').value = '';
   document.getElementById('caixaLancObs').value = '';
   document.getElementById('caixaLancTipoRecField').style.display = tipo === 'entrada' ? 'block' : 'none';
@@ -7772,7 +7857,7 @@ async function saveCaixaLancamento() {
     tipo,
     descricao: desc,
     valor,
-    lancamento_date: document.getElementById('caixaLancData').value || new Date().toISOString().split('T')[0],
+    lancamento_date: document.getElementById('caixaLancData').value || _isoLocal(new Date()),
     tipo_recebimento: tipo === 'entrada' ? document.getElementById('caixaLancTipoRec').value : null,
     categoria: tipo === 'saida' ? document.getElementById('caixaLancCategoria').value : null,
     forma_pagamento: document.getElementById('caixaLancFormaPag').value,
@@ -8064,7 +8149,7 @@ async function openPropostaForm(id = null) {
     document.getElementById('propostaObs').value = '';
     document.getElementById('propostaStatus').value = 'Rascunho';
     const hoje = new Date(); hoje.setDate(hoje.getDate() + 15);
-    document.getElementById('propostaValidade').value = hoje.toISOString().split('T')[0];
+    document.getElementById('propostaValidade').value = _isoLocal(hoje);
     addPropostaItem();
   }
   openModal('propostaFormModal');
@@ -8281,7 +8366,7 @@ async function openContratoForm(id = null) {
   const clientes = await dbGet('clients', { order: 'name' });
   document.getElementById('contratoCliente').innerHTML = '<option value="">Selecionar cliente...</option>' +
     clientes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = _isoLocal(new Date());
   const anoDepois = new Date(); anoDepois.setFullYear(anoDepois.getFullYear()+1);
   if (id) {
     const rows = await dbGet('contratos', {});
@@ -8300,7 +8385,7 @@ async function openContratoForm(id = null) {
   } else {
     document.getElementById('contratoObjeto').value = '';
     document.getElementById('contratoInicio').value = hoje;
-    document.getElementById('contratoFim').value = anoDepois.toISOString().split('T')[0];
+    document.getElementById('contratoFim').value = _isoLocal(anoDepois);
     document.getElementById('contratoValor').value = '';
     document.getElementById('contratoPeriodo').value = 'Anual';
     document.getElementById('contratoClausulas').value = '1. A CJ FireSecure Ltda realizará a manutenção preventiva e corretiva dos equipamentos de combate a incêndio conforme normas ABNT NBR.\n2. O CONTRATANTE disponibilizará acesso às instalações nas datas acordadas.\n3. O pagamento deverá ser efetuado conforme condições estabelecidas neste contrato.\n4. Este contrato poderá ser rescindido com aviso prévio de 30 dias.';
